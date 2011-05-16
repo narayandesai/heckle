@@ -1,4 +1,4 @@
-package simpleclient
+package main
 
 import (
     "os"
