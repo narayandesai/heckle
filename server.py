@@ -2,7 +2,7 @@
 and returns the titles of those feeds.
 """
 import eventlet
-import simplejson as json
+import json
 
 # the pool provides a safety limit on our concurrency
 pool = eventlet.GreenPool()
