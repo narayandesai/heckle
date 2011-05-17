@@ -33,12 +33,22 @@ func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
 	body, _ = ioutil.ReadAll(response.Body)
     response.Body.Close()
 
+	if response.StatusCode != 200 {
+		err = os.NewError("Fetch Failed")
+		return
+	}
+
 	return
 }
 
 func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	status = 255
 	data, err := server.Get(path)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "File fetch of %s failed\n", path)
+		return
+	}
 
 	runpath := os.TempDir() + path + fmt.Sprintf("%s", os.Getpid())
 
