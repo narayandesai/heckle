@@ -1,8 +1,10 @@
-clean:
-	rm -f *.6 gobot 6.out
+all: flunky
 
-gobot: simpleclient.6 simpleclientmain.6
-	6l -o gobot simpleclientmain.6
+clean:
+	rm -f *.6 6.out flunky
+
+flunky: flunky.6 simpleclientmain.6
+	6l -o $@ simpleclientmain.6
 
 %.6: %.go
 	6g $*.go
