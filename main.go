@@ -33,7 +33,7 @@ func main() {
         }       
 
     bs := flunky.NewBuildServer(server)
-    data, _ := bs.Get("foo")
+    data, _ := bs.Run("foo")
 
     fmt.Fprintf(os.Stderr, "response is :%s:\n", data)
     //bc := simpleclient.NewBuildClient(server)

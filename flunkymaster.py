@@ -8,9 +8,8 @@ import json
 pool = eventlet.GreenPool()
 
 def app(environ, start_response):
-    start_response('200 OK', [('Content-type', 'application/json')])
-    # serve out some json
-    return json.dumps({'StartOn': 'starton', 'Supplies': 'supplies', 'Requires': ['requires1', 'requires2'], 'Script': 'something'})
+    start_response('200 OK', [('Content-type', 'text/plain')])
+    return "#!/bin/sh\n\necho foo\necho bar\n"
 
 if __name__ == '__main__':
     from eventlet import wsgi
