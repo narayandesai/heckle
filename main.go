@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
     "flag"   
     "fmt"
     "os"
@@ -32,10 +33,11 @@ func main() {
         fmt.Fprintf(os.Stderr, "Server is %s\n", server)
         }       
 
-    bs := flunky.NewBuildServer(server)
-    data, _ := bs.Run("foo")
+    bs := flunky.NewBuildServer(server, verbose)
+    _, _ = bs.Run("foo")
 
-    fmt.Fprintf(os.Stderr, "response is :%s:\n", data)
+	buf := bytes.NewBufferString("infostring")
+	_ = bs.Info(buf)
     //bc := simpleclient.NewBuildClient(server)
     //    host := (*bc).GetHostname()
     //data := (*bc).Get("dags")

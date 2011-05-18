@@ -4,6 +4,7 @@ import (
 	"exec"
 	"fmt"
 	"http"
+	"io"
 	"io/ioutil"
 	"os"
 )
@@ -14,9 +15,9 @@ type BuildServer struct {
 	debug bool
 }
 
-func NewBuildServer(serverURL string) *BuildServer {
+func NewBuildServer(serverURL string, debug bool) *BuildServer {
 	var client http.Client
-	return &BuildServer{serverURL, client, true}
+	return &BuildServer{serverURL, client, debug}
 }
 
 func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
@@ -87,9 +88,17 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	status = wmsg.ExitStatus()
 
 	if server.debug {
-		fmt.Fprintf(os.Stderr, "status is %d\n", status)
+		fmt.Fprintf(os.Stderr, "Exit status:%d\n", status)
 	}
 
 	err = os.Remove(runpath)
 	return
-};
+}
+
+func (server *BuildServer) Info(data io.Reader) (err os.Error) {
+	response, err := server.client.Post(server.URL + "/info", "text/plain", data)
+	if server.debug {
+		fmt.Fprintf(os.Stderr, "POST response statuscode:%d\n", response.StatusCode)
+	}
+	return
+}
