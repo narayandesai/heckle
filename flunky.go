@@ -20,6 +20,12 @@ func NewBuildServer(serverURL string, debug bool) *BuildServer {
 	return &BuildServer{serverURL, client, debug}
 }
 
+func (server *BuildServer) DebugLog(message string) {
+	if server.debug {
+		fmt.Println(message)
+	}
+}
+
 func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
 
 	fullpath := server.URL + "/" + path
@@ -53,9 +59,7 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 	runpath := os.TempDir() + path + fmt.Sprintf("%s", os.Getpid())
 
-	if server.debug {
-		fmt.Fprintf(os.Stderr, "runpath is %s\n", runpath)
-	}
+	server.DebugLog(fmt.Sprintf("runpath is %s", runpath))
 
 	newbin, err := os.Create(runpath)
 	if err != nil {
@@ -75,9 +79,7 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 	newbin.Close()
 
-	if server.debug {
-		fmt.Fprintf(os.Stderr, "wrote executable to %s\n", runpath)
-	}
+	server.DebugLog(fmt.Sprintf("wrote executable to %s", runpath))
 
 	cmd, err := exec.Run(runpath, []string{runpath}, os.Environ(), "/", exec.PassThrough, exec.PassThrough, exec.PassThrough)
 	if err != nil {
@@ -87,9 +89,7 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	wmsg, err := cmd.Wait(0)
 	status = wmsg.ExitStatus()
 
-	if server.debug {
-		fmt.Fprintf(os.Stderr, "Exit status:%d\n", status)
-	}
+	server.DebugLog(fmt.Sprintf("Exit status:%d", status))
 
 	err = os.Remove(runpath)
 	return
@@ -97,16 +97,12 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 func (server *BuildServer) Info(data io.Reader) (err os.Error) {
 	response, err := server.client.Post(server.URL + "/info", "text/plain", data)
-	if server.debug {
-		fmt.Fprintf(os.Stderr, "POST response statuscode:%d\n", response.StatusCode)
-	}
+	server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
 	return
 }
 
 func (server *BuildServer) Error(data io.Reader) (err os.Error) {
 	response, err := server.client.Post(server.URL + "/error", "text/plain", data)
-	if server.debug {
-		fmt.Fprintf(os.Stderr, "POST response statuscode:%d\n", response.StatusCode)
-	}
+	server.DebugLog(fmt.Sprintf("POST response statuscode:%d\n", response.StatusCode))
 	return
 }

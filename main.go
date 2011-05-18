@@ -16,11 +16,19 @@ var Usage = func() {
 var server string
 var verbose bool
 var help bool
+var info string
+var error string
+var get string
+var exec string
 
 func init() {
-     flag.BoolVar(&help, "h", false, "print usage")
-     flag.BoolVar(&verbose, "v", false, "print debug information")
-     flag.StringVar(&server, "S", "http://localhost:8081", "server base URL")
+    flag.BoolVar(&help, "h", false, "print usage")
+    flag.BoolVar(&verbose, "v", false, "print debug information")
+    flag.StringVar(&server, "S", "http://localhost:8081", "server base URL")
+	flag.StringVar(&info, "i", "", "log info message")
+	flag.StringVar(&error, "e", "", "log error message")
+	flag.StringVar(&get, "g", "", "fetch and print endpoint")
+	flag.StringVar(&exec, "x", "", "fetch and run endpoint")
 }
 
 func main() {
@@ -29,17 +37,21 @@ func main() {
         Usage()
         os.Exit(0)
        }
-    if verbose {
-        fmt.Fprintf(os.Stderr, "Server is %s\n", server)
-        }       
 
     bs := flunky.NewBuildServer(server, verbose)
-    _, _ = bs.Run("foo")
 
-	buf := bytes.NewBufferString("infostring")
-	_ = bs.Info(buf)
-    //bc := simpleclient.NewBuildClient(server)
-    //    host := (*bc).GetHostname()
-    //data := (*bc).Get("dags")
-    //os.Stdout.WriteString(data + "\n")
+	bs.DebugLog(fmt.Sprintf("Server is %s", server))
+
+	if get != "" {
+		data, _ := bs.Get(get)
+		fmt.Fprintf(os.Stderr, "%s", string(data))
+	} else if exec != "" {
+		_, _ = bs.Run(exec)
+	} else if info != "" {
+		buf := bytes.NewBufferString(info)
+		_ = bs.Info(buf)
+	} else if error != "" {
+		buf := bytes.NewBufferString(error)
+		_ = bs.Error(buf)
+	}
 }
