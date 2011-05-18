@@ -23,9 +23,14 @@ class fm(object):
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
                 return ['Not Found\r\n']
         elif environ['REQUEST_METHOD'] == 'POST':
-            print environ
             data = environ['wsgi.input'].read()
-            print environ['REMOTE_ADDR'], data
+            if environ['PATH_INFO'] == '/info':
+                print environ['REMOTE_ADDR'], "INFO", data
+            elif environ['PATH_INFO'] == '/error':
+                print environ['REMOTE_ADDR'], "ERROR", data
+            else:
+                start_response('404 Not Found', [('Content-Type', 'text/plain')])
+                return ''
             start_response('200 OK', [('Content-type', 'application/octet-stream')])
             return ""
         start_response('404 Not Found', [('Content-Type', 'text/plain')])

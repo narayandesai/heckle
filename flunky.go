@@ -102,3 +102,11 @@ func (server *BuildServer) Info(data io.Reader) (err os.Error) {
 	}
 	return
 }
+
+func (server *BuildServer) Error(data io.Reader) (err os.Error) {
+	response, err := server.client.Post(server.URL + "/error", "text/plain", data)
+	if server.debug {
+		fmt.Fprintf(os.Stderr, "POST response statuscode:%d\n", response.StatusCode)
+	}
+	return
+}
