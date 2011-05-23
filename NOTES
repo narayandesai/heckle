@@ -1,0 +1,7 @@
+Development Notes
+ - add mode to read server from /proc/cmdline 
+ - check if argv[0] == bootlocal.sh (will allow flunky to run in tinycore easily)
+ - add templating support to the flunkymaster
+ - add ctl interface (post address, image, extradata)
+ - implement fctl
+   
