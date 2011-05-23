@@ -12,6 +12,15 @@ logging.basicConfig(level=logging.DEBUG)
 # the pool provides a safety limit on our concurrency
 pool = eventlet.GreenPool()
 
+class LookupError(Exception):
+    pass
+
+class RenderError(Exception):
+    pass
+
+class AttributeResolutionError(Exception):
+    pass
+
 def dthandler(obj):
     if isinstance(obj, datetime.datetime):
         return obj.isoformat()
@@ -25,6 +34,29 @@ class fm(object):
         logging.info("Starting")
         self.data['127.0.0.1'] = dict([('image', 'ubuntu-maverick-amd64'), ('allocated', datetime.datetime.now()), ('activity', datetime.datetime.now()), ('counts', dict()), ('errors', 0)])
 
+    def build_vars(self, address, path):
+        if address not in self.data:
+            raise AttributeResolutionError
+        return  dict([('address', client), ('path', path), ('pagecount', self.data[address]['counts'].get(path))]) \
+        + self.data[address]
+
+    def render_get_static(self, address, path):
+            try:
+                fname = self.static + '/' + path
+                os.stat(fname)
+                if path not in self.data[address]['counts']:
+                    self.data[address]['counts'][path] = 0
+                self.data[address]['counts'][path] += 1
+                return open(fname).read()
+            except:
+                raise RenderError
+
+    def render_get_dynamic(self, address, path):
+        try:
+            vars = self.build_vars(self.address, path)
+        except AttributeResolutionError:
+            raise RenderError
+
     def __call__(self, environ, start_response):
         address = environ['REMOTE_ADDR']
         path = environ['PATH_INFO'][1:]
@@ -33,13 +65,18 @@ class fm(object):
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(self.data, default=dthandler)
             try:
-                fname = self.static + '/' + path
-                os.stat(fname)
-                start_response('200 OK', [('Content-type', 'application/octet-stream')])
-                return open(fname).read()
-            except:
+                if path.startswith('static/'):
+                    data = self.render_get_static(address, path[path.find('/'):])
+                    start_response('200 OK', [('Content-type', 'application/binary')])
+                    return data
+            except LookupError:
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
                 return ['Not Found\r\n']
+            except RenderError:
+                start_response('500 Server Error', [('Content-Type', 'text/plain')])
+                return ''
+            except:
+                log.exception("Get failure")
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
             if path == 'info':
