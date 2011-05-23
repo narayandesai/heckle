@@ -69,6 +69,12 @@ class fm(object):
                     data = self.render_get_static(address, path[path.find('/'):])
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
+                elif path.startswith('dynamic'):
+                    data = self.render_get_dynamic(address, path[path.find('/'):])
+                    start_response('200 OK', [('Content-type', 'application/binary')])
+                    return data
+                else:
+                    raise LookupError
             except LookupError:
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
                 return ['Not Found\r\n']
