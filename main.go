@@ -43,15 +43,28 @@ func main() {
 	bs.DebugLog(fmt.Sprintf("Server is %s", server))
 
 	if get != "" {
-		data, _ := bs.Get(get)
+		data, err := bs.Get(get)
+		if err != nil {
+			os.Exit(255)
+		}
 		fmt.Fprintf(os.Stderr, "%s", string(data))
 	} else if exec != "" {
-		_, _ = bs.Run(exec)
+		status, err := bs.Run(exec)
+		if err != nil {
+			os.Exit(255)
+		}
+		os.Exit(status)
 	} else if info != "" {
 		buf := bytes.NewBufferString(info)
-		_ = bs.Info(buf)
+		err := bs.Info(buf)
+		if err != nil {
+			os.Exit(255)
+		}
 	} else if error != "" {
 		buf := bytes.NewBufferString(error)
-		_ = bs.Error(buf)
+		err := bs.Error(buf)
+		if err != nil {
+			os.Exit(255)
+		}
 	}
 }
