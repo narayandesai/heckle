@@ -97,6 +97,10 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 func (server *BuildServer) Post(path string, data io.Reader) (err os.Error) {
 	response, err := server.client.Post(server.URL + path, "text/plain", data)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Post failed: %s\n", err)
+		return
+	}
 	server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
 	return
 }

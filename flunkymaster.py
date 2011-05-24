@@ -34,21 +34,21 @@ class fm(object):
         self.dynamic = root +'/dynamic'
         self.data = dict()
         logging.info("Starting")
-        self.assert_setup('127.0.0.1', {'image':'ubuntu-maverick-amd64'})
+        self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
 
     def assert_setup(self, address, info):
-        newsetup = dict([('allocated', datetime.datetime.now()), ('counts', dict()), ('errors', 0), 
-                         ('activity', datetime.datetime.now())])
-        newsetup['image'] = info['image']
-        if 'extradata' in info:
-            newsetup['extradata'] = info['extradata']
+        newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
+                         ('Activity', datetime.datetime.now())])
+        newsetup['Image'] = info['Image']
+        if 'Extra' in info and info['Extra'] != None:
+            newsetup['Extra'] = info['Extra']
         self.data[address] = newsetup
 
     def build_vars(self, address, path):
         if address not in self.data:
             raise AttributeResolutionError
-        data = dict([('address', address), ('path', path), 
-                     ('count', self.data[address]['counts'].get(path, 0))]) 
+        data = dict([('Address', address), ('Path', path), 
+                     ('Count', self.data[address]['Counts'].get(path, 0))]) 
         data.update(self.data[address])
         return data
 
@@ -56,9 +56,9 @@ class fm(object):
         try:
             fname = self.static + '/' + path
             os.stat(fname)
-            if path not in self.data[address]['counts']:
-                self.data[address]['counts'][path] = 0
-            self.data[address]['counts'][path] += 1
+            if path not in self.data[address]['Counts']:
+                self.data[address]['Counts'][path] = 0
+            self.data[address]['Counts'][path] += 1
             return open(fname).read()
         except:
             raise RenderError
@@ -79,9 +79,9 @@ class fm(object):
             tmpl = TextTemplate(infile.read())
 
         # increment access count
-        if path not in self.data[address]['counts']:
-            self.data[address]['counts'][path] = 0
-        self.data[address]['counts'][path] += 1
+        if path not in self.data[address]['Counts']:
+            self.data[address]['Counts'][path] = 0
+        self.data[address]['Counts'][path] += 1
         # sick genshi on that template and return it
         try:
             return tmpl.generate(**bvars).render('text')
@@ -119,11 +119,15 @@ class fm(object):
             data = environ['wsgi.input'].read()
             if path == 'info':
                 logging.info(address + " INFO: " +  data)
-                self.data[address]['activity'] = datetime.datetime.now()
+                self.data[address]['Activity'] = datetime.datetime.now()
             elif path == 'error':
                 logging.error(address + " ERROR: " + data)
-                self.data[address]['activity'] = datetime.datetime.now()
-                self.data[address]['errors'] += 1
+                self.data[address]['Activity'] = datetime.datetime.now()
+                self.data[address]['Errors'] += 1
+            elif path == 'ctl':
+                msg = json.loads(data)
+                logging.info("Allocating %s as %s" % (msg['Address'], msg['Image']))
+                self.assert_setup(msg['Address'], msg)
             else:
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
                 return ''
