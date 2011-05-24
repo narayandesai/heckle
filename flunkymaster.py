@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 # the pool provides a safety limit on our concurrency
 pool = eventlet.GreenPool()
 
-class LookupError(Exception):
+class PageLookupError(Exception):
     pass
 
 class RenderError(Exception):
@@ -34,32 +34,41 @@ class fm(object):
         self.dynamic = root +'/dynamic'
         self.data = dict()
         logging.info("Starting")
-        self.data['127.0.0.1'] = dict([('image', 'ubuntu-maverick-amd64'), ('allocated', datetime.datetime.now()), ('activity', datetime.datetime.now()), ('counts', dict()), ('errors', 0)])
+        self.assert_setup('127.0.0.1', {'image':'ubuntu-maverick-amd64'})
+
+    def assert_setup(self, address, info):
+        newsetup = dict([('allocated', datetime.datetime.now()), ('counts', dict()), ('errors', 0), 
+                         ('activity', datetime.datetime.now())])
+        newsetup['image'] = info['image']
+        if 'extradata' in info:
+            newsetup['extradata'] = info['extradata']
+        self.data[address] = newsetup
 
     def build_vars(self, address, path):
         if address not in self.data:
             raise AttributeResolutionError
-        data = dict([('address', address), ('path', path), ('count', self.data[address]['counts'].get(path, 0))]) 
+        data = dict([('address', address), ('path', path), 
+                     ('count', self.data[address]['counts'].get(path, 0))]) 
         data.update(self.data[address])
         return data
 
     def render_get_static(self, address, path):
-            try:
-                fname = self.static + '/' + path
-                os.stat(fname)
-                if path not in self.data[address]['counts']:
-                    self.data[address]['counts'][path] = 0
-                self.data[address]['counts'][path] += 1
-                return open(fname).read()
-            except:
-                raise RenderError
+        try:
+            fname = self.static + '/' + path
+            os.stat(fname)
+            if path not in self.data[address]['counts']:
+                self.data[address]['counts'][path] = 0
+            self.data[address]['counts'][path] += 1
+            return open(fname).read()
+        except:
+            raise RenderError
 
     def render_get_dynamic(self, address, path):
         fname = self.dynamic + '/' + path
         try:
             os.stat(fname)
         except:
-            raise LookupError
+            raise PageLookupError
         try:
             bvars = self.build_vars(address, path)
         except AttributeResolutionError:
@@ -97,8 +106,8 @@ class fm(object):
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
                 else:
-                    raise LookupError
-            except LookupError:
+                    raise PageLookupError
+            except PageLookupError:
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
                 return ['Not Found\r\n']
             except RenderError:
