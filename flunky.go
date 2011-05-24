@@ -95,14 +95,8 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	return
 }
 
-func (server *BuildServer) Info(data io.Reader) (err os.Error) {
-	response, err := server.client.Post(server.URL + "/info", "text/plain", data)
+func (server *BuildServer) Post(path string, data io.Reader) (err os.Error) {
+	response, err := server.client.Post(server.URL + path, "text/plain", data)
 	server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
-	return
-}
-
-func (server *BuildServer) Error(data io.Reader) (err os.Error) {
-	response, err := server.client.Post(server.URL + "/error", "text/plain", data)
-	server.DebugLog(fmt.Sprintf("POST response statuscode:%d\n", response.StatusCode))
 	return
 }

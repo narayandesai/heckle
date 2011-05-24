@@ -56,13 +56,13 @@ func main() {
 		os.Exit(status)
 	} else if info != "" {
 		buf := bytes.NewBufferString(info)
-		err := bs.Info(buf)
+		err := bs.Post("/info", buf)
 		if err != nil {
 			os.Exit(255)
 		}
 	} else if error != "" {
 		buf := bytes.NewBufferString(error)
-		err := bs.Error(buf)
+		err := bs.Post("/error", buf)
 		if err != nil {
 			os.Exit(255)
 		}
