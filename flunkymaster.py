@@ -6,6 +6,7 @@ import eventlet
 import json
 import os
 import logging
+from genshi.template import TextTemplate
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -30,6 +31,7 @@ class fm(object):
     def __init__(self, root):
         self.root = root
         self.static = root +'/static'
+        self.dynamic = root +'/dynamic'
         self.data = dict()
         logging.info("Starting")
         self.data['127.0.0.1'] = dict([('image', 'ubuntu-maverick-amd64'), ('allocated', datetime.datetime.now()), ('activity', datetime.datetime.now()), ('counts', dict()), ('errors', 0)])
@@ -37,8 +39,9 @@ class fm(object):
     def build_vars(self, address, path):
         if address not in self.data:
             raise AttributeResolutionError
-        return  dict([('address', client), ('path', path), ('pagecount', self.data[address]['counts'].get(path))]) \
-        + self.data[address]
+        data = dict([('address', address), ('path', path), ('count', self.data[address]['counts'].get(path, 0))]) 
+        data.update(self.data[address])
+        return data
 
     def render_get_static(self, address, path):
             try:
@@ -52,9 +55,29 @@ class fm(object):
                 raise RenderError
 
     def render_get_dynamic(self, address, path):
+        fname = self.dynamic + '/' + path
         try:
-            vars = self.build_vars(self.address, path)
+            os.stat(fname)
+        except:
+            raise LookupError
+        try:
+            bvars = self.build_vars(address, path)
         except AttributeResolutionError:
+            raise RenderError
+
+        # grab the requested template
+        with open(fname) as infile:
+            tmpl = TextTemplate(infile.read())
+
+        # increment access count
+        if path not in self.data[address]['counts']:
+            self.data[address]['counts'][path] = 0
+        self.data[address]['counts'][path] += 1
+        # sick genshi on that template and return it
+        try:
+            return tmpl.generate(**bvars).render('text')
+        except:
+            logging.exception("Genshi template error")
             raise RenderError
 
     def __call__(self, environ, start_response):
@@ -82,14 +105,14 @@ class fm(object):
                 start_response('500 Server Error', [('Content-Type', 'text/plain')])
                 return ''
             except:
-                log.exception("Get failure")
+                logging.exception("Get failure")
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
             if path == 'info':
-                logger.info(address + "INFO" +  data)
+                logging.info(address + " INFO: " +  data)
                 self.data[address]['activity'] = datetime.datetime.now()
             elif path == 'error':
-                logger.error(address + data)
+                logging.error(address + " ERROR: " + data)
                 self.data[address]['activity'] = datetime.datetime.now()
                 self.data[address]['errors'] += 1
             else:
