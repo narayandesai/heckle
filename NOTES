@@ -4,4 +4,5 @@ Development Notes
  - add ctl interface (post address, image, extradata)
  - implement fctl
  - add self-reference support in templating
+ - save flunkymaster.fm.data
    

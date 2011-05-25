@@ -3,10 +3,11 @@ and returns the titles of those feeds.
 """
 import datetime
 import eventlet
+import eventlet.semaphore
 import json
 import os
 import logging
-from genshi.template import TextTemplate
+from genshi.template import NewTextTemplate
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -33,6 +34,7 @@ class fm(object):
         self.static = root +'/static'
         self.dynamic = root +'/dynamic'
         self.data = dict()
+        self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
 
@@ -42,7 +44,8 @@ class fm(object):
         newsetup['Image'] = info['Image']
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
-        self.data[address] = newsetup
+        with self.data_sem:
+            self.data[address] = newsetup
 
     def build_vars(self, address, path):
         if address not in self.data:
@@ -52,13 +55,18 @@ class fm(object):
         data.update(self.data[address])
         return data
 
+    def increment_count(self, address, path):
+        with self.data_sem:
+            try:
+                self.data[address]['Counts'][path] += 1
+            except:
+                self.data[address]['Counts'][path] = 1
+
     def render_get_static(self, address, path):
         try:
             fname = self.static + '/' + path
             os.stat(fname)
-            if path not in self.data[address]['Counts']:
-                self.data[address]['Counts'][path] = 0
-            self.data[address]['Counts'][path] += 1
+            self.increment_count(address, path)
             return open(fname).read()
         except:
             raise RenderError
@@ -76,12 +84,10 @@ class fm(object):
 
         # grab the requested template
         with open(fname) as infile:
-            tmpl = TextTemplate(infile.read())
+            tmpl = NewTextTemplate(infile.read())
 
         # increment access count
-        if path not in self.data[address]['Counts']:
-            self.data[address]['Counts'][path] = 0
-        self.data[address]['Counts'][path] += 1
+        self.increment_count(address, path)
         # sick genshi on that template and return it
         try:
             return tmpl.generate(**bvars).render('text')
@@ -93,7 +99,7 @@ class fm(object):
         address = environ['REMOTE_ADDR']
         path = environ['PATH_INFO'][1:]
         if environ['REQUEST_METHOD'] == 'GET':
-            if path == 'status':
+            if path == 'dump':
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(self.data, default=dthandler)
             try:
@@ -119,15 +125,23 @@ class fm(object):
             data = environ['wsgi.input'].read()
             if path == 'info':
                 logging.info(address + " INFO: " +  data)
-                self.data[address]['Activity'] = datetime.datetime.now()
+                with self.data_sem:
+                    self.data[address]['Activity'] = datetime.datetime.now()
             elif path == 'error':
                 logging.error(address + " ERROR: " + data)
-                self.data[address]['Activity'] = datetime.datetime.now()
-                self.data[address]['Errors'] += 1
+                with self.data_sem:
+                    self.data[address]['Activity'] = datetime.datetime.now()
+                    self.data[address]['Errors'] += 1
             elif path == 'ctl':
                 msg = json.loads(data)
                 logging.info("Allocating %s as %s" % (msg['Address'], msg['Image']))
                 self.assert_setup(msg['Address'], msg)
+            elif path == 'status':
+                msg = json.loads(data)
+                data = self.render_get_dynamic(msg['Address'], '../status')
+                print ":", data, ":"
+                start_response('200 OK', [('Content-type', 'application/octet-stream')])
+                return data
             else:
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
                 return ''

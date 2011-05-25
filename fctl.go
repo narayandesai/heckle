@@ -38,6 +38,11 @@ type ctlmsg struct {
 	Extra map[string]string
 }
 
+type status struct {
+	Address string
+	Status string
+}
+
 func main() {
     flag.Parse()
     if help {
@@ -65,7 +70,17 @@ func main() {
 	for a := range addresses {
 		cm.Address = addresses[a]
 		js, _ := json.Marshal(cm)		
-		buf := bytes.NewBufferString(fmt.Sprintf("%s", js))
-		_ = bs.Post("/ctl", buf)
+		buf := bytes.NewBufferString(string(js))
+		_,_ = bs.Post("/ctl", buf)
 	}
+
+	for a := range addresses {
+		cm := new(ctlmsg)
+		cm.Address = addresses[a]
+		js, _ := json.Marshal(cm)
+		buf := bytes.NewBufferString(string(js))
+		ret, _ := bs.Post("/status", buf)
+		
+	fmt.Fprintf(os.Stderr, "%s\n", ret)
+
 }
