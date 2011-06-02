@@ -80,7 +80,9 @@ func main() {
 		js, _ := json.Marshal(cm)
 		buf := bytes.NewBufferString(string(js))
 		ret, _ := bs.Post("/status", buf)
+		fmt.Fprintf(os.Stderr, "%s\n", ret)
+	}
 		
-	fmt.Fprintf(os.Stderr, "%s\n", ret)
+
 
 }
