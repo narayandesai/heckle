@@ -47,7 +47,7 @@ func main() {
 		if err != nil {
 			os.Exit(255)
 		}
-		fmt.Fprintf(os.Stderr, "%s", string(data))
+		fmt.Fprintf(os.Stdout, "%s", string(data))
 	} else if exec != "" {
 		status, err := bs.Run(exec)
 		if err != nil {
