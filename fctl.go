@@ -6,12 +6,14 @@ import (
     "fmt"
 	"json"
     "os"
+	"time"
     "./flunky"
 )
 
 var Usage = func() {
-    fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-    flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	flag.PrintDefaults()
+	os.Exit(0)
 }
 
 var server string
@@ -19,17 +21,17 @@ var verbose bool
 var help bool
 var image string
 var wait bool
-var timeout int
+var minutesTimeout int64
 var extra string
 
 func init() {
     flag.BoolVar(&help, "h", false, "print usage")
     flag.BoolVar(&verbose, "v", false, "print debug information")
-    flag.StringVar(&server, "S", "http://localhost:8081", "server base URL")
+    flag.StringVar(&server, "S", "http://localhost:8080", "server base URL")
 	flag.StringVar(&image, "i", "", "image")
 	flag.BoolVar(&wait, "w", false, "Wait for build completion")
 	flag.StringVar(&extra, "e", "", "Extradata for allocation")
-	flag.IntVar(&timeout, "t", -1, "Allocation timeout")
+	flag.Int64Var(&minutesTimeout, "t", 45, "Allocation timeout in minutes")
 }
 
 type ctlmsg struct {
@@ -43,14 +45,24 @@ type status struct {
 	Status string
 }
 
+type readyBailNode struct {
+	ready, Bail bool
+}
+
 func main() {
     flag.Parse()
-    if help {
+    if help || minutesTimeout < 1 {
         Usage()
-        os.Exit(0)
+	os.Exit(0)
        }
 
-    bs := flunky.NewBuildServer(server, verbose)
+	secondsTimeout := minutesTimeout * 60
+	cancelTime := time.Seconds() + secondsTimeout
+	bailOut, ready := false, false
+	addresses := flag.Args()
+	readyBail := make([len(addresses)]readyBailNode)
+
+	bs := flunky.NewBuildServer(server, verbose)
 
 	bs.DebugLog(fmt.Sprintf("Server is %s", server))
 	
@@ -66,23 +78,23 @@ func main() {
 	cm.Image = image
 	// FIXME: need to add in extradata
 
-	addresses := flag.Args()
-	for a := range addresses {
-		cm.Address = addresses[a]
+	for _, value := range addresses {
+		cm.Address = value
 		js, _ := json.Marshal(cm)		
 		buf := bytes.NewBufferString(string(js))
 		_,_ = bs.Post("/ctl", buf)
 	}
 
-	for a := range addresses {
-		cm := new(ctlmsg)
-		cm.Address = addresses[a]
-		js, _ := json.Marshal(cm)
-		buf := bytes.NewBufferString(string(js))
-		ret, _ := bs.Post("/status", buf)
-		fmt.Fprintf(os.Stderr, "%s\n", ret)
+	for time.Seconds() < cancelTime && !bailOut && !ready {
+		for pos, value := range addresses {
+			cm := new(ctlmsg)
+			cm.Address = value
+			js, _ := json.Marshal(cm)
+			buf := bytes.NewBufferString(string(js))
+			ret, _ := bs.Post("/status", buf)
+	
+			fmt.Fprintf(os.Stderr, "%s\n", ret)
+		}
+		time.Sleep(10000000000)
 	}
-		
-
-
 }

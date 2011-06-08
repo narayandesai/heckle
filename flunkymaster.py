@@ -103,7 +103,7 @@ class fm(object):
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(self.data, default=dthandler)
             try:
-                if path.startswith('static/'):
+                if path.startswith('static'):
                     data = self.render_get_static(address, path[path.find('/'):])
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
@@ -153,5 +153,5 @@ class fm(object):
 
 if __name__ == '__main__':
     from eventlet import wsgi
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root='/Users/desai/tmp/flunky'))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root='/home/gauge/narayanstuff/flunky'))
 
