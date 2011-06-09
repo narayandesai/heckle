@@ -69,33 +69,53 @@ func determineDone(readyBail []readyBailNode) bool {
 	return done
 }
 
+func pollForStatusMessage(pos int, node string, readyBail []readyBailNode, bs *flunky.BuildServer) {
+	cm := new(ctlmsg)
+	cm.Address = node
+	js, _ := json.Marshal(cm)
+	buf := bytes.NewBufferString(string(js))
+	ret, _ := bs.Post("/status", buf)
+
+	readyBail[pos].Ready, readyBail[pos].Bail = interpretPoll(string(ret))
+	printStatusMessage(node, &readyBail[pos])
+}
+
+func pollForInfoMessages(bs *flunky.BuildServer) {
+	ret,_ := bs.Get("info")
+	if string(ret) != "" {
+		fmt.Fprintf(os.Stdout, "NODE: %s", ret)
+	}
+}
+
+func pollForErrorMessages(bs *flunky.BuildServer) {
+	ret,_ := bs.Get("error")
+	if string(ret) != "" {
+		fmt.Fprintf(os.Stdout, "NODE: %s", ret)
+	}
+}
+
 func pollForMessages(cancelTime int64, addresses []string, readyBail []readyBailNode, bs *flunky.BuildServer) {
 	done := false
 	for time.Seconds() < cancelTime && !done {
 		time.Sleep(10000000000)
 		for pos, value := range addresses {
-			cm := new(ctlmsg)
-			cm.Address = value
-			js, _ := json.Marshal(cm)
-			buf := bytes.NewBufferString(string(js))
-			ret, _ := bs.Post("/status", buf)
-
-			readyBail[pos].Ready, readyBail[pos].Bail = interpretPoll(string(ret))
-			printPollMessage(value, &readyBail[pos])
+			pollForStatusMessage(pos, value, readyBail, bs)
 		}
+		pollForInfoMessages(bs)
+		pollForErrorMessages(bs)
 		done = determineDone(readyBail)
 	}
 }
 
-func printPollMessage(node string, readyBail *readyBailNode) {
+func printStatusMessage(node string, readyBail *readyBailNode) {
 	if readyBail.Ready && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "%s is done building and ready for use.\n", node)
+		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Ready.\n", node)
 		readyBail.Printed = true
 	} else if readyBail.Bail && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "%s encountered an error during building and cannot be used.\n", node)
+		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Failed.\n", node)
 		readyBail.Printed = true
 	} else {
-		fmt.Fprintf(os.Stdout, "%s is still building.\n", node)
+		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Building.\n", node)
 	}
 }
 
@@ -132,18 +152,6 @@ func main() {
 		js, _ := json.Marshal(cm)		
 		buf := bytes.NewBufferString(string(js))
 		_,_ = bs.Post("/ctl", buf)
-	}
-
-	for _, value := range addresses {
-		cm.Address = value	
-		ret,_ := bs.Get("info")
-		fmt.Fprintf(os.Stdout, "%s", ret)
-	}
-
-	for _, value := range addresses {
-		cm.Address = value	
-		ret,_ := bs.Get("error")
-		fmt.Fprintf(os.Stdout, "%s", ret)
 	}
 
 	pollForMessages(cancelTime, addresses, readyBail, bs)
