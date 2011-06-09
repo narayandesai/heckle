@@ -9,26 +9,50 @@ import os
 import logging
 from genshi.template import NewTextTemplate
 
+#Create a new logging object for debugging statuments.
 logging.basicConfig(level=logging.DEBUG)
 
 # the pool provides a safety limit on our concurrency
+#Eventlet is a free threading implementation for network information
 pool = eventlet.GreenPool()
 
+#Cannot find webpage
 class PageLookupError(Exception):
     pass
 
+#Cannot render the template for the image
 class RenderError(Exception):
     pass
 
+#Cannot set the values of the information for the build image
 class AttributeResolutionError(Exception):
     pass
 
+#Creates a dthandler object for datetime.datetime object
 def dthandler(obj):
     if isinstance(obj, datetime.datetime):
         return obj.isoformat()
     return obj
 
+
+#Creates the flunky master object. This object allows for the full
+#management of the entire system. This server can wait indefinately
+#for information to be sent to the sever. this server will do a look
+#based on the node name and write it to a file. Thus effectively 
+#taking all of the information from the flunkys and compiling it
+#into a persistent list that is sent to the fctl. 
 class fm(object):
+
+#Creates an object known as root(currently a file on the local host)
+    #This file structure should be the path to the server on the network.
+    #Once this is created the root node has other variables appened to it
+    #that allow it to be called. The static and dynamic names afford for 
+    #static or dynamic allocation. The class also sets up a data dictionary
+    #as wll as a eventlet.semaphore for concurrent networking operations. In 
+    #essence it works the same as the threading paradigm for single non con-
+    #current programming
+    #A simple semaphore is called to wait for a thread. Information on the 
+    #structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html. 
     def __init__(self, root):
         self.root = root
         self.static = root +'/static'
@@ -40,6 +64,12 @@ class fm(object):
         self.infoMessages = dict()
         self.errorMessages = dict()
 
+
+    #Sets up a variable that will hold the information for one build. Contained in the build
+    #are various status variables that tell the program when somethng was allocated and the time
+    #since the last activity. Maintains a count of errors and the number of times the function was
+    #run. Contains in the class the addresses(hostnames) of all clients on the network for a request
+    #DURING a BUILD.
     def assert_setup(self, address, info):
         newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
                          ('Activity', datetime.datetime.now())])
@@ -49,6 +79,10 @@ class fm(object):
         with self.data_sem:
             self.data[address] = newsetup
 
+    #Creates a list of build variables for the script that will be rendered later on 
+    #in the process. This will update the data dictionary with the new path to the 
+    #address of the build script. Returns a data dictionary that contains the address
+    #of the build environment, the path to it and updates the data in self.
     def build_vars(self, address, path):
         if address not in self.data:
             raise AttributeResolutionError
@@ -57,6 +91,8 @@ class fm(object):
         data.update(self.data[address])
         return data
 
+    #Increments the count. A count is defined as when something occurs in the script. 
+    #if an error occurs, set it to one. 
     def increment_count(self, address, path):
         with self.data_sem:
             try:
@@ -64,6 +100,9 @@ class fm(object):
             except:
                 self.data[address]['Counts'][path] = 1
 
+    #Find the data directory and load a static
+    #build templeate if it exsists. There is no
+    #dynamic template building here.
     def render_get_static(self, address, path):
         try:
             fname = self.static + '/' + path
@@ -73,6 +112,11 @@ class fm(object):
         except:
             raise RenderError
 
+    #Tries to open a file to the dynamic file address on the server. 
+    #checks to see if the file exsists and if not will raise and exeption. 
+    #The script then creates a new class variable called build_vars
+    #passing in the address and path of the script. This will then create 
+    #a new template file increase the count and then return a template.
     def render_get_dynamic(self, address, path):
         fname = self.dynamic + '/' + path
         print fname
@@ -98,9 +142,16 @@ class fm(object):
             logging.exception("Genshi template error")
             raise RenderError
 
-    def __call__(self, environ, start_response):
+    #used when the function is used. Will call for a start responce and then get
+    #the messgae from the calling client. It will then process this message and 
+    #then take that message and make decisions based on it. So far all that has been 
+    #studied is the POST and /ctl    
+   def __call__(self, environ, start_response):
         address = environ['REMOTE_ADDR']
         path = environ['PATH_INFO'][1:]
+
+        #Drops into a request method conditional. So far have only seen values for
+        #POST.
         if environ['REQUEST_METHOD'] == 'GET':
             if path == 'dump':
                 start_response('200 OK', [('Content-type', 'application/json')])
