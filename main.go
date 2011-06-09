@@ -2,10 +2,11 @@ package main
 
 import (
 	"bytes"
-    "flag"   
-    "fmt"
-    "os"
-    "./flunky"
+	"flag"   
+	"fmt"
+	"os"
+	"json"
+	"./flunky"
 )
 
 var Usage = func() {
@@ -20,11 +21,18 @@ var info string
 var error string
 var get string
 var exec string
+var address string
+
+type infoErrorMsg struct {
+	Address string
+	Message string
+}
 
 func init() {
-    flag.BoolVar(&help, "h", false, "print usage")
-    flag.BoolVar(&verbose, "v", false, "print debug information")
-    flag.StringVar(&server, "S", "http://localhost:8081", "server base URL")
+	flag.BoolVar(&help, "h", false, "print usage")
+	flag.BoolVar(&verbose, "v", false, "print debug information")
+	flag.StringVar(&address, "a", "default", "Sets the nodes machine name.")
+	flag.StringVar(&server, "S", "http://localhost:8080", "server base URL")
 	flag.StringVar(&info, "i", "", "log info message")
 	flag.StringVar(&error, "e", "", "log error message")
 	flag.StringVar(&get, "g", "", "fetch and print endpoint")
@@ -55,13 +63,22 @@ func main() {
 		}
 		os.Exit(status)
 	} else if info != "" {
-		buf := bytes.NewBufferString(info)
+		im := new(infoErrorMsg)
+		im.Address = address
+		im.Message = info
+		js, _ := json.Marshal(im)
+		buf := bytes.NewBufferString(string(js))
 		_, err := bs.Post("/info", buf)
+
 		if err != nil {
 			os.Exit(255)
 		}
 	} else if error != "" {
-		buf := bytes.NewBufferString(error)
+		em := new(infoErrorMsg)
+		em.Address = address
+		em.Message = error
+		js, _ := json.Marshal(em)
+		buf := bytes.NewBufferString(string(js))
 		_, err := bs.Post("/error", buf)
 		if err != nil {
 			os.Exit(255)

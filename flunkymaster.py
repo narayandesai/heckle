@@ -37,6 +37,8 @@ class fm(object):
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
+        self.infoMessages = dict()
+        self.errorMessages = dict()
 
     def assert_setup(self, address, info):
         newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
@@ -73,6 +75,7 @@ class fm(object):
 
     def render_get_dynamic(self, address, path):
         fname = self.dynamic + '/' + path
+        print fname
         try:
             os.stat(fname)
         except:
@@ -107,10 +110,34 @@ class fm(object):
                     data = self.render_get_static(address, path[path.find('/'):])
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
+
+
                 elif path.startswith('dynamic'):
                     data = self.render_get_dynamic(address, path[path.find('/'):])
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
+
+
+                elif path.startswith('info'):
+                    data = ""
+                    for key in self.infoMessages:
+                        data = data + self.infoMessages[key]
+                    with self.data_sem:
+                        self.infoMessages.clear()
+                    start_response('200 OK', [('Content-type', 'text/plain')])
+                    return data
+
+
+                elif path.startswith('error'):
+                    data = ""
+                    for key in self.errorMessages:
+                        data = data + self.errorMessages[key]
+                    with self.data_sem:
+                        self.errorMessages.clear()
+                    start_response('200 OK', [('Content-type', 'text/plain')])
+                    return data
+
+
                 else:
                     raise PageLookupError
             except PageLookupError:
@@ -123,27 +150,48 @@ class fm(object):
                 logging.exception("Get failure")
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
+
+
             if path == 'info':
-                logging.info(address + " INFO: " +  data)
+                msg = json.loads(data)
+                logging.info(msg['Address'] + " : " + msg['Message'])
                 with self.data_sem:
                     self.data[address]['Activity'] = datetime.datetime.now()
+                    if 'Address' in self.infoMessages:
+                        self.infoMessages['Address'] = self.infoMessages['Address'] + msg['Address'] + " INFO: " +  msg['Message'] + "\n"
+                    else:
+                        self.infoMessages['Address'] = msg['Address'] + " INFO: " +  msg['Message'] + "\n"
+
+
             elif path == 'error':
-                logging.error(address + " ERROR: " + data)
+                msg = json.loads(data)
+                logging.error(msg['Address'] + " : " + msg['Message'])
                 with self.data_sem:
                     self.data[address]['Activity'] = datetime.datetime.now()
                     self.data[address]['Errors'] += 1
+                    if 'Address' in self.errorMessages:
+                        self.errorMessages['Address'] = self.errorMessages['Address'] + msg['Address'] + " ERROR: " +  msg['Message'] + "\n"
+                    else:
+                        self.errorMessages['Address'] = msg['Address'] + " ERROR: " +  msg['Message'] + "\n"
+
+
             elif path == 'ctl':
                 msg = json.loads(data)
                 logging.info("Allocating %s as %s" % (msg['Address'], msg['Image']))
                 self.assert_setup(msg['Address'], msg)
+
+
             elif path == 'status':
                 msg = json.loads(data)
                 data = self.render_get_dynamic(msg['Address'], '../status')
-                print ":", data, ":"
                 start_response('200 OK', [('Content-type', 'application/octet-stream')])
                 return data
+
+
             else:
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
+
+
                 return ''
             start_response('200 OK', [('Content-type', 'application/octet-stream')])
             return ""
@@ -153,5 +201,5 @@ class fm(object):
 
 if __name__ == '__main__':
     from eventlet import wsgi
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root='/home/gauge/narayanstuff/flunky'))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root='/home/gauge/flunky'))
 

@@ -26,9 +26,9 @@ var minutesTimeout int64
 var extra string
 
 func init() {
-    flag.BoolVar(&help, "h", false, "print usage")
-    flag.BoolVar(&verbose, "v", false, "print debug information")
-    flag.StringVar(&server, "S", "http://localhost:8080", "server base URL")
+	flag.BoolVar(&help, "h", false, "print usage")
+	flag.BoolVar(&verbose, "v", false, "print debug information")
+	flag.StringVar(&server, "S", "http://localhost:8080", "server base URL")
 	flag.StringVar(&image, "i", "", "image")
 	flag.BoolVar(&wait, "w", false, "Wait for build completion")
 	flag.StringVar(&extra, "e", "", "Extradata for allocation")
@@ -132,6 +132,18 @@ func main() {
 		js, _ := json.Marshal(cm)		
 		buf := bytes.NewBufferString(string(js))
 		_,_ = bs.Post("/ctl", buf)
+	}
+
+	for _, value := range addresses {
+		cm.Address = value	
+		ret,_ := bs.Get("info")
+		fmt.Fprintf(os.Stdout, "%s", ret)
+	}
+
+	for _, value := range addresses {
+		cm.Address = value	
+		ret,_ := bs.Get("error")
+		fmt.Fprintf(os.Stdout, "%s", ret)
 	}
 
 	pollForMessages(cancelTime, addresses, readyBail, bs)
