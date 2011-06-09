@@ -7,6 +7,7 @@ import (
 	"json"
     "os"
 	"time"
+	"strings"
     "./flunky"
 )
 
@@ -46,7 +47,56 @@ type status struct {
 }
 
 type readyBailNode struct {
-	ready, Bail bool
+	Ready, Bail, Printed bool
+}
+
+func interpretPoll(ret string) (ready bool, bail bool) {
+	retSplit := strings.Split(ret, "'", -1)
+
+	if retSplit[7] == "ready" {
+		ready = true
+	} else if retSplit[7] == "cancel" {
+		bail = true
+	}
+	return ready, bail
+}
+
+func determineDone(readyBail []readyBailNode) bool {
+	done := true
+	for i := 0 ; i < len(readyBail) ; i++ {
+		done = done && (readyBail[i].Ready || readyBail[i].Bail)
+	}
+	return done
+}
+
+func pollForMessages(cancelTime int64, addresses []string, readyBail []readyBailNode, bs *flunky.BuildServer) {
+	done := false
+	for time.Seconds() < cancelTime && !done {
+		time.Sleep(10000000000)
+		for pos, value := range addresses {
+			cm := new(ctlmsg)
+			cm.Address = value
+			js, _ := json.Marshal(cm)
+			buf := bytes.NewBufferString(string(js))
+			ret, _ := bs.Post("/status", buf)
+
+			readyBail[pos].Ready, readyBail[pos].Bail = interpretPoll(string(ret))
+			printPollMessage(value, &readyBail[pos])
+		}
+		done = determineDone(readyBail)
+	}
+}
+
+func printPollMessage(node string, readyBail *readyBailNode) {
+	if readyBail.Ready && !readyBail.Printed {
+		fmt.Fprintf(os.Stdout, "%s is done building and ready for use.\n", node)
+		readyBail.Printed = true
+	} else if readyBail.Bail && !readyBail.Printed {
+		fmt.Fprintf(os.Stdout, "%s encountered an error during building and cannot be used.\n", node)
+		readyBail.Printed = true
+	} else {
+		fmt.Fprintf(os.Stdout, "%s is still building.\n", node)
+	}
 }
 
 func main() {
@@ -58,9 +108,8 @@ func main() {
 
 	secondsTimeout := minutesTimeout * 60
 	cancelTime := time.Seconds() + secondsTimeout
-	bailOut, ready := false, false
 	addresses := flag.Args()
-	readyBail := make([len(addresses)]readyBailNode)
+	readyBail := make([]readyBailNode, len(addresses))
 
 	bs := flunky.NewBuildServer(server, verbose)
 
@@ -85,16 +134,6 @@ func main() {
 		_,_ = bs.Post("/ctl", buf)
 	}
 
-	for time.Seconds() < cancelTime && !bailOut && !ready {
-		for pos, value := range addresses {
-			cm := new(ctlmsg)
-			cm.Address = value
-			js, _ := json.Marshal(cm)
-			buf := bytes.NewBufferString(string(js))
-			ret, _ := bs.Post("/status", buf)
-	
-			fmt.Fprintf(os.Stderr, "%s\n", ret)
-		}
-		time.Sleep(10000000000)
-	}
+	pollForMessages(cancelTime, addresses, readyBail, bs)
+	fmt.Fprintf(os.Stdout, "Done allocating your nodes. Report failed builds to your system administrator.\n")
 }
