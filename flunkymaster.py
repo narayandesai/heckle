@@ -9,6 +9,7 @@ import os
 import logging
 import sys
 import socket
+import time
 from genshi.template import NewTextTemplate
 
 #Create a new logging object for debugging statuments.
@@ -64,8 +65,6 @@ class fm(object):
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
-        self.infoMessages = dict()
-        self.errorMessages = dict()
 
 
     #Sets up a variable that will hold the information for one build. Contained in the build
@@ -75,7 +74,7 @@ class fm(object):
     #DURING a BUILD.
     def assert_setup(self, address, info):
         newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
-                         ('Activity', datetime.datetime.now())])
+                         ('Activity', datetime.datetime.now()), ('Info', list()), ('Status', 'Starting')])
         newsetup['Image'] = info['Image']
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
@@ -122,7 +121,6 @@ class fm(object):
     #a new template file increase the count and then return a template.
     def render_get_dynamic(self, address, path):
         fname = self.dynamic + '/' + path
-        print fname
         try:
             os.stat(fname)
         except:
@@ -145,13 +143,26 @@ class fm(object):
             logging.exception("Genshi template error")
             raise RenderError
 
+    #Creates a dictionary that is then returned to the caller that 
+    #Contains information that is perteninet to the call. 
+    def create_dict(self, address):
+    	request = dict([('Address', address), ('Status', self.data[address]['Status']), ('Info', self.data[address]['Info'])])
+	return request
+
+    #def store(self, filename):
+	#open(filename, 'w').write(json.dumps)
+
+    def load(self, filename):
+	dataFile = open(filename)
+	self.data = json.load(dataFile)
+
     #used when the function is used. Will call for a start responce and then get
     #the messgae from the calling client. It will then process this message and 
     #then take that message and make decisions based on it. So far all that has been 
     #studied is the POST and /ctl    
-
     def __call__(self, environ, start_response):
         address = environ['REMOTE_ADDR']
+	print 'address ' + address
         path = environ['PATH_INFO'][1:]
 	
         #Drops into a request method conditional. So far have only seen values for
@@ -173,27 +184,6 @@ class fm(object):
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
 
-
-                elif path.startswith('info'):
-                    data = ""
-                    for key in self.infoMessages:
-                        data = data + self.infoMessages[key]
-                    with self.data_sem:
-                        self.infoMessages.clear()
-                    start_response('200 OK', [('Content-type', 'text/plain')])
-                    return data
-
-
-                elif path.startswith('error'):
-                    data = ""
-                    for key in self.errorMessages:
-                        data = data + self.errorMessages[key]
-                    with self.data_sem:
-                        self.errorMessages.clear()
-                    start_response('200 OK', [('Content-type', 'text/plain')])
-                    return data
-
-
                 else:
                     raise PageLookupError
 
@@ -211,28 +201,22 @@ class fm(object):
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
 
-
             if path == 'info':
                 msg = json.loads(data)
                 logging.info(msg['Address'] + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[address]['Activity'] = datetime.datetime.now()
-                    if 'Address' in self.infoMessages:
-                        self.infoMessages['Address'] = self.infoMessages['Address'] + msg['Address'] + " INFO: " +  msg['Message'] + "\n"
-                    else:
-                        self.infoMessages['Address'] = msg['Address'] + " INFO: " +  msg['Message'] + "\n"
+                    self.data[msg['Address']]['Activity'] = datetime.datetime.now()
+                    self.data[msg['Address']]['Info'].append(dict([('Time', time.time()), ('Message', msg['Message']), ('MsgType', 'Info')]))
 
 
             elif path == 'error':
                 msg = json.loads(data)
                 logging.error(msg['Address'] + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[address]['Activity'] = datetime.datetime.now()
-                    self.data[address]['Errors'] += 1
-                    if 'Address' in self.errorMessages:
-                        self.errorMessages['Address'] = self.errorMessages['Address'] + msg['Address'] + " ERROR: " +  msg['Message'] + "\n"
-                    else:
-                        self.errorMessages['Address'] = msg['Address'] + " ERROR: " +  msg['Message'] + "\n"
+                    self.data[msg['Address']]['Activity'] = datetime.datetime.now()
+                    self.data[msg['Address']]['Errors'] += 1
+                    self.data[msg['Address']]['Info'].append(dict([('Time', time.time()), ('Message', msg['Message']), ('MsgType', 'Error')]))
+	            print 'aa', self.data[msg['Address']]['Info']
 
 
             elif path == 'ctl':
@@ -240,12 +224,19 @@ class fm(object):
                 logging.info("Allocating %s as %s" % (msg['Address'], msg['Image']))
                 self.assert_setup(msg['Address'], msg)
 
-
+	    #pass new structure in this area so that it can be read from fctl
+	    #The message will have an address requested. The message will take
+            #it and move it to him per request. 
+	    #newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
+            #('Activity', datetime.datetime.now()), ('Info', list()), ('Status', 'Starting')])
             elif path == 'status':
                 msg = json.loads(data)
-                data = self.render_get_dynamic(msg['Address'], '../status')
-                start_response('200 OK', [('Content-type', 'application/octet-stream')])
-                return data
+                nodestatus = self.render_get_dynamic(msg['Address'], '../status').strip()
+                self.data[address]['Status'] = nodestatus
+                start_response('200 OK', [('Content-type', 'application/json')])
+		created = self.create_dict(msg['Address'])
+
+                return json.dumps(created, default=dthandler)
 
 
             else:
