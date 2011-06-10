@@ -8,6 +8,7 @@ import json
 import os
 import logging
 import sys
+import socket
 from genshi.template import NewTextTemplate
 
 #Create a new logging object for debugging statuments.
@@ -56,8 +57,9 @@ class fm(object):
     #structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html. 
     def __init__(self, root):
         self.root = root
-        self.static = root +'/static'
-        self.dynamic = root +'/dynamic'
+	self.flunkyIP = socket.gethostbyname(socket.getfqdn())
+        self.static = root +'/repository/static'
+        self.dynamic = root +'/repository/dynamic'
         self.data = dict()
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
@@ -151,10 +153,11 @@ class fm(object):
     def __call__(self, environ, start_response):
         address = environ['REMOTE_ADDR']
         path = environ['PATH_INFO'][1:]
-
+	
         #Drops into a request method conditional. So far have only seen values for
         #POST.
         if environ['REQUEST_METHOD'] == 'GET':
+
             if path == 'dump':
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(self.data, default=dthandler)
@@ -193,14 +196,18 @@ class fm(object):
 
                 else:
                     raise PageLookupError
+
             except PageLookupError:
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
                 return ['Not Found\r\n']
+
             except RenderError:
                 start_response('500 Server Error', [('Content-Type', 'text/plain')])
                 return ''
+
             except:
                 logging.exception("Get failure")
+
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
 
@@ -243,9 +250,7 @@ class fm(object):
 
             else:
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
-
-
-                return ''
+		return ''
             start_response('200 OK', [('Content-type', 'application/octet-stream')])
             return ""
         start_response('404 Not Found', [('Content-Type', 'text/plain')])
@@ -255,7 +260,7 @@ class fm(object):
 if __name__ == '__main__':
     from eventlet import wsgi
     try:
-        repopath = sys.argv[-1]
+        repopath = os.getcwd()
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
