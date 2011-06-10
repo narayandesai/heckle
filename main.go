@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"json"
+	"strings"
+	"io/ioutil"
 	"./flunky"
 )
 
@@ -36,7 +38,34 @@ func init() {
 	flag.StringVar(&info, "i", "", "log info message")
 	flag.StringVar(&error, "e", "", "log error message")
 	flag.StringVar(&get, "g", "", "fetch and print endpoint")
-	flag.StringVar(&exec, "x", "", "fetch and run endpoint")
+	flag.StringVar(&exec, "x", "", "fetch rendered template and run it.")
+}
+
+func printError(errorMsg string, error os.Error) {
+	if error != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", errorMsg)
+	}
+}
+
+func parseCmdLine() {
+	cmdLineFile, error := os.Open("/proc/cmdline")
+	printError("ERROR:  Failed to open /proc/cmdline for reading.", error)
+
+	cmdLineBytes, error := ioutil.ReadAll(cmdLineFile)
+	printError("ERROR:  Failed to read all from /proc/cmdline.", error)
+
+	error = cmdLineFile.Close()
+	printError("ERROR:  Failed to close /proc/cmdline.", error)
+
+	cmdLineOptions := strings.Split(string(cmdLineBytes), " ", -1)
+	
+	for _, value := range cmdLineOptions {
+		cmdLineOption := strings.Split(value, "=", -1)
+
+		if cmdLineOption[0] == "flunky" {
+			server = cmdLineOption[1]
+		}
+	}
 }
 
 func main() {
@@ -46,7 +75,12 @@ func main() {
         os.Exit(0)
        }
 
-    bs := flunky.NewBuildServer(server, verbose)
+	if flag.Arg(0) == "/opt/bootlocal.sh" {
+		parseCmdLine()
+		exec = "install"
+	}
+
+	bs := flunky.NewBuildServer(server, verbose)
 
 	bs.DebugLog(fmt.Sprintf("Server is %s", server))
 

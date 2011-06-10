@@ -7,7 +7,6 @@ import (
 	"json"
     "os"
 	"time"
-	"strings"
     "./flunky"
 )
 
@@ -41,21 +40,26 @@ type ctlmsg struct {
 	Extra map[string]string
 }
 
-type status struct {
+type infoMsg struct {
+	time uint64
+	Message string
+	MsgType string
+}
+
+type statusMessage struct {
 	Address string
 	Status string
+	Info []infoMsg
 }
 
 type readyBailNode struct {
 	Ready, Bail, Printed bool
 }
 
-func interpretPoll(ret string) (ready bool, bail bool) {
-	retSplit := strings.Split(ret, "'", -1)
-
-	if retSplit[7] == "ready" {
+func interpretPoll(status string) (ready bool, bail bool) {
+	if status == "Ready" {
 		ready = true
-	} else if retSplit[7] == "cancel" {
+	} else if status == "Cancel" {
 		bail = true
 	}
 	return ready, bail
@@ -75,23 +79,11 @@ func pollForStatusMessage(pos int, node string, readyBail []readyBailNode, bs *f
 	js, _ := json.Marshal(cm)
 	buf := bytes.NewBufferString(string(js))
 	ret, _ := bs.Post("/status", buf)
+	tmpStatusMessage := new(statusMessage)
+	json.Unmarshal(ret, tmpStatusMessage)
 
-	readyBail[pos].Ready, readyBail[pos].Bail = interpretPoll(string(ret))
-	printStatusMessage(node, &readyBail[pos])
-}
-
-func pollForInfoMessages(bs *flunky.BuildServer) {
-	ret,_ := bs.Get("info")
-	if string(ret) != "" {
-		fmt.Fprintf(os.Stdout, "NODE: %s", ret)
-	}
-}
-
-func pollForErrorMessages(bs *flunky.BuildServer) {
-	ret,_ := bs.Get("error")
-	if string(ret) != "" {
-		fmt.Fprintf(os.Stdout, "NODE: %s", ret)
-	}
+	readyBail[pos].Ready, readyBail[pos].Bail = interpretPoll(tmpStatusMessage.Status)
+	printStatusMessage(node, &readyBail[pos], tmpStatusMessage)
 }
 
 func pollForMessages(cancelTime int64, addresses []string, readyBail []readyBailNode, bs *flunky.BuildServer) {
@@ -101,22 +93,30 @@ func pollForMessages(cancelTime int64, addresses []string, readyBail []readyBail
 		for pos, value := range addresses {
 			pollForStatusMessage(pos, value, readyBail, bs)
 		}
-		pollForInfoMessages(bs)
-		pollForErrorMessages(bs)
 		done = determineDone(readyBail)
 	}
 }
 
-func printStatusMessage(node string, readyBail *readyBailNode) {
+func printStatusMessage(node string, readyBail *readyBailNode, tmpStatusMessage *statusMessage) {
 	if readyBail.Ready && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Ready.\n", node)
+		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Ready ", node)
 		readyBail.Printed = true
 	} else if readyBail.Bail && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Failed.\n", node)
+		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Failed ", node)
 		readyBail.Printed = true
 	} else {
-		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Building.\n", node)
+		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Building ", node)
 	}
+
+	for _, value := range tmpStatusMessage.Info {
+		if value.MsgType == "Info" {
+			fmt.Fprintf(os.Stdout, "INFO: ")
+		} else if value.MsgType == "Error" {
+			fmt.Fprintf(os.Stdout, "ERROR: ")
+		}
+		fmt.Fprintf(os.Stdout, "%s", value.Message)
+	}
+	fmt.Fprintf(os.Stdout, "\n")
 }
 
 func main() {
