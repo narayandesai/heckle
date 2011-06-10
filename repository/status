@@ -1,6 +1,6 @@
 {% if Count > 1 %}
-{'Address':'${Address}', 'Status':'ready'}
+Ready
 {% end %}
 {% if Count <= 1 %}
-{'Address':'${Address}', 'Status':'building'}
+Building
 {% end %}

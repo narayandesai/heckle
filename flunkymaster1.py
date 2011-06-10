@@ -9,6 +9,7 @@ import os
 import logging
 import sys
 import socket
+import time
 from genshi.template import NewTextTemplate
 
 #Create a new logging object for debugging statuments.
@@ -231,9 +232,8 @@ class fm(object):
                 logging.info(msg['Address'] + " : " + msg['Message'])
                 with self.data_sem:
                     self.data[address]['Activity'] = datetime.datetime.now()
-	            self.data[address]['Info'].append({time.time(), msg['Message'], 'Info'})
-		    #self.data[address]['Info'].append(msg['Message'])
-                    
+                    self.data[address]['Info'].append({time.time(), msg['Message'], 'Info'})
+
 
             elif path == 'error':
                 msg = json.loads(data)
@@ -241,8 +241,7 @@ class fm(object):
                 with self.data_sem:
                     self.data[address]['Activity'] = datetime.datetime.now()
                     self.data[address]['Errors'] += 1
-		    self.data[address]['Activity'] = datetime.datetime.now()
-	            self.data[address]['Error'].append({time.time(), msg['Message'], 'Error'})
+                    self.data[address]['Info'].append({time.time(), msg['Message'], 'Error'})
 
 
             elif path == 'ctl':
@@ -253,14 +252,30 @@ class fm(object):
 	    #pass new structure in this area so that it can be read from fctl
 	    #The message will have an address requested. The message will take
             #it and move it to him per request. 
+#newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
+                        #('Activity', datetime.datetime.now()), ('Info', list()), ('Status', 'Starting')])
             elif path == 'status':
                 msg = json.loads(data)
                 data = self.render_get_dynamic(msg['Address'], '../status')
-                start_response('200 OK', [('Content-type', 'application/octet-stream')])
-		print data
-		#self.data[address]['Status'] = data
-		#data = self.create_dict(msg['Address'])
-                return data
+                self.data[address]['Status'] = data
+                start_response('200 OK', [('Content-type', 'application/json')])
+
+                return json.dumps(self.create_dict(msg['Address']), default=dthandler)
+
+
+#type infoMsg struct {
+#	time uint64
+#	Message string
+#	MsgType string
+#}
+
+#type statusMessage struct {
+#	Address string
+#	Status string
+#	Info []infoMsg
+#}
+
+
 
 
             else:
