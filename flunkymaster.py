@@ -7,6 +7,7 @@ import eventlet.semaphore
 import json
 import os
 import logging
+import sys
 from genshi.template import NewTextTemplate
 
 #Create a new logging object for debugging statuments.
@@ -146,7 +147,8 @@ class fm(object):
     #the messgae from the calling client. It will then process this message and 
     #then take that message and make decisions based on it. So far all that has been 
     #studied is the POST and /ctl    
-   def __call__(self, environ, start_response):
+
+    def __call__(self, environ, start_response):
         address = environ['REMOTE_ADDR']
         path = environ['PATH_INFO'][1:]
 
@@ -252,5 +254,10 @@ class fm(object):
 
 if __name__ == '__main__':
     from eventlet import wsgi
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root='/home/gauge/flunky'))
+    try:
+        repopath = sys.argv[-1]
+    except:
+        print "Usage: flunkymaster.py <repodir>"
+        raise SystemExit, 1
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath))
 
