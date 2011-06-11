@@ -194,9 +194,9 @@ class fm(object):
 
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
+            msg = json.loads(data)
 
             if path == 'info':
-                msg = json.loads(data)
                 logging.info(address + " : " + msg['Message'])
                 with self.data_sem:
                     self.data[address]['Activity'] = datetime.datetime.now()
@@ -204,7 +204,6 @@ class fm(object):
 
 
             elif path == 'error':
-                msg = json.loads(data)
                 logging.error(address + " : " + msg['Message'])
                 with self.data_sem:
                     self.data[address]['Activity'] = datetime.datetime.now()
@@ -213,17 +212,15 @@ class fm(object):
 
 
             elif path == 'ctl':
-                msg = json.loads(data)
                 for client in msg['Addresses']:
                     logging.info("Allocating %s as %s" % (client, msg['Image']))
                     self.assert_setup(client, msg)
 
-	    #pass new structure in this area so that it can be read from fctl
-	    #The message will have an address requested. The message will take
-         #it and move it to him per request. 
+            #pass new structure in this area so that it can be read from fctl
+            #The message will have an address requested. The message will take
+            #it and move it to him per request. 
 
             elif path == 'status':
-                msg = json.loads(data)
                 self.data[msg['Address']]['Status'] = self.render_get_dynamic(msg['Address'], '../status').strip()
                 start_response('200 OK', [('Content-type', 'application/json')])
                 retMsg = dict([('Status', self.data[msg['Address']]['Status']), ('Info', self.data[msg['Address']]['Info'])])
