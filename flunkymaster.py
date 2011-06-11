@@ -194,6 +194,7 @@ class fm(object):
 
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
+            print data
             msg = json.loads(data)
 
             if path == 'info':
@@ -221,12 +222,13 @@ class fm(object):
             #it and move it to him per request. 
 
             elif path == 'status':
-                self.data[msg['Address']]['Status'] = self.render_get_dynamic(msg['Address'], '../status').strip()
+                ret = dict()
+                for client in msg['Addresses']:
+                    self.data[client]['Status'] = self.render_get_dynamic(client, '../status').strip()
+                    ret[client] = dict([('Status', self.data[client]['Status']), ('Info', self.data[client]['Info'])])
+                    self.data[client]['Info'] = []
                 start_response('200 OK', [('Content-type', 'application/json')])
-                retMsg = dict([('Status', self.data[msg['Address']]['Status']), ('Info', self.data[msg['Address']]['Info'])])
-                self.data[msg['Address']]['Info'] = []
-
-                return json.dumps(retMsg, default=dthandler)
+                return json.dumps(ret, default=dthandler)
 
 
             else:

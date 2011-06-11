@@ -40,12 +40,6 @@ type ctlmsg struct {
 	Extra     map[string]string
 }
 
-type sctlmsg struct {
-	Address string
-	Image   string
-	Extra   map[string]string
-}
-
 type infoMsg struct {
 	Time    int64
 	Message string
@@ -66,7 +60,7 @@ type readyBailNode struct {
 	Ready, Bail, Printed bool
 }
 
-func (rbn *readyBailNode) interpretPoll(status string) {
+func (rbn *readyBailNode) InterpretPoll(status string) {
 	if status == "Ready" {
 		rbn.Ready = true
 	} else if status == "Cancel" {
@@ -74,39 +68,44 @@ func (rbn *readyBailNode) interpretPoll(status string) {
 	}
 }
 
-func determineDone(readyBail []readyBailNode) bool {
+func determineDone(readyBail map[string]readyBailNode) bool {
 	done := true
-	for i := 0; i < len(readyBail); i++ {
-		done = done && (readyBail[i].Ready || readyBail[i].Bail)
+	for k, _ := range readyBail {
+		done = done && (readyBail[k].Ready || readyBail[k].Bail)
 	}
 	return done
 }
 
-func pollForStatusMessage(pos int, node string, readyBail []readyBailNode, bs *flunky.BuildServer) {
-	cm := new(sctlmsg)
-	cm.Address = node
-	js, _ := json.Marshal(cm)
-	buf := bytes.NewBufferString(string(js))
-	ret, _ := bs.Post("/status", buf)
-	tmpStatusMessage := new(statusMessage)
-	json.Unmarshal(ret, tmpStatusMessage)
-
-	readyBail[pos].interpretPoll(tmpStatusMessage.Status)
-	printStatusMessage(node, &readyBail[pos], tmpStatusMessage)
-}
-
-func pollForMessages(cancelTime int64, addresses []string, readyBail []readyBailNode, bs *flunky.BuildServer) {
+func pollForMessages(cancelTime int64, addresses []string, bs *flunky.BuildServer) {
 	done := false
+	readyBail := make(map[string]readyBailNode, len(addresses))
+	for _, value := range addresses {
+		readyBail[value] = readyBailNode{false, false, false}		
+	}
+
+	statRequest := new(ctlmsg)
+	statRequest.Addresses = addresses
+	sRjs, _ := json.Marshal(statRequest)
+
+	statmap := make(map[string]statusMessage, 50)
+
 	for time.Seconds() < cancelTime && !done {
 		time.Sleep(10000000000)
-		for pos, value := range addresses {
-			pollForStatusMessage(pos, value, readyBail, bs)
+		reqbuf := bytes.NewBufferString(string(sRjs))
+		ret, _ := bs.Post("/status", reqbuf)
+		json.Unmarshal(ret, &statmap)
+
+		for _, address := range addresses {
+			rbn := readyBail[address]
+			rbn.InterpretPoll(statmap[address].Status)
+			readyBail[address] = rbn
+			printStatusMessage(address, rbn, statmap[address])
 		}
 		done = determineDone(readyBail)
 	}
 }
 
-func printStatusMessage(node string, readyBail *readyBailNode, tmpStatusMessage *statusMessage) {
+func printStatusMessage(node string, readyBail readyBailNode, tmpStatusMessage statusMessage) {
 	for _, value := range tmpStatusMessage.Info {
 		fmt.Fprintf(os.Stdout, "%s\n", value.Format(node))
 	}
@@ -132,7 +131,7 @@ func main() {
 	secondsTimeout := minutesTimeout * 60
 	cancelTime := time.Seconds() + secondsTimeout
 	addresses := flag.Args()
-	readyBail := make([]readyBailNode, len(addresses))
+
 
 	bs := flunky.NewBuildServer(server, verbose)
 
@@ -154,6 +153,6 @@ func main() {
 	buf := bytes.NewBufferString(string(js))
 	_, _ = bs.Post("/ctl", buf)
 
-	pollForMessages(cancelTime, addresses, readyBail, bs)
+	pollForMessages(cancelTime, addresses, bs)
 	fmt.Fprintf(os.Stdout, "Done allocating your nodes. Report failed builds to your system administrator.\n")
 }
