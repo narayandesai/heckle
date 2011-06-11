@@ -56,9 +56,9 @@ class fm(object):
     #current programming
     #A simple semaphore is called to wait for a thread. Information on the 
     #structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html. 
-    def __init__(self, root):
+    def __init__(self, root, url):
         self.root = root
-	self.flunkyIP = socket.gethostbyname(socket.getfqdn())
+	self.flunkyURL = url
         self.static = root +'/repository/static'
         self.dynamic = root +'/repository/dynamic'
         self.data = dict()
@@ -143,12 +143,6 @@ class fm(object):
             logging.exception("Genshi template error")
             raise RenderError
 
-    #Creates a dictionary that is then returned to the caller that 
-    #Contains information that is perteninet to the call. 
-    def create_dict(self, address):
-    	request = dict([('Address', address), ('Status', self.data[address]['Status']), ('Info', self.data[address]['Info'])])
-	return request
-
     #def store(self, filename):
 	#open(filename, 'w').write(json.dumps)
 
@@ -200,43 +194,41 @@ class fm(object):
 
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
+            print data
+            msg = json.loads(data)
 
             if path == 'info':
-                msg = json.loads(data)
-                logging.info(msg['Address'] + " : " + msg['Message'])
+                logging.info(address + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[msg['Address']]['Activity'] = datetime.datetime.now()
-                    self.data[msg['Address']]['Info'].append(dict([('Time', time.time()), ('Message', msg['Message']), ('MsgType', 'Info')]))
+                    self.data[address]['Activity'] = datetime.datetime.now()
+                    self.data[address]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Info')]))
 
 
             elif path == 'error':
-                msg = json.loads(data)
-                logging.error(msg['Address'] + " : " + msg['Message'])
+                logging.error(address + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[msg['Address']]['Activity'] = datetime.datetime.now()
-                    self.data[msg['Address']]['Errors'] += 1
-                    self.data[msg['Address']]['Info'].append(dict([('Time', time.time()), ('Message', msg['Message']), ('MsgType', 'Error')]))
-	            print 'aa', self.data[msg['Address']]['Info']
+                    self.data[address]['Activity'] = datetime.datetime.now()
+                    self.data[address]['Errors'] += 1
+                    self.data[address]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Error')]))
 
 
             elif path == 'ctl':
-                msg = json.loads(data)
-                logging.info("Allocating %s as %s" % (msg['Address'], msg['Image']))
-                self.assert_setup(msg['Address'], msg)
+                for client in msg['Addresses']:
+                    logging.info("Allocating %s as %s" % (client, msg['Image']))
+                    self.assert_setup(client, msg)
 
-	    #pass new structure in this area so that it can be read from fctl
-	    #The message will have an address requested. The message will take
+            #pass new structure in this area so that it can be read from fctl
+            #The message will have an address requested. The message will take
             #it and move it to him per request. 
-	    #newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
-            #('Activity', datetime.datetime.now()), ('Info', list()), ('Status', 'Starting')])
-            elif path == 'status':
-                msg = json.loads(data)
-                nodestatus = self.render_get_dynamic(msg['Address'], '../status').strip()
-                self.data[address]['Status'] = nodestatus
-                start_response('200 OK', [('Content-type', 'application/json')])
-		created = self.create_dict(msg['Address'])
 
-                return json.dumps(created, default=dthandler)
+            elif path == 'status':
+                ret = dict()
+                for client in msg['Addresses']:
+                    self.data[client]['Status'] = self.render_get_dynamic(client, '../status').strip()
+                    ret[client] = dict([('Status', self.data[client]['Status']), ('Info', self.data[client]['Info'])])
+                    self.data[client]['Info'] = []
+                start_response('200 OK', [('Content-type', 'application/json')])
+                return json.dumps(ret, default=dthandler)
 
 
             else:
@@ -255,5 +247,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080'))
 

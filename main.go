@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"flag"   
+	"flag"
 	"fmt"
 	"os"
 	"json"
@@ -12,8 +12,8 @@ import (
 )
 
 var Usage = func() {
-    fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-    flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	flag.PrintDefaults()
 }
 
 var server string
@@ -23,17 +23,14 @@ var info string
 var error string
 var get string
 var exec string
-var address string
 
 type infoErrorMsg struct {
-	Address string
 	Message string
 }
 
 func init() {
 	flag.BoolVar(&help, "h", false, "print usage")
 	flag.BoolVar(&verbose, "v", false, "print debug information")
-	flag.StringVar(&address, "a", "default", "Sets the nodes machine name.")
 	flag.StringVar(&server, "S", "http://localhost:8080", "server base URL")
 	flag.StringVar(&info, "i", "", "log info message")
 	flag.StringVar(&error, "e", "", "log error message")
@@ -58,7 +55,7 @@ func parseCmdLine() {
 	printError("ERROR:  Failed to close /proc/cmdline.", error)
 
 	cmdLineOptions := strings.Split(string(cmdLineBytes), " ", -1)
-	
+
 	for _, value := range cmdLineOptions {
 		cmdLineOption := strings.Split(value, "=", -1)
 
@@ -69,11 +66,11 @@ func parseCmdLine() {
 }
 
 func main() {
-    flag.Parse()
-    if help {
-        Usage()
-        os.Exit(0)
-       }
+	flag.Parse()
+	if help {
+		Usage()
+		os.Exit(0)
+	}
 
 	if flag.Arg(0) == "/opt/bootlocal.sh" {
 		parseCmdLine()
@@ -98,7 +95,6 @@ func main() {
 		os.Exit(status)
 	} else if info != "" {
 		im := new(infoErrorMsg)
-		im.Address = address
 		im.Message = info
 		js, _ := json.Marshal(im)
 		buf := bytes.NewBufferString(string(js))
@@ -109,7 +105,6 @@ func main() {
 		}
 	} else if error != "" {
 		em := new(infoErrorMsg)
-		em.Address = address
 		em.Message = error
 		js, _ := json.Marshal(em)
 		buf := bytes.NewBufferString(string(js))

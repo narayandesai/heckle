@@ -10,9 +10,9 @@ import (
 )
 
 type BuildServer struct {
-	URL string
+	URL    string
 	client http.Client
-	debug bool
+	debug  bool
 }
 
 func NewBuildServer(serverURL string, debug bool) *BuildServer {
@@ -38,7 +38,7 @@ func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
 	}
 
 	body, _ = ioutil.ReadAll(response.Body)
-    response.Body.Close()
+	response.Body.Close()
 
 	if response.StatusCode != 200 {
 		err = os.NewError("Fetch Failed")
@@ -96,7 +96,7 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 }
 
 func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err os.Error) {
-	response, err := server.client.Post(server.URL + path, "text/plain", data)
+	response, err := server.client.Post(server.URL+path, "text/plain", data)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Post failed: %s\n", err)
 		return
@@ -104,7 +104,7 @@ func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err o
 	server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
 
 	body, _ = ioutil.ReadAll(response.Body)
-    response.Body.Close()
+	response.Body.Close()
 
 	return
 }
