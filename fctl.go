@@ -41,13 +41,12 @@ type ctlmsg struct {
 }
 
 type infoMsg struct {
-	time uint64
+	Time int64
 	Message string
 	MsgType string
 }
 
 type statusMessage struct {
-	Address string
 	Status string
 	Info []infoMsg
 }
@@ -98,25 +97,24 @@ func pollForMessages(cancelTime int64, addresses []string, readyBail []readyBail
 }
 
 func printStatusMessage(node string, readyBail *readyBailNode, tmpStatusMessage *statusMessage) {
-	if readyBail.Ready && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Ready ", node)
-		readyBail.Printed = true
-	} else if readyBail.Bail && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Failed ", node)
-		readyBail.Printed = true
-	} else {
-		fmt.Fprintf(os.Stdout, "NODE: %s STATUS: Building ", node)
-	}
-
 	for _, value := range tmpStatusMessage.Info {
 		if value.MsgType == "Info" {
-			fmt.Fprintf(os.Stdout, "INFO: ")
+			fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s INFO: ", node, time.SecondsToUTC(value.Time).Format(time.UnixDate))
 		} else if value.MsgType == "Error" {
-			fmt.Fprintf(os.Stdout, "ERROR: ")
+			fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s ERROR: ", node, time.SecondsToUTC(value.Time).Format(time.UnixDate))
 		}
-		fmt.Fprintf(os.Stdout, "%s", value.Message)
+		fmt.Fprintf(os.Stdout, "%s\n", value.Message)
 	}
-	fmt.Fprintf(os.Stdout, "\n")
+
+	if readyBail.Ready && !readyBail.Printed {
+		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Ready \n", node, time.UTC().Format(time.UnixDate))
+		readyBail.Printed = true
+	} else if readyBail.Bail && !readyBail.Printed {
+		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Failed \n", node, time.UTC().Format(time.UnixDate))
+		readyBail.Printed = true
+	} else {
+		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Building \n", node, time.UTC().Format(time.UnixDate))
+	}
 }
 
 func main() {

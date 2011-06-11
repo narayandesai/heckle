@@ -143,12 +143,6 @@ class fm(object):
             logging.exception("Genshi template error")
             raise RenderError
 
-    #Creates a dictionary that is then returned to the caller that 
-    #Contains information that is perteninet to the call. 
-    def create_dict(self, address):
-    	request = dict([('Address', address), ('Status', self.data[address]['Status']), ('Info', self.data[address]['Info'])])
-	return request
-
     #def store(self, filename):
 	#open(filename, 'w').write(json.dumps)
 
@@ -203,20 +197,19 @@ class fm(object):
 
             if path == 'info':
                 msg = json.loads(data)
-                logging.info(msg['Address'] + " : " + msg['Message'])
+                logging.info(address + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[msg['Address']]['Activity'] = datetime.datetime.now()
-                    self.data[msg['Address']]['Info'].append(dict([('Time', time.time()), ('Message', msg['Message']), ('MsgType', 'Info')]))
+                    self.data[address]['Activity'] = datetime.datetime.now()
+                    self.data[address]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Info')]))
 
 
             elif path == 'error':
                 msg = json.loads(data)
-                logging.error(msg['Address'] + " : " + msg['Message'])
+                logging.error(address + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[msg['Address']]['Activity'] = datetime.datetime.now()
-                    self.data[msg['Address']]['Errors'] += 1
-                    self.data[msg['Address']]['Info'].append(dict([('Time', time.time()), ('Message', msg['Message']), ('MsgType', 'Error')]))
-	            print 'aa', self.data[msg['Address']]['Info']
+                    self.data[address]['Activity'] = datetime.datetime.now()
+                    self.data[address]['Errors'] += 1
+                    self.data[address]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Error')]))
 
 
             elif path == 'ctl':
@@ -226,17 +219,16 @@ class fm(object):
 
 	    #pass new structure in this area so that it can be read from fctl
 	    #The message will have an address requested. The message will take
-            #it and move it to him per request. 
-	    #newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
-            #('Activity', datetime.datetime.now()), ('Info', list()), ('Status', 'Starting')])
+         #it and move it to him per request. 
+
             elif path == 'status':
                 msg = json.loads(data)
-                nodestatus = self.render_get_dynamic(msg['Address'], '../status').strip()
-                self.data[address]['Status'] = nodestatus
+                self.data[msg['Address']]['Status'] = self.render_get_dynamic(msg['Address'], '../status').strip()
                 start_response('200 OK', [('Content-type', 'application/json')])
-		created = self.create_dict(msg['Address'])
+                retMsg = dict([('Status', self.data[msg['Address']]['Status']), ('Info', self.data[msg['Address']]['Info'])])
+                self.data[msg['Address']]['Info'] = []
 
-                return json.dumps(created, default=dthandler)
+                return json.dumps(retMsg, default=dthandler)
 
 
             else:

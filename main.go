@@ -23,17 +23,14 @@ var info string
 var error string
 var get string
 var exec string
-var address string
 
 type infoErrorMsg struct {
-	Address string
 	Message string
 }
 
 func init() {
 	flag.BoolVar(&help, "h", false, "print usage")
 	flag.BoolVar(&verbose, "v", false, "print debug information")
-	flag.StringVar(&address, "a", "default", "Sets the nodes machine name.")
 	flag.StringVar(&server, "S", "http://localhost:8080", "server base URL")
 	flag.StringVar(&info, "i", "", "log info message")
 	flag.StringVar(&error, "e", "", "log error message")
@@ -98,7 +95,6 @@ func main() {
 		os.Exit(status)
 	} else if info != "" {
 		im := new(infoErrorMsg)
-		im.Address = address
 		im.Message = info
 		js, _ := json.Marshal(im)
 		buf := bytes.NewBufferString(string(js))
@@ -109,7 +105,6 @@ func main() {
 		}
 	} else if error != "" {
 		em := new(infoErrorMsg)
-		em.Address = address
 		em.Message = error
 		js, _ := json.Marshal(em)
 		buf := bytes.NewBufferString(string(js))
