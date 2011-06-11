@@ -35,6 +35,12 @@ func init() {
 }
 
 type ctlmsg struct {
+	Addresses []string
+	Image string
+	Extra map[string]string
+}
+
+type sctlmsg struct {
 	Address string
 	Image string
 	Extra map[string]string
@@ -73,7 +79,7 @@ func determineDone(readyBail []readyBailNode) bool {
 }
 
 func pollForStatusMessage(pos int, node string, readyBail []readyBailNode, bs *flunky.BuildServer) {
-	cm := new(ctlmsg)
+	cm := new(sctlmsg)
 	cm.Address = node
 	js, _ := json.Marshal(cm)
 	buf := bytes.NewBufferString(string(js))
@@ -143,14 +149,11 @@ func main() {
 
 	cm := new(ctlmsg)
 	cm.Image = image
+	cm.Addresses = addresses
 	// FIXME: need to add in extradata
-
-	for _, value := range addresses {
-		cm.Address = value
-		js, _ := json.Marshal(cm)		
-		buf := bytes.NewBufferString(string(js))
-		_,_ = bs.Post("/ctl", buf)
-	}
+	js, _ := json.Marshal(cm)		
+	buf := bytes.NewBufferString(string(js))
+	_,_ = bs.Post("/ctl", buf)
 
 	pollForMessages(cancelTime, addresses, readyBail, bs)
 	fmt.Fprintf(os.Stdout, "Done allocating your nodes. Report failed builds to your system administrator.\n")

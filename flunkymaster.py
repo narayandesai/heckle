@@ -56,9 +56,9 @@ class fm(object):
     #current programming
     #A simple semaphore is called to wait for a thread. Information on the 
     #structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html. 
-    def __init__(self, root):
+    def __init__(self, root, url):
         self.root = root
-	self.flunkyIP = socket.gethostbyname(socket.getfqdn())
+	self.flunkyURL = url
         self.static = root +'/repository/static'
         self.dynamic = root +'/repository/dynamic'
         self.data = dict()
@@ -214,8 +214,9 @@ class fm(object):
 
             elif path == 'ctl':
                 msg = json.loads(data)
-                logging.info("Allocating %s as %s" % (msg['Address'], msg['Image']))
-                self.assert_setup(msg['Address'], msg)
+                for client in msg['Addresses']:
+                    logging.info("Allocating %s as %s" % (client, msg['Image']))
+                    self.assert_setup(client, msg)
 
 	    #pass new structure in this area so that it can be read from fctl
 	    #The message will have an address requested. The message will take
@@ -247,5 +248,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080'))
 
