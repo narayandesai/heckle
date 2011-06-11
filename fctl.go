@@ -57,6 +57,7 @@ type readyBailNode struct {
 }
 
 func interpretPoll(status string) (ready bool, bail bool) {
+	//fmt.Fprintf(os.Stdout, "Status = %s\n", status)
 	if status == "Ready" {
 		ready = true
 	} else if status == "Cancel" {
@@ -79,6 +80,7 @@ func pollForStatusMessage(pos int, node string, readyBail []readyBailNode, bs *f
 	js, _ := json.Marshal(cm)
 	buf := bytes.NewBufferString(string(js))
 	ret, _ := bs.Post("/status", buf)
+	fmt.Fprintf(os.Stdout, "%s\n", ret)
 	tmpStatusMessage := new(statusMessage)
 	json.Unmarshal(ret, tmpStatusMessage)
 
