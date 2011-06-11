@@ -52,6 +52,11 @@ type infoMsg struct {
 	MsgType string
 }
 
+func (msg *infoMsg) Format (client string) (string) {
+	strval := fmt.Sprintf("%s: %s: Node: %s: %s", msg.MsgType, time.SecondsToUTC(msg.Time).Format(time.UnixDate), client, msg.Message)
+	return strval
+}
+
 type statusMessage struct {
 	Status string
 	Info   []infoMsg
@@ -104,12 +109,7 @@ func pollForMessages(cancelTime int64, addresses []string, readyBail []readyBail
 
 func printStatusMessage(node string, readyBail *readyBailNode, tmpStatusMessage *statusMessage) {
 	for _, value := range tmpStatusMessage.Info {
-		if value.MsgType == "Info" {
-			fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s INFO: ", node, time.SecondsToUTC(value.Time).Format(time.UnixDate))
-		} else if value.MsgType == "Error" {
-			fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s ERROR: ", node, time.SecondsToUTC(value.Time).Format(time.UnixDate))
-		}
-		fmt.Fprintf(os.Stdout, "%s\n", value.Message)
+		fmt.Fprintf(os.Stdout, "%s\n", value.Format(node))
 	}
 
 	if readyBail.Ready && !readyBail.Printed {
