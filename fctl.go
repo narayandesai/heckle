@@ -1,13 +1,13 @@
-   package main
+package main
 
 import (
 	"bytes"
-    "flag"   
-    "fmt"
+	"flag"
+	"fmt"
 	"json"
-    "os"
+	"os"
 	"time"
-    "./flunky"
+	"./flunky"
 )
 
 var Usage = func() {
@@ -36,25 +36,25 @@ func init() {
 
 type ctlmsg struct {
 	Addresses []string
-	Image string
-	Extra map[string]string
+	Image     string
+	Extra     map[string]string
 }
 
 type sctlmsg struct {
 	Address string
-	Image string
-	Extra map[string]string
+	Image   string
+	Extra   map[string]string
 }
 
 type infoMsg struct {
-	Time int64
+	Time    int64
 	Message string
 	MsgType string
 }
 
 type statusMessage struct {
 	Status string
-	Info []infoMsg
+	Info   []infoMsg
 }
 
 type readyBailNode struct {
@@ -72,7 +72,7 @@ func interpretPoll(status string) (ready bool, bail bool) {
 
 func determineDone(readyBail []readyBailNode) bool {
 	done := true
-	for i := 0 ; i < len(readyBail) ; i++ {
+	for i := 0; i < len(readyBail); i++ {
 		done = done && (readyBail[i].Ready || readyBail[i].Bail)
 	}
 	return done
@@ -124,11 +124,11 @@ func printStatusMessage(node string, readyBail *readyBailNode, tmpStatusMessage 
 }
 
 func main() {
-    flag.Parse()
-    if help || minutesTimeout < 1 {
-        Usage()
-	os.Exit(0)
-       }
+	flag.Parse()
+	if help || minutesTimeout < 1 {
+		Usage()
+		os.Exit(0)
+	}
 
 	secondsTimeout := minutesTimeout * 60
 	cancelTime := time.Seconds() + secondsTimeout
@@ -138,7 +138,7 @@ func main() {
 	bs := flunky.NewBuildServer(server, verbose)
 
 	bs.DebugLog(fmt.Sprintf("Server is %s", server))
-	
+
 	bs.DebugLog(fmt.Sprintf("Allocating hosts: %s", flag.Args()))
 
 	if image == "" {
@@ -151,9 +151,9 @@ func main() {
 	cm.Image = image
 	cm.Addresses = addresses
 	// FIXME: need to add in extradata
-	js, _ := json.Marshal(cm)		
+	js, _ := json.Marshal(cm)
 	buf := bytes.NewBufferString(string(js))
-	_,_ = bs.Post("/ctl", buf)
+	_, _ = bs.Post("/ctl", buf)
 
 	pollForMessages(cancelTime, addresses, readyBail, bs)
 	fmt.Fprintf(os.Stdout, "Done allocating your nodes. Report failed builds to your system administrator.\n")

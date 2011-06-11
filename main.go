@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"flag"   
+	"flag"
 	"fmt"
 	"os"
 	"json"
@@ -12,8 +12,8 @@ import (
 )
 
 var Usage = func() {
-    fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-    flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	flag.PrintDefaults()
 }
 
 var server string
@@ -55,7 +55,7 @@ func parseCmdLine() {
 	printError("ERROR:  Failed to close /proc/cmdline.", error)
 
 	cmdLineOptions := strings.Split(string(cmdLineBytes), " ", -1)
-	
+
 	for _, value := range cmdLineOptions {
 		cmdLineOption := strings.Split(value, "=", -1)
 
@@ -66,11 +66,11 @@ func parseCmdLine() {
 }
 
 func main() {
-    flag.Parse()
-    if help {
-        Usage()
-        os.Exit(0)
-       }
+	flag.Parse()
+	if help {
+		Usage()
+		os.Exit(0)
+	}
 
 	if flag.Arg(0) == "/opt/bootlocal.sh" {
 		parseCmdLine()
