@@ -66,13 +66,12 @@ type readyBailNode struct {
 	Ready, Bail, Printed bool
 }
 
-func interpretPoll(status string) (ready bool, bail bool) {
+func (status *readyBailNode) interpretPoll(status string) {
 	if status == "Ready" {
-		ready = true
+		status.Ready = true
 	} else if status == "Cancel" {
-		bail = true
+		status.Bail = true
 	}
-	return ready, bail
 }
 
 func determineDone(readyBail []readyBailNode) bool {
@@ -92,7 +91,7 @@ func pollForStatusMessage(pos int, node string, readyBail []readyBailNode, bs *f
 	tmpStatusMessage := new(statusMessage)
 	json.Unmarshal(ret, tmpStatusMessage)
 
-	readyBail[pos].Ready, readyBail[pos].Bail = interpretPoll(tmpStatusMessage.Status)
+	readyBail[pos].interpretPoll(tmpStatusMessage.Status)
 	printStatusMessage(node, &readyBail[pos], tmpStatusMessage)
 }
 
