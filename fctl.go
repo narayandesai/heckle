@@ -66,11 +66,11 @@ type readyBailNode struct {
 	Ready, Bail, Printed bool
 }
 
-func (status *readyBailNode) interpretPoll(status string) {
+func (rbn *readyBailNode) interpretPoll(status string) {
 	if status == "Ready" {
-		status.Ready = true
+		rbn.Ready = true
 	} else if status == "Cancel" {
-		status.Bail = true
+		rbn.Bail = true
 	}
 }
 
