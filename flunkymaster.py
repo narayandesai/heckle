@@ -51,8 +51,8 @@ class fm(object):
         self.root = root
         self.datafile = datafile
         self.flunkyURL = url
-        self.static = root +'/repository/static'
-        self.dynamic = root +'/repository/dynamic'
+        self.static = root +'/static'
+        self.dynamic = root +'/dynamic'
         self.data = dict()
         self.load()
         self.data_sem = eventlet.semaphore.Semaphore()
@@ -69,11 +69,11 @@ class fm(object):
     def store(self):
         json.dump(self.data, open(self.datafile, 'w'))
 
-    #Sets up a variable that will hold the information for one build. Contained in the build
-    #are various status variables that tell the program when somethng was allocated and the time
-    #since the last activity. Maintains a count of errors and the number of times the function was
-    #run. Contains in the class the addresses(hostnames) of all clients on the network for a request
-    #DURING a BUILD.
+    '''Sets up a variable that will hold the information for one build. Contained in the build
+    are various status variables that tell the program when somethng was allocated and the time
+    since the last activity. Maintains a count of errors and the number of times the function was
+    run. Contains in the class the addresses(hostnames) of all clients on the network for a request
+    DURING a BUILD.'''
     def assert_setup(self, address, info):
         newsetup = dict([('Allocated', time.mktime(time.localtime())), ('Counts', dict()), ('Errors', 0), 
                          ('Activity', time.mktime(time.localtime())), ('Info', list())])
@@ -147,20 +147,39 @@ class fm(object):
             logging.exception("Genshi template error")
             raise RenderError
 
+    #Tries to find the path for the image that is requested. 
+    #returns the path of that image if it exsists or an 
+    #empty string otherwise
+    def render_image_path(self, imageName, toRender, address):
+        requestData = self.root + '/images/' + imageName + '/' + toRender
+        try:
+            os.stat(requestData)
+        except:
+            raise PageLookupError
+        try:
+            bvars = self.build_vars(address, toRender)
+        except AttributeResolutionError:
+            raise RenderError
+        with open(requestData) as infile:
+            tmpl = NewTextTemplate(infile.read())
+        self.increment_count(address, toRender)
+        try: 
+            return tmpl.generate(**bvars).render('text')
+        except:
+            logging.exception("Genshi template Error")
+            raise RenderError
 
-    #used when the function is used. Will call for a start responce and then get
-    #the messgae from the calling client. It will then process this message and 
-    #then take that message and make decisions based on it. So far all that has been 
-    #studied is the POST and /ctl    
+    '''used when the function is used. Will call for a start responce and then get
+    the messgae from the calling client. It will then process this message and 
+    then take that message and make decisions based on it. So far all that has been 
+    studied is the POST and /ctl'''    
     def __call__(self, environ, start_response):
         address = environ['REMOTE_ADDR']
-        print 'address ' + address
         path = environ['PATH_INFO'][1:]
-	
         #Drops into a request method conditional. So far have only seen values for
         #POST.
         if environ['REQUEST_METHOD'] == 'GET':
-
+            
             if path == 'dump':
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(self.data)
@@ -176,7 +195,10 @@ class fm(object):
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
 
-		
+                elif path in ['bootconfig', 'install']:
+                    template = self.render_image_path(self.data[address]['Image'], path, address)
+                    start_response('200 OK', [('Content-type', 'application/binary')])
+                    return template
 
                 else:
                     raise PageLookupError
@@ -247,7 +269,7 @@ class fm(object):
 if __name__ == '__main__':
     from eventlet import wsgi
     try:
-        repopath = os.getcwd()
+        repopath = os.getcwd()+ '/repository'
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
