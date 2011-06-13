@@ -150,11 +150,13 @@ class fm(object):
     #Tries to find the path for the image that is requested. 
     #returns the path of that image if it exsists or an 
     #empty string otherwise
-    def render_image_path(self, imageName, toRender, address):
+    def render_image_path(self, address, toRender):
+        imageName = self.data[address]['Image']
         requestData = self.root + '/images/' + imageName + '/' + toRender
         try:
             os.stat(requestData)
         except:
+            logging.error('Failed to find template %s' % (requestData))
             raise PageLookupError
         try:
             bvars = self.build_vars(address, toRender)
@@ -196,7 +198,7 @@ class fm(object):
                     return data
 
                 elif path in ['bootconfig', 'install']:
-                    template = self.render_image_path(self.data[address]['Image'], path, address)
+                    template = self.render_image_path(address, path)
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return template
 
@@ -249,7 +251,11 @@ class fm(object):
             elif path == 'status':
                 ret = dict()
                 for client in msg['Addresses']:
-                    cstatus = self.render_get_dynamic(client, '../status').strip()
+                    try:
+                        cstatus = self.render_image_path(client, 'status').strip()
+                    except:
+                        start_response('500 Server Error', [('Content-Type', 'text/plain')])
+                        return 'Image not found'py
                     with self.data_sem:
                         ret[client] = dict([('Status', cstatus), ('Info', self.data[client]['Info'])])
                         self.data[client]['Info'] = []
