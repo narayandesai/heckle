@@ -1,0 +1,6 @@
+{% if Count > 1 %}
+install
+{% end %}
+{% if Count <= 1 %}
+bcfg
+{% end %}
