@@ -6,8 +6,6 @@ import eventlet.semaphore
 import json
 import os
 import logging
-import sys
-import socket
 import time
 from genshi.template import NewTextTemplate
 
@@ -52,7 +50,7 @@ class fm(object):
     def __init__(self, root, url, datafile):
         self.root = root
         self.datafile = datafile
-	self.flunkyURL = url
+        self.flunkyURL = url
         self.static = root +'/repository/static'
         self.dynamic = root +'/repository/dynamic'
         self.data = dict()
@@ -157,7 +155,7 @@ class fm(object):
     #studied is the POST and /ctl    
     def __call__(self, environ, start_response):
         address = environ['REMOTE_ADDR']
-	print 'address ' + address
+        print 'address ' + address
         path = environ['PATH_INFO'][1:]
 	
         #Drops into a request method conditional. So far have only seen values for
@@ -202,7 +200,8 @@ class fm(object):
                 logging.info(address + " : " + msg['Message'])
                 with self.data_sem:
                     self.data[address]['Activity'] = time.mktime(time.localtime())
-                    self.data[address]['Info'].append(dict([('Time', long(time.mktime(time.localtime()))), ('Message', msg['Message']), ('MsgType', 'Info')]))
+                    self.data[address]['Info'].append(dict([('Time', long(time.mktime(time.localtime()))), 
+                                                            ('Message', msg['Message']), ('MsgType', 'Info')]))
                     self.store()
 
 
@@ -211,7 +210,8 @@ class fm(object):
                 with self.data_sem:
                     self.data[address]['Activity'] = time.mktime(time.localtime())
                     self.data[address]['Errors'] += 1
-                    self.data[address]['Info'].append(dict([('Time', long(time.mktime(time.localtime()))), ('Message', msg['Message']), ('MsgType', 'Error')]))
+                    self.data[address]['Info'].append(dict([('Time', long(time.mktime(time.localtime()))), 
+                                                            ('Message', msg['Message']), ('MsgType', 'Error')]))
                     self.store()
 
 
@@ -236,7 +236,7 @@ class fm(object):
 
             else:
                 start_response('404 Not Found', [('Content-Type', 'text/plain')])
-		return ''
+                return ''
             start_response('200 OK', [('Content-type', 'application/octet-stream')])
             return ""
         start_response('404 Not Found', [('Content-Type', 'text/plain')])
