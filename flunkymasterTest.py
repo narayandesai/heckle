@@ -120,55 +120,53 @@ class fm(object):
     #passing in the address and path of the script. This will then create 
     #a new template file increase the count and then return a template.
     def render_get_dynamic(self, address, path):
-        fname = self.dynamic + 'dynamic/' + path
-	name = self.findSub(self.dynamic, self.data[address]['Image'])
-	kname = name + '/status'
-        try:
-            os.stat(fname)
-	 #   os.stat(kname)
-        except:
-            raise PageLookupError
+	#path = status
+	rname = self.findSub(self.dynamic, self.data[address]['Image'])
+	fname = rname  + '/status'
+	try:
+		os.stat(fname)
+	except:
+		raise PageLookupError
+	try:
+		bvars = self.build_vars(address,path)
+	except AttributeResolutionError:
+		raise RenderError
 
-        try:
-            bvars = self.build_vars(address, path)
-        except AttributeResolutionError:
-            raise RenderError
+	with open(fname) as infile:
+		tmpl = NewTextTemplate(infile.read())
 
-        # grab the requested template
-        with open(fname) as infile:
-            tmpl = NewTextTemplate(infile.read())
+	self.increment_count(address, path)
 	
-	
-	#with open(kname) as filey:
-	#	tmpl2 = NewTextTemplate(filey.read())
-	
+	try:
+		data = tmpl.generate(**bvars).render('text').strip()
+	except:
+		logging.exception("Genshi template error")
+		raise RenderError
 
-        # increment access count
-        self.increment_count(address, path)
-        # sick genshi on that template and return it
+	renName = rname + '/' + data
+	try:
+		os.stat(renName)
+	except:
+		raise PageLookupError
+	with open(renName) as infile:
+	    tmpl = NewTextTemplate(infile.read())
 
-	#try:
-	 #   data = tmpl2.generate(**bvars).render('text')
-	  #  tmp = name + '/' + data[0]
-	   # print tmp
-	   # try:
-		#os.stat(tmp)
-		#with open(tmp) as filey2:
-	#		info = filey2.read()
-	#		print info	
-	 #   except:
-	#	raise PageLookupError
-	#except:
-	#    logging.exception("Genshi templete error")
-	#    raise RenderError
+	try:
+		return tmpl.generate(**bvars).render('text')
+	except:
+		logging.exception("Genshi template error")
+	    	raise RenderError
 	
-	
-
-        try:
-            return tmpl.generate(**bvars).render('text')
-        except:
-            logging.exception("Genshi template error")
-            raise RenderError
+    
+    def findSub(self, currDir, folderName):
+	retPath = ' '
+	for path, dirs, files in os.walk(currDir):
+		newPath = path.split('/')
+		if newPath[-1] == folderName:
+			retPath = path
+			break
+		
+	return str(retPath)
 
     def store(self, filename):
 	open(filename, 'w').write(json.dumps)
@@ -181,13 +179,7 @@ class fm(object):
 	dataFile = open(filename)
 	self.data = json.load(dataFile)
 
-    def findSub(self, currDir, folderName):
-	for path, dirs, files in os.walk(currDir):
-		newPath = path.split('/')
-		if newPath[-1] == folderName:
-			retPath = path
-		
-	return str(retPath)
+    
 
     #used when the function is used. Will call for a start responce and then get
     #the messgae from the calling client. It will then process this message and 
@@ -213,8 +205,7 @@ class fm(object):
 
                 elif path.startswith('dynamic'):
                     data = self.render_get_dynamic(address, path[path.find('/'):])
-		    print data
-                    start_response('200 OK', [('Content-type', 'application/binary')])
+		    start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
 
                 else:
@@ -256,12 +247,9 @@ class fm(object):
                     logging.info("Allocating %s as %s" % (address1, msg['Image']))
                     self.assert_setup(address1, msg)
 
-            #pass new structure in this area so that it can be read from fctl
-            #The message will have an address requested. The message will take
-            #it and move it to him per request. 
             elif path == 'status':
 		ret = dict()
-                self.data[address1]['Status'] = self.render_get_dynamic(address1, '../status').strip()
+		self.data[address1]['Status'] = self.render_get_dynamic(address1, path).strip()
                 ret = dict([('Status', self.data[address1]['Status']), ('Info', self.data[address1]['Info'])])
 		del self.data[address1]['Info'][:]
                 start_response('200 OK', [('Content-type', 'application/json')])
@@ -284,6 +272,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-
  
     wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080'))
