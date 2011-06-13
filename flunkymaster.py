@@ -9,44 +9,47 @@ import logging
 import time
 from genshi.template import NewTextTemplate
 
-#Create a new logging object for debugging statuments.
+'''Create a new logging object for debugging statuments.'''
 logging.basicConfig(level=logging.DEBUG)
 
-# the pool provides a safety limit on our concurrency
-#Eventlet is a free threading implementation for network information
+''' the pool provides a safety limit on our concurrency
+Eventlet is a free threading implementation for network information'''
 pool = eventlet.GreenPool()
 
-#Cannot find webpage
+'''Cannot find webpage'''
 class PageLookupError(Exception):
     pass
 
-#Cannot render the template for the image
+'''Cannot render the template for the image'''
 class RenderError(Exception):
     pass
 
-#Cannot set the values of the information for the build image
+'''Cannot set the values of the information for the build image'''
 class AttributeResolutionError(Exception):
     pass
 
+class ImageResolutionError(Exception):
+    pass
 
-#Creates the flunky master object. This object allows for the full
-#management of the entire system. This server can wait indefinately
-#for information to be sent to the sever. this server will do a look
-#based on the node name and write it to a file. Thus effectively 
-#taking all of the information from the flunkys and compiling it
-#into a persistent list that is sent to the fctl. 
+
+'''Creates the flunky master object. This object allows for the full
+management of the entire system. This server can wait indefinately
+for information to be sent to the sever. this server will do a look
+based on the node name and write it to a file. Thus effectively 
+taking all of the information from the flunkys and compiling it
+into a persistent list that is sent to the fctl.''' 
 class fm(object):
 
-#Creates an object known as root(currently a file on the local host)
-    #This file structure should be the path to the server on the network.
-    #Once this is created the root node has other variables appened to it
-    #that allow it to be called. The static and dynamic names afford for 
-    #static or dynamic allocation. The class also sets up a data dictionary
-    #as wll as a eventlet.semaphore for concurrent networking operations. In 
-    #essence it works the same as the threading paradigm for single non con-
-    #current programming
-    #A simple semaphore is called to wait for a thread. Information on the 
-    #structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html. 
+    '''Creates an object known as root(currently a file on the local host)
+    This file structure should be the path to the server on the network.
+    Once this is created the root node has other variables appened to it
+    that allow it to be called. The static and dynamic names afford for 
+    static or dynamic allocation. The class also sets up a data dictionary
+    as wll as a eventlet.semaphore for concurrent networking operations. In 
+    essence it works the same as the threading paradigm for single non con-
+    current programming
+    A simple semaphore is called to wait for a thread. Information on the 
+    structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html.''' 
     def __init__(self, root, url, datafile):
         self.root = root
         self.datafile = datafile
@@ -75,6 +78,13 @@ class fm(object):
     run. Contains in the class the addresses(hostnames) of all clients on the network for a request
     DURING a BUILD.'''
     def assert_setup(self, address, info):
+        imageDir = self.root + '/images/' + info['Image'] 
+        try:
+            os.stat(imageDir)
+        except:
+            logging.error('Failed to find requested image %s' % (imageDir))
+            raise ImageResolutionError
+
         newsetup = dict([('Allocated', time.mktime(time.localtime())), ('Counts', dict()), ('Errors', 0), 
                          ('Activity', time.mktime(time.localtime())), ('Info', list())])
         newsetup['Image'] = info['Image']
@@ -84,10 +94,10 @@ class fm(object):
             self.data[address] = newsetup
             self.store()
 
-    #Creates a list of build variables for the script that will be rendered later on 
-    #in the process. This will update the data dictionary with the new path to the 
-    #address of the build script. Returns a data dictionary that contains the address
-    #of the build environment, the path to it and updates the data in self.
+    '''Creates a list of build variables for the script that will be rendered later on 
+    in the process. This will update the data dictionary with the new path to the 
+    address of the build script. Returns a data dictionary that contains the address
+    of the build environment, the path to it and updates the data in self.'''
     def build_vars(self, address, path):
         if address not in self.data:
             raise AttributeResolutionError
@@ -96,8 +106,8 @@ class fm(object):
         data.update(self.data[address])
         return data
 
-    #Increments the count. A count is defined as when something occurs in the script. 
-    #if an error occurs, set it to one. 
+    '''Increments the count. A count is defined as when something occurs in the script. 
+    if an error occurs, set it to one. '''
     def increment_count(self, address, path):
         with self.data_sem:
             try:
@@ -106,9 +116,9 @@ class fm(object):
                 self.data[address]['Counts'][path] = 1
             self.store()
 
-    #Find the data directory and load a static
-    #build templeate if it exsists. There is no
-    #dynamic template building here.
+    '''Find the data directory and load a static
+    build templeate if it exsists. There is no
+    dynamic template building here.'''
     def render_get_static(self, address, path):
         try:
             fname = self.static + '/' + path
@@ -118,11 +128,11 @@ class fm(object):
         except:
             raise RenderError
 
-    #Tries to open a file to the dynamic file address on the server. 
-    #checks to see if the file exsists and if not will raise and exeption. 
-    #The script then creates a new class variable called build_vars
-    #passing in the address and path of the script. This will then create 
-    #a new template file increase the count and then return a template.
+    '''Tries to open a file to the dynamic file address on the server. 
+    checks to see if the file exsists and if not will raise and exeption. 
+    The script then creates a new class variable called build_vars
+    passing in the address and path of the script. This will then create 
+    a new template file increase the count and then return a template.'''
     def render_get_dynamic(self, address, path):
         fname = self.dynamic + '/' + path
         try:
@@ -147,9 +157,9 @@ class fm(object):
             logging.exception("Genshi template error")
             raise RenderError
 
-    #Tries to find the path for the image that is requested. 
-    #returns the path of that image if it exsists or an 
-    #empty string otherwise
+    ''''Tries to find the path for the image that is requested. 
+    returns the path of that image if it exsists or an 
+    empty string otherwise'''
     def render_image_path(self, address, toRender):
         imageName = self.data[address]['Image']
         requestData = self.root + '/images/' + imageName + '/' + toRender
@@ -242,11 +252,11 @@ class fm(object):
             elif path == 'ctl':
                 for client in msg['Addresses']:
                     logging.info("Allocating %s as %s" % (client, msg['Image']))
-                    self.assert_setup(client, msg)
-
-            #pass new structure in this area so that it can be read from fctl
-            #The message will have an address requested. The message will take
-            #it and move it to him per request. 
+                    try:
+                        self.assert_setup(client, msg)
+                    except:
+                        start_response('500 Server Error', [('Content-Type', 'text/plain')])
+                        return 'Cannot find image file'
 
             elif path == 'status':
                 ret = dict()
@@ -255,7 +265,7 @@ class fm(object):
                         cstatus = self.render_image_path(client, 'status').strip()
                     except:
                         start_response('500 Server Error', [('Content-Type', 'text/plain')])
-                        return 'Image not found'py
+                        return 'Image not found'
                     with self.data_sem:
                         ret[client] = dict([('Status', cstatus), ('Info', self.data[client]['Info'])])
                         self.data[client]['Info'] = []
