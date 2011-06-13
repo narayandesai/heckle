@@ -47,7 +47,7 @@ type infoMsg struct {
 }
 
 func (msg *infoMsg) Format (client string) (string) {
-	strval := fmt.Sprintf("%s: %s: Node: %s: %s", msg.MsgType, time.SecondsToUTC(msg.Time).Format(time.UnixDate), client, msg.Message)
+	strval := fmt.Sprintf("%s: %s: Node: %s: %s", msg.MsgType, time.SecondsToLocalTime(msg.Time).Format(time.UnixDate), client, msg.Message)
 	return strval
 }
 
@@ -111,13 +111,13 @@ func printStatusMessage(node string, readyBail readyBailNode, tmpStatusMessage s
 	}
 
 	if readyBail.Ready && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Ready \n", node, time.UTC().Format(time.UnixDate))
+		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Ready \n", node, time.LocalTime().Format(time.UnixDate))
 		readyBail.Printed = true
 	} else if readyBail.Bail && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Failed \n", node, time.UTC().Format(time.UnixDate))
+		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Failed \n", node, time.LocalTime().Format(time.UnixDate))
 		readyBail.Printed = true
 	} else {
-		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Building \n", node, time.UTC().Format(time.UnixDate))
+		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Building \n", node, time.LocalTime().Format(time.UnixDate))
 	}
 }
 
