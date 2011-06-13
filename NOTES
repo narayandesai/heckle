@@ -5,7 +5,7 @@ Development Notes
  X implement fctl
  - add self-reference support in templating
  X save flunkymaster.fm.data
- - Implement a way in flunky master to take the imaged nodes out of the list
+ X Implement a way in flunky master to take the imaged nodes out of the list
  - Find a way to condense code in flunky master for readibility
  - Stop server and CLOSE connection
  - 
