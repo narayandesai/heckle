@@ -1,8 +1,12 @@
 Development Notes
  - add mode to read server from /proc/cmdline 
  - check if argv[0] == bootlocal.sh (will allow flunky to run in tinycore easily)
- - add ctl interface (post address, image, extradata)
- - implement fctl
+ X add ctl interface (post address, image, extradata)
+ X implement fctl
  - add self-reference support in templating
- - save flunkymaster.fm.data
+ X save flunkymaster.fm.data
+ - Implement a way in flunky master to take the imaged nodes out of the list
+ - Find a way to condense code in flunky master for readibility
+ - Stop server and CLOSE connection
+ - 
    
