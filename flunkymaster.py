@@ -37,14 +37,6 @@ def dthandler(obj):
         return obj.isoformat()
     return obj
 
-#Loads the data base from a backup
-    #image.
-def load(filename):
-    try:
-	os.stat(filename)
-    except:
-       raise PageLookupError
-    return json.load(open(filename, 'r'))
 
 #Creates the flunky master object. This object allows for the full
 #management of the entire system. This server can wait indefinately
@@ -64,16 +56,17 @@ class fm(object):
     #current programming
     #A simple semaphore is called to wait for a thread. Information on the 
     #structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html. 
-    def __init__(self, root, url, data):
+    def __init__(self, root, url):
         self.root = root
 	self.flunkyURL = url
         self.static = root +'/repository/static'
-        self.dynamic = root +'/repository/'
-        self.data = data
+        self.dynamic = root +'/repository/dynamic'
+        self.data = dict()
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
-	
+
+
     #Sets up a variable that will hold the information for one build. Contained in the build
     #are various status variables that tell the program when somethng was allocated and the time
     #since the last activity. Maintains a count of errors and the number of times the function was
@@ -81,7 +74,7 @@ class fm(object):
     #DURING a BUILD.
     def assert_setup(self, address, info):
         newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
-                         ('Activity', datetime.datetime.now()), ('Info', list())])
+                         ('Activity', datetime.datetime.now()), ('Info', list()), ('Status', 'Starting')])
         newsetup['Image'] = info['Image']
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
@@ -127,60 +120,35 @@ class fm(object):
     #passing in the address and path of the script. This will then create 
     #a new template file increase the count and then return a template.
     def render_get_dynamic(self, address, path):
-	rname = self.ImagePath(self.dynamic, self.data[address]['Image'])
-	fname = rname  + '/status'
-	try:
-		os.stat(fname)
-	except:
-		raise PageLookupError
-	try:
-		bvars = self.build_vars(address,path)
-	except AttributeResolutionError:
-		raise RenderError
+        fname = self.dynamic + '/' + path
+        try:
+            os.stat(fname)
+        except:
+            raise PageLookupError
+        try:
+            bvars = self.build_vars(address, path)
+        except AttributeResolutionError:
+            raise RenderError
 
-	with open(fname) as infile:
-		tmpl = NewTextTemplate(infile.read())
+        # grab the requested template
+        with open(fname) as infile:
+            tmpl = NewTextTemplate(infile.read())
 
-	self.increment_count(address, path)
-	
-	try:
-		data = tmpl.generate(**bvars).render('text').strip()
-	except:
-		logging.exception("Genshi template error")
-		raise RenderError
+        # increment access count
+        self.increment_count(address, path)
+        # sick genshi on that template and return it
+        try:
+            return tmpl.generate(**bvars).render('text')
+        except:
+            logging.exception("Genshi template error")
+            raise RenderError
 
-	renName = rname + '/' + data
-	try:
-		os.stat(renName)
-	except:
-		raise PageLookupError
-	with open(renName) as infile:
-	    tmpl = NewTextTemplate(infile.read())
+    #def store(self, filename):
+	#open(filename, 'w').write(json.dumps)
 
-	try:
-		return tmpl.generate(**bvars).render('text')
-	except:
-		logging.exception("Genshi template error")
-	    	raise RenderError
-	
-    #Tries to find the path for the image that is requested. 
-    #returns the path of that image if it exsists or an 
-    #empty string otherwise
-    def ImagePath(self, currDir, folderName):
-	retPath = ' '
-	for path, dirs, files in os.walk(currDir):
-		newPath = path.split('/')
-		if newPath[-1] == folderName:
-			retPath = path
-			break
-		
-	return str(retPath)
-
-    #Makes a backup of the database so that it
-    #Can be reloaded in the event of failure
-    def store(self, filename):
-	open(filename, 'w').write(json.dumps(self.data, default=dthandler))
-	
+    def load(self, filename):
+	dataFile = open(filename)
+	self.data = json.load(dataFile)
 
     #used when the function is used. Will call for a start responce and then get
     #the messgae from the calling client. It will then process this message and 
@@ -188,8 +156,8 @@ class fm(object):
     #studied is the POST and /ctl    
     def __call__(self, environ, start_response):
         address = environ['REMOTE_ADDR']
+	print 'address ' + address
         path = environ['PATH_INFO'][1:]
-	backup = 'backup.json'
 	
         #Drops into a request method conditional. So far have only seen values for
         #POST.
@@ -198,8 +166,8 @@ class fm(object):
             if path == 'dump':
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(self.data, default=dthandler)
-            #try:
-                '''if path.startswith('static'):
+            try:
+                if path.startswith('static'):
                     data = self.render_get_static(address, path[path.find('/'):])
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
@@ -207,7 +175,7 @@ class fm(object):
 
                 elif path.startswith('dynamic'):
                     data = self.render_get_dynamic(address, path[path.find('/'):])
-		    start_response('200 OK', [('Content-type', 'application/binary')])
+                    start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
 
                 else:
@@ -222,47 +190,45 @@ class fm(object):
                 return ''
 
             except:
-                logging.exception("Get failure")'''
+                logging.exception("Get failure")
 
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
+            print data
             msg = json.loads(data)
-	    address1 = msg['Address']
-         
 
             if path == 'info':
-                logging.info(address1 + " : " + msg['Message'])
+                logging.info(address + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[address1]['Activity'] = datetime.datetime.now()
-                    self.data[address1]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Info')]))
-		    self.store(backup)
-	   	
+                    self.data[address]['Activity'] = datetime.datetime.now()
+                    self.data[address]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Info')]))
 
 
             elif path == 'error':
-                logging.error(address1 + " : " + msg['Message'])
+                logging.error(address + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[address1]['Activity'] = datetime.datetime.now()
-                    self.data[address1]['Errors'] += 1
-                    self.data[address1]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Error')]))
-		    self.store(backup)
-	    
+                    self.data[address]['Activity'] = datetime.datetime.now()
+                    self.data[address]['Errors'] += 1
+                    self.data[address]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Error')]))
+
+
             elif path == 'ctl':
-                    logging.info("Allocating %s as %s" % (address1, msg['Image']))
-                    self.assert_setup(address1, msg)
-		    self.store(backup)
+                for client in msg['Addresses']:
+                    logging.info("Allocating %s as %s" % (client, msg['Image']))
+                    self.assert_setup(client, msg)
+
+            #pass new structure in this area so that it can be read from fctl
+            #The message will have an address requested. The message will take
+            #it and move it to him per request. 
 
             elif path == 'status':
-		ret = dict()
-		status = self.render_get_dynamic(address1, path).strip()
-                ret = dict([('Status', status), ('Info', self.data[address1]['Info'])])
-		del self.data[address1]['Info'][:]
-		self.store(backup)
-		if status == 'Ready': #Dummy call. Test to see if the correct node will be removed from list after build. 
-			del self.data[address1]
+                ret = dict()
+                for client in msg['Addresses']:
+                    self.data[client]['Status'] = self.render_get_dynamic(client, '../status').strip()
+                    ret[client] = dict([('Status', self.data[client]['Status']), ('Info', self.data[client]['Info'])])
+                    self.data[client]['Info'] = []
                 start_response('200 OK', [('Content-type', 'application/json')])
-		self.store(backup)
-                return json.dumps(ret)
+                return json.dumps(ret, default=dthandler)
 
 
             else:
@@ -281,4 +247,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', data = load('backup.json') ))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080'))
+
