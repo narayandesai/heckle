@@ -37,6 +37,15 @@ def dthandler(obj):
         return obj.isoformat()
     return obj
 
+#Loads the data base from a backup
+    #image.
+def load(filename):
+    try:
+	os.stat(filename)
+    except:
+       raise PageLookupError
+    return json.load(open(filename, 'r'))
+
 #Creates the flunky master object. This object allows for the full
 #management of the entire system. This server can wait indefinately
 #for information to be sent to the sever. this server will do a look
@@ -55,12 +64,12 @@ class fm(object):
     #current programming
     #A simple semaphore is called to wait for a thread. Information on the 
     #structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html. 
-    def __init__(self, root, url):
+    def __init__(self, root, url, data):
         self.root = root
 	self.flunkyURL = url
         self.static = root +'/repository/static'
         self.dynamic = root +'/repository/'
-        self.data = dict()
+        self.data = data
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
@@ -170,21 +179,8 @@ class fm(object):
     #Makes a backup of the database so that it
     #Can be reloaded in the event of failure
     def store(self, filename):
-	try:
-		os.stat(filename)
-	except:
-		PageLookupError
-	open(filename, 'w').write(json.dumps)
-
-    #Loads the data base from a backup
-    #image.
-    def load(self, filename):
-        try:
-	    os.stat(filename)
-        except:
-           raise PageLookupError
-        dataFile = open(filename)
-        self.data = json.load(dataFile)
+	open(filename, 'w').write(json.dumps(self.data, default=dthandler))
+	
 
     #used when the function is used. Will call for a start responce and then get
     #the messgae from the calling client. It will then process this message and 
@@ -239,7 +235,7 @@ class fm(object):
                 with self.data_sem:
                     self.data[address1]['Activity'] = datetime.datetime.now()
                     self.data[address1]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Info')]))
-		    
+		    self.store(backup)
 	   	
 
 
@@ -249,19 +245,23 @@ class fm(object):
                     self.data[address1]['Activity'] = datetime.datetime.now()
                     self.data[address1]['Errors'] += 1
                     self.data[address1]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Error')]))
-		    
+		    self.store(backup)
 	    
             elif path == 'ctl':
                     logging.info("Allocating %s as %s" % (address1, msg['Image']))
                     self.assert_setup(address1, msg)
-		    
+		    self.store(backup)
 
             elif path == 'status':
 		ret = dict()
 		status = self.render_get_dynamic(address1, path).strip()
                 ret = dict([('Status', status), ('Info', self.data[address1]['Info'])])
 		del self.data[address1]['Info'][:]
+		self.store(backup)
+		if status == 'Ready': #Dummy call. Test to see if the correct node will be removed from list after build. 
+			del self.data[address1]
                 start_response('200 OK', [('Content-type', 'application/json')])
+		self.store(backup)
                 return json.dumps(ret)
 
 
@@ -281,4 +281,4 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080'))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', data = load('backup.json') ))
