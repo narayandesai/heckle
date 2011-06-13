@@ -65,8 +65,6 @@ class fm(object):
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
 	
-
-
     #Sets up a variable that will hold the information for one build. Contained in the build
     #are various status variables that tell the program when somethng was allocated and the time
     #since the last activity. Maintains a count of errors and the number of times the function was
@@ -74,7 +72,7 @@ class fm(object):
     #DURING a BUILD.
     def assert_setup(self, address, info):
         newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
-                         ('Activity', datetime.datetime.now()), ('Info', list()), ('Status', 'Starting')])
+                         ('Activity', datetime.datetime.now()), ('Info', list())])
         newsetup['Image'] = info['Image']
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
@@ -241,7 +239,7 @@ class fm(object):
                 with self.data_sem:
                     self.data[address1]['Activity'] = datetime.datetime.now()
                     self.data[address1]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Info')]))
-		    self.store(backup)
+		    
 	   	
 
 
@@ -251,17 +249,17 @@ class fm(object):
                     self.data[address1]['Activity'] = datetime.datetime.now()
                     self.data[address1]['Errors'] += 1
                     self.data[address1]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Error')]))
-		    self.store(backup)
+		    
 	    
             elif path == 'ctl':
                     logging.info("Allocating %s as %s" % (address1, msg['Image']))
                     self.assert_setup(address1, msg)
-		    self.store(backup)
+		    
 
             elif path == 'status':
 		ret = dict()
-		self.data[address1]['Status'] = self.render_get_dynamic(address1, path).strip()
-                ret = dict([('Status', self.data[address1]['Status']), ('Info', self.data[address1]['Info'])])
+		status = self.render_get_dynamic(address1, path).strip()
+                ret = dict([('Status', status), ('Info', self.data[address1]['Info'])])
 		del self.data[address1]['Info'][:]
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(ret)
