@@ -67,7 +67,6 @@ class fm(object):
             self.data = dict()
 
     def store(self):
-        print self.data
         json.dump(self.data, open(self.datafile, 'w'))
 
     #Sets up a variable that will hold the information for one build. Contained in the build
@@ -177,6 +176,8 @@ class fm(object):
                     start_response('200 OK', [('Content-type', 'application/binary')])
                     return data
 
+		
+
                 else:
                     raise PageLookupError
 
@@ -193,7 +194,6 @@ class fm(object):
 
         elif environ['REQUEST_METHOD'] == 'POST':
             data = environ['wsgi.input'].read()
-            print data
             msg = json.loads(data)
 
             if path == 'info':
