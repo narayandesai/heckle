@@ -1,7 +1,6 @@
 """A simple web server that accepts POSTS containing a list of feed urls,
 and returns the titles of those feeds.
 """
-import datetime
 import eventlet
 import eventlet.semaphore
 import json
@@ -31,12 +30,6 @@ class RenderError(Exception):
 class AttributeResolutionError(Exception):
     pass
 
-#Creates a dthandler object for datetime.datetime object
-def dthandler(obj):
-    if isinstance(obj, datetime.datetime):
-        return obj.isoformat()
-    return obj
-
 
 #Creates the flunky master object. This object allows for the full
 #management of the entire system. This server can wait indefinately
@@ -56,16 +49,28 @@ class fm(object):
     #current programming
     #A simple semaphore is called to wait for a thread. Information on the 
     #structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html. 
-    def __init__(self, root, url):
+    def __init__(self, root, url, datafile):
         self.root = root
+        self.datafile = datafile
 	self.flunkyURL = url
         self.static = root +'/repository/static'
         self.dynamic = root +'/repository/dynamic'
         self.data = dict()
+        self.load()
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
 
+    def load(self):
+        try:
+            self.data = json.load(open(self.datafile))
+        except:
+            logging.error("Failed to load datafile %s" % self.datafile)
+            self.data = dict()
+
+    def store(self):
+        print self.data
+        json.dump(self.data, open(self.datafile, 'w'))
 
     #Sets up a variable that will hold the information for one build. Contained in the build
     #are various status variables that tell the program when somethng was allocated and the time
@@ -73,13 +78,14 @@ class fm(object):
     #run. Contains in the class the addresses(hostnames) of all clients on the network for a request
     #DURING a BUILD.
     def assert_setup(self, address, info):
-        newsetup = dict([('Allocated', datetime.datetime.now()), ('Counts', dict()), ('Errors', 0), 
-                         ('Activity', datetime.datetime.now()), ('Info', list()), ('Status', 'Starting')])
+        newsetup = dict([('Allocated', time.mktime(time.localtime())), ('Counts', dict()), ('Errors', 0), 
+                         ('Activity', time.mktime(time.localtime())), ('Info', list()), ('Status', 'Starting')])
         newsetup['Image'] = info['Image']
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
         with self.data_sem:
             self.data[address] = newsetup
+            self.store()
 
     #Creates a list of build variables for the script that will be rendered later on 
     #in the process. This will update the data dictionary with the new path to the 
@@ -101,6 +107,7 @@ class fm(object):
                 self.data[address]['Counts'][path] += 1
             except:
                 self.data[address]['Counts'][path] = 1
+            self.store()
 
     #Find the data directory and load a static
     #build templeate if it exsists. There is no
@@ -143,12 +150,6 @@ class fm(object):
             logging.exception("Genshi template error")
             raise RenderError
 
-    #def store(self, filename):
-	#open(filename, 'w').write(json.dumps)
-
-    def load(self, filename):
-	dataFile = open(filename)
-	self.data = json.load(dataFile)
 
     #used when the function is used. Will call for a start responce and then get
     #the messgae from the calling client. It will then process this message and 
@@ -165,7 +166,7 @@ class fm(object):
 
             if path == 'dump':
                 start_response('200 OK', [('Content-type', 'application/json')])
-                return json.dumps(self.data, default=dthandler)
+                return json.dumps(self.data)
             try:
                 if path.startswith('static'):
                     data = self.render_get_static(address, path[path.find('/'):])
@@ -200,16 +201,18 @@ class fm(object):
             if path == 'info':
                 logging.info(address + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[address]['Activity'] = datetime.datetime.now()
-                    self.data[address]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Info')]))
+                    self.data[address]['Activity'] = time.mktime(time.localtime())
+                    self.data[address]['Info'].append(dict([('Time', long(time.mktime(time.localtime()))), ('Message', msg['Message']), ('MsgType', 'Info')]))
+                    self.store()
 
 
             elif path == 'error':
                 logging.error(address + " : " + msg['Message'])
                 with self.data_sem:
-                    self.data[address]['Activity'] = datetime.datetime.now()
+                    self.data[address]['Activity'] = time.mktime(time.localtime())
                     self.data[address]['Errors'] += 1
-                    self.data[address]['Info'].append(dict([('Time', long(time.time())), ('Message', msg['Message']), ('MsgType', 'Error')]))
+                    self.data[address]['Info'].append(dict([('Time', long(time.mktime(time.localtime()))), ('Message', msg['Message']), ('MsgType', 'Error')]))
+                    self.store()
 
 
             elif path == 'ctl':
@@ -228,7 +231,7 @@ class fm(object):
                     ret[client] = dict([('Status', self.data[client]['Status']), ('Info', self.data[client]['Info'])])
                     self.data[client]['Info'] = []
                 start_response('200 OK', [('Content-type', 'application/json')])
-                return json.dumps(ret, default=dthandler)
+                return json.dumps(ret)
 
 
             else:
@@ -247,5 +250,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080'))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', datafile='/tmp/data.json'))
 
