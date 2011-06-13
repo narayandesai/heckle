@@ -77,7 +77,7 @@ class fm(object):
     #DURING a BUILD.
     def assert_setup(self, address, info):
         newsetup = dict([('Allocated', time.mktime(time.localtime())), ('Counts', dict()), ('Errors', 0), 
-                         ('Activity', time.mktime(time.localtime())), ('Info', list()), ('Status', 'Starting')])
+                         ('Activity', time.mktime(time.localtime())), ('Info', list())])
         newsetup['Image'] = info['Image']
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
@@ -227,9 +227,10 @@ class fm(object):
             elif path == 'status':
                 ret = dict()
                 for client in msg['Addresses']:
-                    self.data[client]['Status'] = self.render_get_dynamic(client, '../status').strip()
-                    ret[client] = dict([('Status', self.data[client]['Status']), ('Info', self.data[client]['Info'])])
-                    self.data[client]['Info'] = []
+                    cstatus = self.render_get_dynamic(client, '../status').strip()
+                    with self.data_sem:
+                        ret[client] = dict([('Status', cstatus), ('Info', self.data[client]['Info'])])
+                        self.data[client]['Info'] = []
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(ret)
 
