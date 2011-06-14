@@ -10,7 +10,10 @@ import time
 from genshi.template import NewTextTemplate
 
 '''Create a new logging object for debugging statuments.'''
-logging.basicConfig(level=logging.DEBUG)
+msgFormat = "%(asctime)s - %(levelname)s - %(message)s"
+logging.basicConfig(filename=(os.getcwd()+'/repository/backup/logfile.log'), level=logging.DEBUG, format=msgFormat)
+
+
 
 ''' the pool provides a safety limit on our concurrency
 Eventlet is a free threading implementation for network information'''
@@ -288,5 +291,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', datafile='/tmp/data.json'))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', datafile=repopath+'/backup/data.json'))
 
