@@ -151,7 +151,12 @@ func main() {
 	// FIXME: need to add in extradata
 	js, _ := json.Marshal(cm)
 	buf := bytes.NewBufferString(string(js))
-	_, _ = bs.Post("/ctl", buf)
+	_, err := bs.Post("/ctl", buf)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to allocate node\n")
+		os.Exit(1)
+	}
 
 	pollForMessages(cancelTime, addresses, bs)
 	fmt.Fprintf(os.Stdout, "Done allocating your nodes. Report failed builds to your system administrator.\n")

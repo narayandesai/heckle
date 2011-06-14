@@ -101,7 +101,12 @@ func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err o
 		fmt.Fprintf(os.Stderr, "Post failed: %s\n", err)
 		return
 	}
-	server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
+
+	if response.StatusCode != 200 {
+		server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
+		err = os.NewError("Fetch Failed")
+		return
+	}
 
 	body, _ = ioutil.ReadAll(response.Body)
 	response.Body.Close()
