@@ -61,6 +61,7 @@ class fm(object):
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
+        #self.static = dict({('BUILDSERVER', self.flunkyURL), ('IMAGE', ' ')})
 
     def load(self):
         try:
@@ -101,9 +102,7 @@ class fm(object):
     def build_vars(self, address, path):
         if address not in self.data:
             raise AttributeResolutionError
-        data = dict([('Address', address), ('Path', path), 
-                     ('Count', self.data[address]['Counts'].get(path, 0))]) 
-        data.update(self.data[address])
+        data = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0)),('IMAGE', self.data[address]['Image']), ('BUILDSERVER', self.flunkyURL)]) 
         return data
 
     '''Increments the count. A count is defined as when something occurs in the script. 
