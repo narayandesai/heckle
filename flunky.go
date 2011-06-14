@@ -57,15 +57,15 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 		return
 	}
 
-	runpath := os.TempDir() + path + fmt.Sprintf("%s", os.Getpid())
-
-	server.DebugLog(fmt.Sprintf("runpath is %s", runpath))
-
-	newbin, err := os.Create(runpath)
+	newbin, err := ioutil.TempFile("", "bin")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create file %s\n", runpath)
+		fmt.Fprintf(os.Stderr, "Failed to create temporary binfile\n")
 		return
 	}
+
+	runpath := newbin.Name()
+	server.DebugLog(fmt.Sprintf("runpath is %s", runpath))
+
 	_, err = newbin.Write(data)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to write data\n")
