@@ -1,5 +1,5 @@
 TODO list for flunky, fctl, fmaster
-* improve logging support in fmaster
-* documentation
-* add support for static template variables (eg rsyncserver) in fmaster
+X improve logging support in fmaster
+? documentation
+X add support for static template variables (eg rsyncserver) in fmaster
 * figure out SO_REUSEADDR issue
