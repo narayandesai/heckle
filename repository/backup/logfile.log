@@ -43,3 +43,4 @@ Traceback (most recent call last):
     data.append(self.staticBuild)
 AttributeError: 'dict' object has no attribute 'append'
 2011-06-15 12:11:37,107 - INFO - Starting
+2011-06-15 12:16:43,155 - INFO - Starting

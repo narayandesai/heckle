@@ -53,10 +53,10 @@ class fm(object):
     current programming
     A simple semaphore is called to wait for a thread. Information on the 
     structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html.''' 
-    def __init__(self, root, url, datafile, staticBuild):
+    def __init__(self, root, datafile, staticBuild):
         self.root = root
         self.datafile = datafile
-        self.flunkyURL = url
+        #self.flunkyURL = url url='http://localhost:8080' a passed in value
         self.static = root +'/static'
         self.dynamic = root +'/dynamic'
         self.data = dict()
@@ -112,7 +112,6 @@ class fm(object):
         data = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0))])
         self.staticBuild['IMAGE'] = self.data[address]['Image']
         data['IMAGE'] = self.staticBuild['IMAGE']
-        self.staticBuild['BUILDSERVER'] = self.flunkyURL
         data['BUILDSERVER'] = self.staticBuild['BUILDSERVER'] 
         return data
 
@@ -299,5 +298,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', datafile=repopath+'/backup/data.json', staticBuild = repopath +'/staticVars.json'))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, datafile=repopath+'/backup/data.json', staticBuild = repopath +'/staticVars.json'))
 
