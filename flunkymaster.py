@@ -13,8 +13,6 @@ from genshi.template import NewTextTemplate
 msgFormat = "%(asctime)s - %(levelname)s - %(message)s"
 logging.basicConfig(filename=(os.getcwd()+'/repository/backup/logfile.log'), level=logging.DEBUG, format=msgFormat)
 
-
-
 ''' the pool provides a safety limit on our concurrency
 Eventlet is a free threading implementation for network information'''
 pool = eventlet.GreenPool()
@@ -53,7 +51,7 @@ class fm(object):
     current programming
     A simple semaphore is called to wait for a thread. Information on the 
     structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html.''' 
-    def __init__(self, root, url, datafile):
+    def __init__(self, root, url, datafile, staticBuildVars):
         self.root = root
         self.datafile = datafile
         self.flunkyURL = url
@@ -64,7 +62,7 @@ class fm(object):
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
-        #self.static = dict({('BUILDSERVER', self.flunkyURL), ('IMAGE', ' ')})
+        self.staticBuild = staticBuildVars
 
     def load(self):
         try:
@@ -291,5 +289,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', datafile=repopath+'/backup/data.json'))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', datafile=repopath+'/backup/data.json', staticBuildVars=repopath +'/backup/staticVars.json'))
 
