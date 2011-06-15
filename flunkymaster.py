@@ -53,7 +53,7 @@ class fm(object):
     current programming
     A simple semaphore is called to wait for a thread. Information on the 
     structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html.''' 
-    def __init__(self, root, url, datafile):
+    def __init__(self, root, url, datafile, staticBuild):
         self.root = root
         self.datafile = datafile
         self.flunkyURL = url
@@ -64,7 +64,11 @@ class fm(object):
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
-        #self.static = dict({('BUILDSERVER', self.flunkyURL), ('IMAGE', ' ')})
+        try:
+           self.staticBuild = json.load(open(staticBuild))
+        except: 
+           logging.error("Failed to load static build variables %s " %(staticBuild))
+           self.staticBulid = dict()
 
     def load(self):
         try:
@@ -105,7 +109,11 @@ class fm(object):
     def build_vars(self, address, path):
         if address not in self.data:
             raise AttributeResolutionError
-        data = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0)),('IMAGE', self.data[address]['Image']), ('BUILDSERVER', self.flunkyURL)]) 
+        data = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0))])
+        self.staticBuild['IMAGE'] = self.data[address]['Image']
+        data['IMAGE'] = self.staticBuild['IMAGE']
+        self.staticBuild['BUILDSERVER'] = self.flunkyURL
+        data['BUILDSERVER'] = self.staticBuild['BUILDSERVER'] 
         return data
 
     '''Increments the count. A count is defined as when something occurs in the script. 
@@ -291,5 +299,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', datafile=repopath+'/backup/data.json'))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', datafile=repopath+'/backup/data.json', staticBuild = repopath +'/staticVars.json'))
 
