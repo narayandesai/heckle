@@ -9,12 +9,6 @@ import logging
 import time
 from genshi.template import NewTextTemplate
 
-'''Create a new logging object for debugging statuments.'''
-msgFormat = "%(asctime)s - %(levelname)s - %(message)s"
-logging.basicConfig(filename=(os.getcwd()+'/repository/backup/logfile.log'), level=logging.DEBUG, format=msgFormat)
-
-
-
 ''' the pool provides a safety limit on our concurrency
 Eventlet is a free threading implementation for network information'''
 pool = eventlet.GreenPool()
@@ -33,6 +27,19 @@ class AttributeResolutionError(Exception):
 
 class ImageResolutionError(Exception):
     pass
+
+
+'''Create a new logging object for debugging statuments.'''
+msgFormat = "%(asctime)s - %(levelname)s - %(message)s"
+
+try:
+    logfile=(os.getcwd()+'/repository/backup/logfile.log')
+    os.stat(logfile)
+except:
+    logfile = open(os.getcwd()+'/repository/backup/logfile.log', 'w')
+
+logging.basicConfig(filename=(logfile), level=logging.DEBUG, format=msgFormat)
+
 
 
 '''Creates the flunky master object. This object allows for the full
