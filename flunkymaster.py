@@ -9,10 +9,13 @@ import logging
 import time
 from genshi.template import NewTextTemplate
 
+<<<<<<< HEAD
 '''Create a new logging object for debugging statuments.'''
 msgFormat = "%(asctime)s - %(levelname)s - %(message)s"
 logging.basicConfig(filename=(os.getcwd()+'/repository/backup/logfile.log'), level=logging.DEBUG, format=msgFormat)
 
+=======
+>>>>>>> staticTemplate
 ''' the pool provides a safety limit on our concurrency
 Eventlet is a free threading implementation for network information'''
 pool = eventlet.GreenPool()
@@ -33,6 +36,19 @@ class ImageResolutionError(Exception):
     pass
 
 
+'''Create a new logging object for debugging statuments.'''
+msgFormat = "%(asctime)s - %(levelname)s - %(message)s"
+
+try:
+    logfile=(os.getcwd()+'/repository/backup/logfile.log')
+    os.stat(logfile)
+except:
+    logfile = open(os.getcwd()+'/repository/backup/logfile.log', 'w')
+
+logging.basicConfig(filename=(logfile), level=logging.DEBUG, format=msgFormat)
+
+
+
 '''Creates the flunky master object. This object allows for the full
 management of the entire system. This server can wait indefinately
 for information to be sent to the sever. this server will do a look
@@ -51,10 +67,14 @@ class fm(object):
     current programming
     A simple semaphore is called to wait for a thread. Information on the 
     structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html.''' 
+<<<<<<< HEAD
     def __init__(self, root, url, datafile, staticBuildVars):
+=======
+    def __init__(self, root, datafile, staticBuild):
+>>>>>>> staticTemplate
         self.root = root
         self.datafile = datafile
-        self.flunkyURL = url
+        #self.flunkyURL = url url='http://localhost:8080' a passed in value
         self.static = root +'/static'
         self.dynamic = root +'/dynamic'
         self.data = dict()
@@ -62,7 +82,15 @@ class fm(object):
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
+<<<<<<< HEAD
         self.staticBuild = staticBuildVars
+=======
+        try:
+           self.staticBuild = json.load(open(staticBuild))
+        except: 
+           logging.error("Failed to load static build variables %s " %(staticBuild))
+           self.staticBulid = dict()
+>>>>>>> staticTemplate
 
     def load(self):
         try:
@@ -103,7 +131,10 @@ class fm(object):
     def build_vars(self, address, path):
         if address not in self.data:
             raise AttributeResolutionError
-        data = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0)),('IMAGE', self.data[address]['Image']), ('BUILDSERVER', self.flunkyURL)]) 
+        data = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0))])
+        self.staticBuild['IMAGE'] = self.data[address]['Image']
+        data['IMAGE'] = self.staticBuild['IMAGE']
+        data['BUILDSERVER'] = self.staticBuild['BUILDSERVER'] 
         return data
 
     '''Increments the count. A count is defined as when something occurs in the script. 
@@ -289,5 +320,9 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
+<<<<<<< HEAD
     wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, url='http://localhost:8080', datafile=repopath+'/backup/data.json', staticBuildVars=repopath +'/backup/staticVars.json'))
+=======
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, datafile=repopath+'/backup/data.json', staticBuild = repopath +'/staticVars.json'))
+>>>>>>> staticTemplate
 
