@@ -3,3 +3,5 @@ TODO list for flunky, fctl, fmaster
 * documentation
 * add support for static template variables (eg rsyncserver) in fmaster
 * figure out SO_REUSEADDR issue
+* fctl support for activity timeouts
+* basic auth for fmaster
