@@ -283,7 +283,7 @@ class fm(object):
                         start_response('500 Server Error', [('Content-Type', 'text/plain')])
                         return 'Image not found'
                     with self.data_sem:
-                        ret[client] = dict([('Status', cstatus), ('Info', self.data[client]['Info'])])
+                        ret[client] = dict([('Status', cstatus), ('Info', self.data[client]['Info']), ('LastActivity', self.data[client]['Activity'])])
                         self.data[client]['Info'] = []
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(ret)
