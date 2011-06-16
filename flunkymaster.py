@@ -28,20 +28,6 @@ class AttributeResolutionError(Exception):
 class ImageResolutionError(Exception):
     pass
 
-
-'''Create a new logging object for debugging statuments.'''
-msgFormat = "%(asctime)s - %(levelname)s - %(message)s"
-
-try:
-    logfile=(os.getcwd()+'/repository/logfile.log')
-    os.stat(logfile)
-except:
-    logfile = open(os.getcwd()+'/repository/logfile.log', 'w')
-
-logging.basicConfig(filename=(logfile), level=logging.DEBUG, format=msgFormat)
-
-
-
 '''Creates the flunky master object. This object allows for the full
 management of the entire system. This server can wait indefinately
 for information to be sent to the sever. this server will do a look
@@ -63,17 +49,25 @@ class fm(object):
 
     def __init__(self, root):
         self.root = root
-        self.static = root +'/static'
-        self.dynamic = root +'/dynamic'
-        self.datafile = root + '/data.json'
-        self.static_build = root + '/staticVars.json'
+        self.static = os.path.join(root, 'static')
+        self.dynamic = os.path.join(root, 'dynamic')
+        self.datafile = os.path.join(root, 'data.json')
+        staticdatapath = os.path.join(root, 'staticVars.json')
         self.data = dict()
         self.data_sem = eventlet.semaphore.Semaphore()
+        msgFormat = "%(asctime)s - %(levelname)s - %(message)s"
+        logfile = os.path.join(root, "flunky.log")
         try:
-           self.static_build = json.load(open(self.static_build))
+            os.stat(logfile)
+        except:
+            open(logfile, 'w')
+        logging.basicConfig(filename=logfile, level=logging.DEBUG, format=msgFormat)
+
+        try:
+            self.static_build = json.load(open(staticdatapath))
         except: 
-           logging.error("Failed to load static build variables %s " %(self.static_build))
-           self.static_build = dict()
+            logging.error("Failed to load static build variables %s " %(staticdatapath))
+            self.static_build = dict()
         self.load()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
@@ -117,9 +111,12 @@ class fm(object):
     def build_vars(self, address, path):
         if address not in self.data:
             raise AttributeResolutionError
-        data = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0))])
-        data = dict(data.items() + self.static_build.items())
-        data['IMAGE'] = self.data[address]['Image']
+        data = dict()
+        # handle static settings first, so dynamic values supercede them
+        data.update(self.static_build)
+        dynamic = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0))])
+        dynamic['IMAGE'] = self.data[address]['Image']
+        data.update(dynamic)
         return data
 
     '''Increments the count. A count is defined as when something occurs in the script. 
