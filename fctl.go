@@ -16,13 +16,13 @@ var Usage = func() {
 	os.Exit(0)
 }
 
-var server string
-var verbose bool
-var help bool
-var image string
-var wait bool
-var minutesTimeout int64
-var extra string
+var server          string
+var verbose         bool
+var help            bool
+var image           string
+var wait            bool
+var minutesTimeout  int64
+var extra           string
 
 func init() {
 	flag.BoolVar(&help, "h", false, "print usage")
@@ -36,6 +36,7 @@ func init() {
 
 type ctlmsg struct {
 	Addresses []string
+	Time      int64
 	Image     string
 	Extra     map[string]string
 }
@@ -52,18 +53,19 @@ func (msg *infoMsg) Format (client string) (string) {
 }
 
 type statusMessage struct {
-	Status string
-	Info   []infoMsg
+	Status         string
+	LastActivity   int64
+	Info           []infoMsg
 }
 
 type readyBailNode struct {
 	Ready, Bail, Printed bool
 }
 
-func (rbn *readyBailNode) InterpretPoll(status string) {
+func (rbn *readyBailNode) InterpretPoll(status string, lastActivity int64) {
 	if status == "Ready" {
 		rbn.Ready = true
-	} else if status == "Cancel" {
+	} else if status == "Cancel" || time.Seconds() - lastActivity > 300 {
 		rbn.Bail = true
 	}
 }
@@ -80,24 +82,26 @@ func pollForMessages(cancelTime int64, addresses []string, bs *flunky.BuildServe
 	done := false
 	readyBail := make(map[string]readyBailNode, len(addresses))
 	for _, value := range addresses {
-		readyBail[value] = readyBailNode{false, false, false}		
+		readyBail[value] = readyBailNode{false, false, false}
 	}
 
 	statRequest := new(ctlmsg)
 	statRequest.Addresses = addresses
-	sRjs, _ := json.Marshal(statRequest)
+	statRequest.Time = time.Seconds()
 
 	statmap := make(map[string]statusMessage, 50)
 
 	for time.Seconds() < cancelTime && !done {
 		time.Sleep(10000000000)
+          sRjs, _ := json.Marshal(statRequest)
+          statRequest.Time = time.Seconds()
 		reqbuf := bytes.NewBufferString(string(sRjs))
 		ret, _ := bs.Post("/status", reqbuf)
 		json.Unmarshal(ret, &statmap)
 
 		for _, address := range addresses {
 			rbn := readyBail[address]
-			rbn.InterpretPoll(statmap[address].Status)
+			rbn.InterpretPoll(statmap[address].Status, statmap[address].LastActivity)
 			readyBail[address] = rbn
 			printStatusMessage(address, rbn, statmap[address])
 		}
