@@ -66,18 +66,18 @@ class fm(object):
         self.static = root +'/static'
         self.dynamic = root +'/dynamic'
         self.datafile = root + '/data.json'
+        self.static_build = root + '/staticVars.json'
         self.data = dict()
-        self.load()
         self.data_sem = eventlet.semaphore.Semaphore()
-        logging.info("Starting")
-        self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
-	self.static_build = root + '/staticVars.json'
         try:
            self.static_build = json.load(open(self.static_build))
         except: 
            logging.error("Failed to load static build variables %s " %(self.static_build))
            self.static_build = dict()
-
+        self.load()
+        logging.info("Starting")
+        self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
+	
     def load(self):
         try:
             self.data = json.load(open(self.datafile))
