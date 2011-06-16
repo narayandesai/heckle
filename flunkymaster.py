@@ -95,8 +95,8 @@ class fm(object):
             logging.error('Failed to find requested image %s' % (imageDir))
             raise ImageResolutionError
 
-        newsetup = dict([('Allocated', time.mktime(time.localtime())), ('Counts', dict()), ('Errors', 0), 
-                         ('Activity', time.mktime(time.localtime())), ('Info', list())])
+        newsetup = dict([('Allocated', long(time.mktime(time.localtime()))), ('Counts', dict()), ('Errors', 0), 
+                         ('Activity', long(time.mktime(time.localtime()))), ('Info', list())])
         newsetup['Image'] = info['Image']
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
@@ -201,8 +201,7 @@ class fm(object):
     def __call__(self, environ, start_response):
         address = environ['REMOTE_ADDR']
         path = environ['PATH_INFO'][1:]
-        #Drops into a request method conditional. So far have only seen values for
-        #POST.
+       
         if environ['REQUEST_METHOD'] == 'GET':
             
             if path == 'dump':
@@ -280,8 +279,12 @@ class fm(object):
                         start_response('500 Server Error', [('Content-Type', 'text/plain')])
                         return 'Image not found'
                     with self.data_sem:
-                        ret[client] = dict([('Status', cstatus), ('Info', self.data[client]['Info']), ('LastActivity', self.data[client]['Activity'])])
-                        self.data[client]['Info'] = []
+                        #msg['Time'] #Want all messages after that time
+                        #ret[client] = dict([('Status', cstatus), ('Info', self.data[client]['Info']), ('LastActivity', self.data[client]['Activity'])])
+                        # self.data[client]['Info'] = []
+                        cli_info = [self.data[client]['Activity'] - datetime.timedelta(msg['Time']) for info in range(self.data[client]['Info'])]
+                        ret[client] = dict([('Status', cstatus), ('Info', cli_info), ('LastActivity', self.data[client]['Activity']
+
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(ret)
 
