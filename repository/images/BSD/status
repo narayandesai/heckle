@@ -1,6 +1,6 @@
 {% if Count > 1 %}
-install
+Ready
 {% end %}
 {% if Count <= 1 %}
-bcfg
+Building
 {% end %}
