@@ -33,10 +33,10 @@ class ImageResolutionError(Exception):
 msgFormat = "%(asctime)s - %(levelname)s - %(message)s"
 
 try:
-    logfile=(os.getcwd()+'/repository/backup/logfile.log')
+    logfile=(os.getcwd()+'/repository/logfile.log')
     os.stat(logfile)
 except:
-    logfile = open(os.getcwd()+'/repository/backup/logfile.log', 'w')
+    logfile = open(os.getcwd()+'/repository/logfile.log', 'w')
 
 logging.basicConfig(filename=(logfile), level=logging.DEBUG, format=msgFormat)
 
@@ -61,22 +61,22 @@ class fm(object):
     A simple semaphore is called to wait for a thread. Information on the 
     structure is at http://docs.python.org/release/2.5.2/lib/semaphore-objects.html.''' 
 
-    def __init__(self, root, datafile, staticBuild):
+    def __init__(self, root):
         self.root = root
-        self.datafile = datafile
-        #self.flunkyURL = url url='http://localhost:8080' a passed in value
         self.static = root +'/static'
         self.dynamic = root +'/dynamic'
+        self.datafile = root + '/data.json'
         self.data = dict()
         self.load()
         self.data_sem = eventlet.semaphore.Semaphore()
         logging.info("Starting")
         self.assert_setup('127.0.0.1', {'Image':'ubuntu-maverick-amd64'})
+	self.static_build = root + '/staticVars.json'
         try:
-           self.staticBuild = json.load(open(staticBuild))
+           self.static_build = json.load(open(self.static_build))
         except: 
-           logging.error("Failed to load static build variables %s " %(staticBuild))
-           self.staticBulid = dict()
+           logging.error("Failed to load static build variables %s " %(self.static_build))
+           self.static_build = dict()
 
     def load(self):
         try:
@@ -118,9 +118,8 @@ class fm(object):
         if address not in self.data:
             raise AttributeResolutionError
         data = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0))])
-        self.staticBuild['IMAGE'] = self.data[address]['Image']
-        data['IMAGE'] = self.staticBuild['IMAGE']
-        data['BUILDSERVER'] = self.staticBuild['BUILDSERVER'] 
+        data = dict(data.items() + self.static_build.items())
+        data['IMAGE'] = self.data[address]['Image']
         return data
 
     '''Increments the count. A count is defined as when something occurs in the script. 
@@ -306,5 +305,5 @@ if __name__ == '__main__':
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
-    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath, datafile=repopath+'/backup/data.json', staticBuild = repopath +'/staticVars.json'))
+    wsgi.server(eventlet.listen(('localhost', 8080)), fm(root=repopath))
 
