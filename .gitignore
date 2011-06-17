@@ -2,3 +2,5 @@
 fctl
 flunky
 .ropeproject
+repository/data.json
+repository/flunky.log
