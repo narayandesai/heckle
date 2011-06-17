@@ -280,8 +280,7 @@ class fm(object):
                         start_response('500 Server Error', [('Content-Type', 'text/plain')])
                         return 'Image not found'
                     with self.data_sem:
-                        print cstatus
-                        ret[client] = dict([('Status', cstatus), ('LastActivity', self.data[client]['Activity'])])
+                        ret[client] = dict([('Status', cstatus), ('LastActivity', long(self.data[client]['Activity']))])
                         ret[client]['Info'] = [imsg for imsg in self.data[client]['Info'] if imsg['Time'] > msg['Time']] 
                         
                 start_response('200 OK', [('Content-type', 'application/json')])
