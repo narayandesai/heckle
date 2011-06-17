@@ -98,7 +98,7 @@ func pollForMessages(cancelTime int64, addresses []string, bs *flunky.BuildServe
 		reqbuf := bytes.NewBufferString(string(sRjs))
 		ret, _ := bs.Post("/status", reqbuf)
 		json.Unmarshal(ret, &statmap)
-        fmt.Fprint(os.Stdout, "ret = %s\n" , string(ret))
+        
 		for _, address := range addresses {
 			rbn := readyBail[address]
 			rbn.InterpretPoll(statmap[address].Status, statmap[address].LastActivity)
