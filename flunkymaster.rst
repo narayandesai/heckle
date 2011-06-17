@@ -16,11 +16,11 @@ When creating new image for the server it is imperative that the following infor
       - A data.json that is created as a backup of the system should it go down
       - A flunky.log that will log all system events for later viewing
       - A staticVars.json file that will allow the user to configure a customized build
-    -At the root of the directory of flunky you will need the executables for the program that shall not be touched.  
+    -At the root of the directory of flunky you will need the executables for the program that shall not be touched and the repository directory.  
      - All modifications need to be done using configuration files and dynamic templates. 
 
 ---Visual Representation---
-A graphic will better facilitate what is needed for the build:
+Contained here is a list of the directory and directory contents for the sytem:
 
 flunky(folder)
   \
@@ -46,13 +46,14 @@ flunky(folder)
 
 ---Reasons for the files to exist---
 Here is the reason that certain files are needed in the repository folder. 
-    The data.json file is created when the server starts for the first time. If this file is not deleted it will be reloaded when the server starts back up. This file holds the state information about the    server as well as the clients currently connected to the server. This is as persisted json file and should not be changed.
+    The data.json file is created when the server starts for the first time. If this file is not deleted it will be reloaded when the server starts back up. This file holds the state information about the    
+server as well as the clients currently connected to the server. This is as persisted json file and should not be changed.
     The flunky.log is also created on server startup and is simply a log file that is written to when the system sends info and error messages. 
     The staticVars.json file will allow the user of the system to input various static build variables into such implementations as the build scripts in order to create a dynamic and more customized build script. 
     The images directory needs to exist and also needs to have the exact name of the image that you are trying to build. This is a non-negotiable issue. If you do not supply the right image name the image will not build. The images directory also needs to have a bootconfig file and a status file. 
     The bootconfig file will allow the program to load in the ram disk the correct boot image with GPXE in order to get the image to start building the disks. This will allow for the behind the scenes work for a build so to speak. 
     The status file is used internally to report states of the machine back through the system. It is not wise to change this information unless you really know what you are doing. Since this information is used internally by the system it is read only. 
-    Optionally you can include an install script that can be build dynamically by the program using the Genshi template system. The install script can also be dynamically built in order to create a new build script. *Not yet implemented. The install script can fill out the fields that were specified in the static build script if necessary. 
+    Optionally you can include an install script that can be build dynamically by the program using the Genshi template system. The install script can also be dynamically built in order to create a new build script.  
 
 ---The Genshi template system---
 The flunkymaster system is written entirely in python and uses the Genshi template system to dynamically create templates. Genshi is like many other template systems out the for python. The Genshi system allows for the information in the build script to be rendered dynamically without needed to create a separate build script for each machine. This will allow for a faster time from creation to deployment of the system that needs to be created on the node server. If you would like more information about the Genshi system or anything Genshi related please feel free to visit:  http://genshi.edgewall.org/
