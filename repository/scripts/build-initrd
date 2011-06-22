@@ -1,0 +1,25 @@
+URL="http://distro.ibiblio.org/pub/linux/distributions/tinycorelinux/3.x/tcz/"
+
+tmpdir="tmp.$$"
+mkdir $tmpdir
+cd $tmpdir
+zcat ../boot/microcore.gz | sudo cpio -i -H newc -d
+mkdir -p opt/tce/optional
+cd opt/tce/optional
+cp ../../../../packagelist ../onboot.lst
+for package in `cat ../../../../packagelist`
+do
+     if [ ! -f $package ] ; then 
+     wget -q ${URL}$package
+     fi
+done
+cd ../../../..
+sudo cp ../flunky/32bit/flunky $tmpdir/bin/
+sudo rm $tmpdir/opt/bootlocal.sh
+sudo ln -sf ../bin/flunky $tmpdir/opt/bootlocal.sh
+echo "ttyS0::respawn:/sbin/rungetty ttyS0 --autologin root" >> $tmpdir/etc/inittab
+echo "ttyS0" >> $tmpdir/etc/securetty
+cd $tmpdir
+sudo find | cpio -o -H newc | gzip -2 > ../boot/microcore2.gz
+cd ..
+sudo rm -r $tmpdir
