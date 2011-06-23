@@ -30,7 +30,7 @@ func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
 
 	fullpath := server.URL + "/" + path
 
-	response, _, err := server.client.Get(fullpath)
+	response, err := server.client.Get(fullpath)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "err is %s\n", err)
@@ -53,13 +53,11 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	data, err := server.Get(path)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "File fetch of %s failed\n", path)
 		return
 	}
 
 	newbin, err := ioutil.TempFile("", "bin")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create temporary binfile\n")
 		return
 	}
 
@@ -68,12 +66,10 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 	_, err = newbin.Write(data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write data\n")
 		return
 	}
 	err = newbin.Chmod(0777)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to chmod %s\n", runpath)
 		return
 	}
 
