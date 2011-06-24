@@ -1,6 +1,13 @@
-{% if Count > 1 %}
-Ready
+{% for cnt in Counts %}
+   {% if cnt == "bootconfig" %}
+      {% if Counts.bootconfig > 1 %}
+          Ready
+      {% end %}
+      {% if Counts.bootconfig <= 1 %}
+          Building
+      {% end %}
+   {% end %}
 {% end %}
-{% if Count <= 1 %}
-Building
-{% end %}
+
+
+
