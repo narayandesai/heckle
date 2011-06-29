@@ -117,7 +117,11 @@ class fm(object):
         data = dict()
         # handle static settings first, so dynamic values supercede them
         data.update(self.static_build)
+<<<<<<< HEAD
         dynamic = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0)), ('Counts', self.data[address]['Counts'])])
+=======
+        dynamic = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0)), ('Counts' , self.data[address]['Counts'])])
+>>>>>>> 187a8c579f53c2afc7ef8d8248aa3ea0cca026cb
         dynamic['IMAGE'] = self.data[address]['Image']
         data.update(dynamic)
         return data
