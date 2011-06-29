@@ -99,7 +99,6 @@ class fm(object):
         newsetup = dict([('Allocated', long(time.mktime(time.localtime()))), ('Counts', dict()), ('Errors', 0), 
                          ('Activity', long(time.mktime(time.localtime()))), ('Info', list())])
         newsetup['Image'] = info['Image']
-        newsetup['Counts']['bootconfig'] = 0
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
         with self.data_sem:
