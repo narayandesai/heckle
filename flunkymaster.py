@@ -99,6 +99,7 @@ class fm(object):
         newsetup = dict([('Allocated', long(time.mktime(time.localtime()))), ('Counts', dict()), ('Errors', 0), 
                          ('Activity', long(time.mktime(time.localtime()))), ('Info', list())])
         newsetup['Image'] = info['Image']
+        newsetup['Counts']['bootconfig'] = 0
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
         with self.data_sem:
@@ -115,7 +116,7 @@ class fm(object):
         data = dict()
         # handle static settings first, so dynamic values supercede them
         data.update(self.static_build)
-        dynamic = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0))])
+        dynamic = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0)), ('Counts' , self.data[address]['Counts'])])
         dynamic['IMAGE'] = self.data[address]['Image']
         data.update(dynamic)
         return data
