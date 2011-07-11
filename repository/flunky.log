@@ -763,3 +763,18 @@ UndefinedError: "Counts" not defined
 2011-06-29 15:39:44,773 - INFO - Allocating bb03 as ubuntu-maverick-amd64
 2011-06-29 15:46:41,702 - INFO - Starting
 2011-06-29 15:46:50,573 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-06-29 16:07:46,250 - INFO - Starting
+2011-06-29 16:07:56,730 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-06-29 16:08:40,360 - INFO - Starting
+2011-06-29 16:08:54,269 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-07-08 11:21:48,413 - INFO - Starting
+2011-07-08 11:31:02,607 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-07-08 12:44:12,410 - INFO - Starting
+2011-07-08 12:44:23,148 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-07-11 10:28:59,428 - INFO - Starting
+2011-07-11 10:29:31,149 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-07-11 10:43:41,986 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-07-11 10:46:27,948 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-07-11 10:50:20,699 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-07-11 10:51:03,955 - INFO - Allocating bb03 as ubuntu-maverick-amd64
+2011-07-11 10:54:41,578 - INFO - Allocating bb03 as ubuntu-maverick-amd64
