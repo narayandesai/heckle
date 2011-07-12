@@ -39,15 +39,15 @@ var cfgOptions                          map[string]string
 var help                                bool
 var server, image                       string
 var allocationList                      []string
-var numNodes, timeIncrease, freeAlloc   int
-var allocationNumber                    uint64
+var numNodes, timeIncrease              int
+var allocationNumber, freeAlloc         uint64
 var bs                                  *flunky.BuildServer
 
 func init() {
      flag.BoolVar(&help, "h", false, "Print usage of command.")
      flag.IntVar(&numNodes, "n", 0, "Request an arbitrary number of nodes.")
      flag.IntVar(&timeIncrease, "t", 0, "Increase current allocation by this many hours.")
-     flag.IntVar(&freeAlloc, "f", -1, "Free a reserved allocation number preemptively.")
+     flag.Uint64Var(&freeAlloc, "f", 0, "Free a reserved allocation number preemptively.")
      flag.StringVar(&image, "i", "ubuntu-maverick-amd64", "Image to be loaded on to the nodes.")
      
      flag.Parse()
@@ -160,7 +160,7 @@ func pollForStatus() {
 }
 
 func freeAllocation() {
-     someBytes, error := json.Marshal(allocationNumber)
+     someBytes, error := json.Marshal(freeAlloc)
      printError("ERROR: Failed to marshal allocation number for status poll.", error)
      
      buf := bytes.NewBufferString(string(someBytes))
@@ -172,7 +172,7 @@ func main() {
      if len(allocationList) != 0 && numNodes != 0 {
           fmt.Fprintf(os.Stderr, "ERROR: Cannot use node list, and number of nodes option at the same time.\n")
           os.Exit(1)
-     } else if (len(allocationList) == 0 && numNodes == 0 && timeIncrease == 0 && freeAlloc == -1) || help {
+     } else if (len(allocationList) == 0 && numNodes == 0 && timeIncrease == 0 && freeAlloc == 0) || help {
           usage()
           os.Exit(0)
      }
@@ -183,7 +183,7 @@ func main() {
           requestTimeIncrease()
      }
      
-     if freeAlloc != -1 {
+     if freeAlloc != 0 {
           freeAllocation()
      }
      

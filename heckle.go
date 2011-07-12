@@ -26,6 +26,7 @@ type ResourceInfo struct {
      Allocated                          bool
      TimeAllocated, AllocationEndTime   int64
      Owner, Image, Comments             string
+     AllocationNumber                   uint64
 }
 
 type currentRequestsNode struct {
@@ -90,14 +91,16 @@ func (resource *ResourceInfo) Reset() {
      resource.Owner = "None"
      resource.Image = "None"
      resource.Comments = ""
+     resource.AllocationNumber = 0
 }
 
-func (resource *ResourceInfo) Allocate(owner string, image string) {
+func (resource *ResourceInfo) Allocate(owner string, image string, allocationNum uint64) {
      resource.Allocated = true
      resource.Owner = owner
      resource.Image = image
      resource.TimeAllocated = time.Seconds()
      resource.AllocationEndTime = time.Seconds() + 604800
+     resource.AllocationNumber = allocationNum
 }
 
 func (resource *ResourceInfo) Broken() {
@@ -107,6 +110,7 @@ func (resource *ResourceInfo) Broken() {
      resource.Owner = "System Admin"
      resource.Image = "brokenNode-headAche-amd64"
      resource.Comments = "Installation failed or there was a timeout."
+     resource.AllocationNumber = 0
 }
 
 func init() {
@@ -121,7 +125,7 @@ func init() {
      currentRequests = make(map[string]*currentRequestsNode)
      allocationNumberList = make(map[uint64]string)
 
-     allocationNumber = 0
+     allocationNumber = 1
      getResources()
 
      cfgFile, error := os.Open("heckle.cfg")
@@ -164,7 +168,7 @@ func resetResources(resourceNames []string) {
      resources = make(map[string]*ResourceInfo)
      
      for _, value := range resourceNames {
-          resources[value] = &ResourceInfo{false, 0, 0, "None", "None", ""}
+          resources[value] = &ResourceInfo{false, 0, 0, "None", "None", "", 0}
      }
      resourcesLock.Unlock()
 }
@@ -251,7 +255,7 @@ func printResource(node string, resource *ResourceInfo) {
      fmt.Fprintf(os.Stdout, "OWNER: %s\nIMAGE: %s\nTIME ALLOCATED: %s\nALLOCATION END: %s\nCOMMENTS: %s\n\n", resource.Owner, resource.Image, time.SecondsToLocalTime(resource.TimeAllocated).Format(time.UnixDate), time.SecondsToLocalTime(resource.AllocationEndTime).Format(time.UnixDate), resource.Comments)
 }
 
-func getFreeNodes(numNodes int, owner string, image string) []string {
+func getFreeNodes(numNodes int, owner string, image string, allocationNum uint64) []string {
      //This function is for the http allocate number of nodes function.
      //It will create a list of that many free nodes or as many free
      //nodes as it can, upate the resource map accordingly, and return
@@ -263,7 +267,7 @@ func getFreeNodes(numNodes int, owner string, image string) []string {
      for key, value := range resources {
           if index < numNodes && !value.Allocated {
                tmpNodeList = append(tmpNodeList, key)
-               value.Allocate(owner, image)
+               value.Allocate(owner, image, allocationNum)
                index++
           }
      }
@@ -276,7 +280,7 @@ func getFreeNodes(numNodes int, owner string, image string) []string {
      return tmpNodeList
 }
 
-func checkNodeList(nodeList []string, owner string, image string) []string {
+func checkNodeList(nodeList []string, owner string, image string, allocationNum uint64) []string {
      //This function is for the http allocate list function.  It checks
      //the list requested and allocated as many nodes as are available
      //that are in that list.  It updates the resource map accordingly,
@@ -290,7 +294,7 @@ func checkNodeList(nodeList []string, owner string, image string) []string {
      }
      
      for _, value := range tmpList {
-          resources[value].Allocate(owner, image)
+          resources[value].Allocate(owner, image, allocationNum)
      }
      resourcesLock.Unlock()
      
@@ -338,9 +342,6 @@ func allocateList(writer http.ResponseWriter, request *http.Request) {
           return
      }
      
-     allocationList := checkNodeList(listMsg.Addresses, username, listMsg.Image)
-     heckleToAllocateChan<- listmsg{allocationList, listMsg.Image, 0}
-     
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
      allocationNumber++
@@ -349,6 +350,9 @@ func allocateList(writer http.ResponseWriter, request *http.Request) {
      allocationNumberListLock.Lock()
      allocationNumberList[tmpAllocationNumber] = username
      allocationNumberListLock.Unlock()
+     
+     allocationList := checkNodeList(listMsg.Addresses, username, listMsg.Image, tmpAllocationNumber)
+     heckleToAllocateChan<- listmsg{allocationList, listMsg.Image, 0}
      
      currentRequestsLock.Lock()
      for _, value := range allocationList {
@@ -385,9 +389,6 @@ func allocateNumber(writer http.ResponseWriter, request *http.Request) {
           return
      }
      
-     allocationList := getFreeNodes(numMsg.NumNodes, username, numMsg.Image)
-     heckleToAllocateChan<- listmsg{allocationList, numMsg.Image, 0}
-     
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
      allocationNumber++
@@ -396,6 +397,9 @@ func allocateNumber(writer http.ResponseWriter, request *http.Request) {
      allocationNumberListLock.Lock()
      allocationNumberList[tmpAllocationNumber] = username
      allocationNumberListLock.Unlock()
+     
+     allocationList := getFreeNodes(numMsg.NumNodes, username, numMsg.Image, tmpAllocationNumber)
+     heckleToAllocateChan<- listmsg{allocationList, numMsg.Image, 0}
      
      currentRequestsLock.Lock()
      for _, value := range allocationList {
@@ -506,7 +510,7 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
      //This function finds a single node for someone whose node got canceled and requested
      //a number of nodes.  It then sends this node to the allocation thread and tosses it
      //on the current requests map.
-     allocationList := getFreeNodes(1, owner, image)
+     allocationList := getFreeNodes(1, owner, image, tmpAllocationNumber)
      heckleToAllocateChan<- listmsg{allocationList, image, 0}
      
      currentRequestsLock.Lock()
@@ -591,25 +595,22 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
           return
      }
      
-     allocationNumberListLock.Lock()
-     if allocationNumberList[allocationNumber] != username && !auth[username].Admin {
-          printError("ERROR: Access denied, cannot free an allocation number that does not belong to you.", os.NewError("Access Denied"))
-          allocationNumberListLock.Unlock()
-          return
-     }
-         
-     allocationNumberList[allocationNumber] = "", false
-     allocationNumberListLock.Unlock()
-     
      powerDown := []string{}
      
      currentRequestsLock.Lock()
      resourcesLock.Lock()
-     for key, value := range currentRequests {
+     for key, value := range resources {
           if allocationNumber == value.AllocationNumber {
-               resources[key].Reset()
-               powerDown = append(powerDown, key)
-               currentRequests[key] = nil, false
+               if username == value.Owner || auth[username].Admin {
+                    value.Reset()
+                    powerDown = append(powerDown, key)
+                    currentRequests[key] = nil, false
+               } else {
+                    printError("ERROR: Cannot free allocations that do not belong to you.", os.NewError("Access Denied"))
+                    currentRequestsLock.Unlock()
+                    resourcesLock.Unlock()
+                    return
+               }
           }
      }
      currentRequestsLock.Unlock()
