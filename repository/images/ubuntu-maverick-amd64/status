@@ -1,9 +1,9 @@
 {% for cnt in Counts %}
    {% if cnt == "bootconfig" %}
-      {% if Counts.bootconfig > 2 %}
+      {% if Counts.bootconfig > 1 %}
           Ready
       {% end %}
-      {% if Counts.bootconfig <= 2 %}
+      {% if Counts.bootconfig <= 1 %}
           Building
       {% end %}
    {% end %}
