@@ -113,10 +113,10 @@ func rebootList(writer http.ResponseWriter, request *http.Request) {
      printError("ERROR: Unable to unmarshal nodes to be rebooted.", error)
      
      for _, value := range nodes {
-          go func() {
+          go func(value string) {
                error = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "reboot", resources[value].Outlet).Run()
                printError("ERROR: Failed to run powerCont.sh in rebootList.", error)
-          }()
+          }(value)
      }
 }
 
@@ -148,10 +148,10 @@ func offList(writer http.ResponseWriter, request *http.Request) {
      printError("ERROR: Unable to unmarshal nodes to be turned off.", error)
      
      for _, value := range nodes {
-          go func() {
+          go func(value string) {
                error = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "off", resources[value].Outlet).Run()
                printError("ERROR: Failed to run powerCont.sh in offList.", error)
-          }()
+          }(value)
      }
 }
 
