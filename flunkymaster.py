@@ -8,6 +8,7 @@ import os
 import logging
 import time
 import datetime
+import socket
 from genshi.template import NewTextTemplate
 
 ''' the pool provides a safety limit on our concurrency
@@ -265,9 +266,9 @@ class fm(object):
 
             elif path == 'ctl':
                 for client in msg['Addresses']:
-                    logging.info("Allocating %s as %s" % (client, msg['Image']))
+                    logging.info("Allocating %s as %s" % (socket.gethostbyname(client), msg['Image']))
                     try:
-                        self.assert_setup(client, msg)
+                        self.assert_setup(socket.gethostbyname(client), msg)
                     except:
                         start_response('500 Server Error', [('Content-Type', 'text/plain')])
                         return 'Cannot find image file'
@@ -276,13 +277,13 @@ class fm(object):
                 ret = dict()
                 for client in msg['Addresses']:
                     try:
-                        cstatus = self.render_image_path(client, 'status').strip()
+                        cstatus = self.render_image_path(socket.gethostbyname(client), 'status').strip()
                     except:
                         start_response('500 Server Error', [('Content-Type', 'text/plain')])
                         return 'Image not found'
                     with self.data_sem:
-                        ret[client] = dict([('Status', cstatus), ('LastActivity', long(self.data[client]['Activity']))])
-                        ret[client]['Info'] = [imsg for imsg in self.data[client]['Info'] if imsg['Time'] > msg['Time']] 
+                        ret[client] = dict([('Status', cstatus), ('LastActivity', long(self.data[socket.gethostbyname(client)]['Activity']))])
+                        ret[client]['Info'] = [imsg for imsg in self.data[socket.gethostbyname(client)]['Info'] if imsg['Time'] > msg['Time']] 
                         
                 start_response('200 OK', [('Content-type', 'application/json')])
                 return json.dumps(ret)

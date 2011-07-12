@@ -99,6 +99,7 @@ class fm(object):
         newsetup = dict([('Allocated', long(time.mktime(time.localtime()))), ('Counts', dict()), ('Errors', 0), 
                          ('Activity', long(time.mktime(time.localtime()))), ('Info', list())])
         newsetup['Image'] = info['Image']
+        newsetup['Counts']['bootconfig'] = 0
         if 'Extra' in info and info['Extra'] != None:
             newsetup['Extra'] = info['Extra']
         with self.data_sem:
@@ -110,13 +111,12 @@ class fm(object):
     address of the build script. Returns a data dictionary that contains the address
     of the build environment, the path to it and updates the data in self.'''
     def build_vars(self, address, path):
-        print "Build Vars"
         if address not in self.data:
             raise AttributeResolutionError
         data = dict()
         # handle static settings first, so dynamic values supercede them
         data.update(self.static_build)
-        dynamic = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0)), ('Counts', self.data[address]['Counts'])])
+        dynamic = dict([('Address', address), ('Path', path),('Count', self.data[address]['Counts'].get(path, 0)), ('Counts' , self.data[address]['Counts'])])
         dynamic['IMAGE'] = self.data[address]['Image']
         data.update(dynamic)
         return data
@@ -185,7 +185,6 @@ class fm(object):
             raise PageLookupError
         try:
             bvars = self.build_vars(address, toRender)
-            
         except AttributeResolutionError:
             raise RenderError
         with open(requestData) as infile:
@@ -278,7 +277,6 @@ class fm(object):
                 for client in msg['Addresses']:
                     try:
                         cstatus = self.render_image_path(client, 'status').strip()
-                        print cstatus
                     except:
                         start_response('500 Server Error', [('Content-Type', 'text/plain')])
                         return 'Image not found'
@@ -302,7 +300,7 @@ class fm(object):
 if __name__ == '__main__':
     from eventlet import wsgi
     try:
-        repopath = os.getcwd() + '/repository'
+        repopath = os.getcwd()+ '/repository'
     except:
         print "Usage: flunkymaster.py <repodir>"
         raise SystemExit, 1
