@@ -141,9 +141,9 @@ func pollForStatus() {
           
           done := true
           for key, value := range statMap {
-               fmt.Fprintf(os.Stdout, "NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %d\n", key, value.Status, value.LastActivity)
+               fmt.Fprintf(os.Stdout, "NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %d:%d:%d\n", key, value.Status, time.SecondsToLocalTime(value.LastActivity).Hour, time.SecondsToLocalTime(value.LastActivity).Minute, time.SecondsToLocalTime(value.LastActivity).Second)
                for i := range value.Info {
-                    fmt.Fprintf(os.Stdout, "\t%d : %s : %s\n", value.Info[i].Time, value.Info[i].Message, value.Info[i].MsgType)
+                    fmt.Fprintf(os.Stdout, "\t%d:%d:%d : %s : %s\n", time.SecondsToLocalTime(value.Info[i].Time).Hour, time.SecondsToLocalTime(value.Info[i].Time).Minute, time.SecondsToLocalTime(value.Info[i].Time).Second, value.Info[i].Message, value.Info[i].MsgType)
                }
                done = done && (value.Status == "Ready")
                /*if value.Status == "Cancel" {
