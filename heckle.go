@@ -11,6 +11,7 @@ import (
      "bytes"
      "sync"
      "runtime"
+     "syscall"
      "./flunky"
      "encoding/base64"
 )
@@ -72,8 +73,6 @@ type userNode struct {
 var currentRequests           map[string]*currentRequestsNode
 var cfgOptions                map[string]string
 var resources                 map[string]*ResourceInfo
-var allocationNumberList      map[uint64]string
-var auth                      map[string]userNode
 var allocationNumber          uint64
 var heckleToAllocateChan      chan listmsg
 var allocateToPollingChan     chan []string
@@ -82,7 +81,6 @@ var pollingCancelChan         chan []string
 var currentRequestsLock       sync.Mutex
 var resourcesLock             sync.Mutex
 var allocationNumberLock      sync.Mutex
-var allocationNumberListLock  sync.Mutex
 
 func (resource *ResourceInfo) Reset() {
      resource.Allocated = false
@@ -120,10 +118,8 @@ func init() {
      allocateToPollingChan = make(chan []string)
      pollingToHeckleChan = make (chan map[string]*statusMessage)
      pollingCancelChan = make(chan []string)
-     auth = make(map[string]userNode)
      
      currentRequests = make(map[string]*currentRequestsNode)
-     allocationNumberList = make(map[uint64]string)
 
      allocationNumber = 1
      getResources()
@@ -139,18 +135,6 @@ func init() {
      
      error = json.Unmarshal(someBytes, &cfgOptions)
      printError("ERROR: Failed to unmarshal data read from heckle cfg file.", error)
-     
-     authFile, error := os.Open("UserDatabase")
-     printError("ERROR: Unable to open UserDatabase for reading.", error)
-     
-     someBytes, error = ioutil.ReadAll(authFile)
-     printError("ERROR: Unable to read from file UserDatabase.", error)
-     
-     error = authFile.Close()
-     printError("ERROR: Failed to close UserDatabase.", error)
-     
-     error = json.Unmarshal(someBytes, &auth)
-     printError("ERROR: Failed to unmarshal data read from UserDatabase file.", error)
 }
 
 func printError(errorMsg string, error os.Error) {
@@ -305,7 +289,7 @@ func checkNodeList(nodeList []string, owner string, image string, allocationNum 
      return tmpList
 }
 
-func decode(tmpAuth string) (username string, password string) {
+func authenticate(tmpAuth string) (username string, authed bool, admin bool) {
      tmpAuthArray := strings.Split(tmpAuth, " ")
      
      authValues , error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
@@ -313,7 +297,34 @@ func decode(tmpAuth string) (username string, password string) {
      
      authValuesArray := strings.Split(string(authValues), ":")
      username = authValuesArray[0]
-     password = authValuesArray[1]
+     password := authValuesArray[1]
+     
+     var auth  map[string]userNode
+     
+     authFile, error := os.Open("UserDatabase")
+     printError("ERROR: Unable to open UserDatabase for reading.", error)
+     
+     intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
+     if intError != 0 {
+          printError("ERROR: Unable to lock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
+     }
+     
+     someBytes, error := ioutil.ReadAll(authFile)
+     printError("ERROR: Unable to read from file UserDatabase.", error)
+     
+     intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
+     if intError != 0 {
+          printError("ERROR: Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
+     }
+     
+     error = authFile.Close()
+     printError("ERROR: Failed to close UserDatabase.", error)
+     
+     error = json.Unmarshal(someBytes, &auth)
+     printError("ERROR: Failed to unmarshal data read from UserDatabase file.", error)
+     
+     authed = (password == auth[username].Password)
+     admin = auth[username].Admin
      
      return
 }
@@ -326,7 +337,12 @@ func allocateList(writer http.ResponseWriter, request *http.Request) {
      listMsg := new(listmsg)
      request.ProtoMinor = 0
 
-     username, password := decode(request.Header.Get("Authorization"))
+     username, authed, _ := authenticate(request.Header.Get("Authorization"))
+     
+     if !authed {
+          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          return
+     }
      
      someBytes, error := ioutil.ReadAll(request.Body)
      printError("ERROR: Unable to read all from allocate list POST.", error)
@@ -337,19 +353,10 @@ func allocateList(writer http.ResponseWriter, request *http.Request) {
      error = json.Unmarshal(someBytes, &listMsg)
      printError("ERROR: Unable to unmarshal allocation list.", error)
      
-     if password != auth[username].Password {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
-          return
-     }
-     
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
      allocationNumber++
      allocationNumberLock.Unlock()
-     
-     allocationNumberListLock.Lock()
-     allocationNumberList[tmpAllocationNumber] = username
-     allocationNumberListLock.Unlock()
      
      allocationList := checkNodeList(listMsg.Addresses, username, listMsg.Image, tmpAllocationNumber)
      heckleToAllocateChan<- listmsg{allocationList, listMsg.Image, 0}
@@ -373,7 +380,12 @@ func allocateNumber(writer http.ResponseWriter, request *http.Request) {
      numMsg := new(nummsg)
      request.ProtoMinor = 0
      
-     username, password := decode(request.Header.Get("Authorization"))
+     username, authed, _ := authenticate(request.Header.Get("Authorization"))
+     
+     if !authed {
+          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          return
+     }
      
      someBytes, error := ioutil.ReadAll(request.Body)
      printError("ERROR: Unable to read all from allocate list POST.", error)
@@ -384,19 +396,10 @@ func allocateNumber(writer http.ResponseWriter, request *http.Request) {
      error = json.Unmarshal(someBytes, &numMsg)
      printError("ERROR: Unable to unmarshal allocation list.", error)
      
-     if password != auth[username].Password {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
-          return
-     }
-     
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
      allocationNumber++
      allocationNumberLock.Unlock()
-     
-     allocationNumberListLock.Lock()
-     allocationNumberList[tmpAllocationNumber] = username
-     allocationNumberListLock.Unlock()
      
      allocationList := getFreeNodes(numMsg.NumNodes, username, numMsg.Image, tmpAllocationNumber)
      heckleToAllocateChan<- listmsg{allocationList, numMsg.Image, 0}
@@ -530,7 +533,12 @@ func status(writer http.ResponseWriter, request *http.Request) {
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
-     username, password := decode(request.Header.Get("Authorization"))
+     username, authed, admin := authenticate(request.Header.Get("Authorization"))
+     
+     if !authed {
+          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          return
+     }
      
      someBytes, error := ioutil.ReadAll(request.Body)
      printError("ERROR: Unable to read all from allocation status POST.", error)
@@ -541,25 +549,18 @@ func status(writer http.ResponseWriter, request *http.Request) {
      error = json.Unmarshal(someBytes, &allocationNumber)
      printError("ERROR: Unable to unmarshal allocation number for status request.", error)
      
-     if password != auth[username].Password {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
-          return
-     }
-     
-     allocationNumberListLock.Lock()
-     if allocationNumberList[allocationNumber] != username && !auth[username].Admin {
-          printError("ERROR: Access denied, cannot request the status of allocation numbers that do not belong to you.", os.NewError("Access Denied"))
-          allocationNumberListLock.Unlock()
-          return
-     }
-     allocationNumberListLock.Unlock()
-     
      currentRequestsLock.Lock()
      for key, value := range currentRequests {
           if allocationNumber == value.AllocationNumber {
-               sm := &statusMessage{value.Status, value.LastActivity, value.Info}
-               allocationStatus[key] = sm
-               value.Info = []infoMsg{}
+               if value.User == username || admin{
+                    sm := &statusMessage{value.Status, value.LastActivity, value.Info}
+                    allocationStatus[key] = sm
+                    value.Info = []infoMsg{}
+               } else {
+                    printError("ERROR: Cannot request status of allocations that do not beling to you.", os.NewError("Access Denied"))
+                    currentRequestsLock.Unlock()
+                    return
+               }
           }
      }
      currentRequestsLock.Unlock()
@@ -579,7 +580,12 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
-     username, password := decode(request.Header.Get("Authorization"))
+     username, authed, admin := authenticate(request.Header.Get("Authorization"))
+     
+     if !authed {
+          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          return
+     }
      
      someBytes, error := ioutil.ReadAll(request.Body)
      printError("ERROR: Unable to read all from allocation status POST.", error)
@@ -590,18 +596,13 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      error = json.Unmarshal(someBytes, &allocationNumber)
      printError("ERROR: Unable to unmarshal allocation number for freeing.", error)
      
-     if password != auth[username].Password {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
-          return
-     }
-     
      powerDown := []string{}
      
      currentRequestsLock.Lock()
      resourcesLock.Lock()
      for key, value := range resources {
           if allocationNumber == value.AllocationNumber {
-               if username == value.Owner || auth[username].Admin {
+               if username == value.Owner || admin {
                     value.Reset()
                     powerDown = append(powerDown, key)
                     currentRequests[key] = nil, false
@@ -631,7 +632,12 @@ func increaseTime(writer http.ResponseWriter, request *http.Request) {
      timeIncrease := int64(0)
      request.ProtoMinor = 0
      
-     username, password := decode(request.Header.Get("Authorization"))
+     username, authed, _ := authenticate(request.Header.Get("Authorization"))
+     
+     if !authed {
+          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          return
+     }
      
      someBytes, error := ioutil.ReadAll(request.Body)
      printError("ERROR: Unable to read all from increase time POST.", error)
@@ -641,11 +647,6 @@ func increaseTime(writer http.ResponseWriter, request *http.Request) {
      
      error = json.Unmarshal(someBytes, &timeIncrease)
      printError("ERROR: Unable to unmarshal time increase in related handler func.", error)
-     
-     if password != auth[username].Password {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
-          return
-     }
      
      resourcesLock.Lock()
      for _, value := range resources {
@@ -699,7 +700,12 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
      var node string
      request.ProtoMinor = 0
      
-     username, password := decode(request.Header.Get("Authorization"))
+     username, authed, _ := authenticate(request.Header.Get("Authorization"))
+     
+     if !authed {
+          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          return
+     }
      
      someBytes, error := ioutil.ReadAll(request.Body)
      printError("ERROR: Unable to read all from allocation status POST.", error)
@@ -709,11 +715,6 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
      
      error = json.Unmarshal(someBytes, &node)
      printError("ERROR: Unable to unmarshal node to be unallocated.", error)
-     
-     if password != auth[username].Password {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
-          return
-     }
      
      currentRequestsLock.Lock()
      resourcesLock.Lock()
@@ -806,14 +807,14 @@ func outletStatus(writer http.ResponseWriter, request *http.Request) {
      rs := flunky.NewBuildServer(cfgOptions["radixServer"], false, "heckle", cfgOptions["heckle"])
      request.ProtoMinor = 0
      
-     username, password := decode(request.Header.Get("Authorization"))
+     _, authed, admin := authenticate(request.Header.Get("Authorization"))
      
-     if password != auth[username].Password {
+     if !authed {
           printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     if !auth[username].Admin {
+     if admin {
           printError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }

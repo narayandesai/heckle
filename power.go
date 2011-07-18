@@ -9,6 +9,7 @@ import (
      "os"
      "io/ioutil"
      "strings"
+     "syscall"
      "encoding/base64"
 )
 
@@ -91,14 +92,14 @@ func rebootList(writer http.ResponseWriter, request *http.Request) {
      var nodes []string
      request.ProtoMinor = 0
      
-     username, password := decode(request.Header.Get("Authorization"))
+     authed, admin := authenticate(request.Header.Get("Authorization"))
      
-     if password != auth[username].Password {
+     if !authed {
           printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     if !auth[username].Admin {
+     if !admin {
           printError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
@@ -126,14 +127,14 @@ func offList(writer http.ResponseWriter, request *http.Request) {
      var nodes []string
      request.ProtoMinor = 0
      
-     username, password := decode(request.Header.Get("Authorization"))
+     authed, admin := authenticate(request.Header.Get("Authorization"))
      
-     if password != auth[username].Password {
+     if !authed {
           printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     if !auth[username].Admin {
+     if !admin {
           printError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
@@ -162,14 +163,14 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
      outletStatus := make(map[string]string)
      request.ProtoMinor = 0
      
-     username, password := decode(request.Header.Get("Authorization"))
+     authed, admin := authenticate(request.Header.Get("Authorization"))
      
-     if password != auth[username].Password {
+     if !authed {
           printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     if !auth[username].Admin {
+     if !admin {
           printError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
@@ -209,6 +210,46 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
      
      _, error = writer.Write(jsonStat)
      printError("ERROR: Unable to write outlet status response.", error)
+}
+
+func authenticate(tmpAuth string) (authed bool, admin bool) {
+     tmpAuthArray := strings.Split(tmpAuth, " ")
+     
+     authValues , error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
+     printError("ERROR: Failed to decode encoded auth settings in http request.", error)
+     
+     authValuesArray := strings.Split(string(authValues), ":")
+     username := authValuesArray[0]
+     password := authValuesArray[1]
+     
+     var auth  map[string]userNode
+     
+     authFile, error := os.Open("UserDatabase")
+     printError("ERROR: Unable to open UserDatabase for reading.", error)
+     
+     intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
+     if intError != 0 {
+          printError("ERROR: Unable to lock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
+     }
+     
+     someBytes, error := ioutil.ReadAll(authFile)
+     printError("ERROR: Unable to read from file UserDatabase.", error)
+     
+     intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
+     if intError != 0 {
+          printError("ERROR: Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
+     }
+     
+     error = authFile.Close()
+     printError("ERROR: Failed to close UserDatabase.", error)
+     
+     error = json.Unmarshal(someBytes, &auth)
+     printError("ERROR: Failed to unmarshal data read from UserDatabase file.", error)
+     
+     authed = (password == auth[username].Password)
+     admin = auth[username].Admin
+     
+     return
 }
 
 func main() {
