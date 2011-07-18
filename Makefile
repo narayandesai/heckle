@@ -12,7 +12,7 @@ flunky: flunky.6 main.6
 flunkymaster: flunkymaster.6
 	6l -o $@ flunkymaster.6
 
-heckle: heckle.6
+heckle: heckleTypes.6 heckleFuncs.6 heckle.6
 	6l -o $@ heckle.6
 
 power: power.6
