@@ -9,31 +9,9 @@ import (
      "io/ioutil"
      "time"
      "./flunky"
+     "./heckleTypes"
+     "./heckleFuncs"
      )
-
-type infoMsg struct {
-     Time    int64
-     Message string
-     MsgType string
-}
-
-type statusMessage struct {
-     Status         string
-     LastActivity   int64
-     Info           []infoMsg
-}
-
-type nummsg struct {
-     NumNodes            int
-     Image               string
-     ActivityTimeout     int64
-}
-
-type listmsg struct {
-     Addresses           []string
-     Image               string
-     ActivityTimeout     int64
-}
 
 var cfgOptions                          map[string]string
 var help                                bool
@@ -57,16 +35,16 @@ func init() {
      allocationList = flag.Args()
      
      cfgFile, error := os.Open("testHeckle.cfg")
-     printError("ERROR: Unable to open testHeckle.cfg for reading.", error)
+     heckleFuncs.PrintError("ERROR: Unable to open testHeckle.cfg for reading.", error)
      
      someBytes, error := ioutil.ReadAll(cfgFile)
-     printError("ERROR: Unable to read from file testHeckle.cfg", error)
+     heckleFuncs.PrintError("ERROR: Unable to read from file testHeckle.cfg", error)
      
      error = cfgFile.Close()
-     printError("ERROR: Failed to close testHeckle.cfg.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close testHeckle.cfg.", error)
      
      error = json.Unmarshal(someBytes, &cfgOptions)
-     printError("ERROR: Failed to unmarshal data read from testHeckle cfg file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to unmarshal data read from testHeckle cfg file.", error)
 }
 
 func usage() {
@@ -74,40 +52,34 @@ func usage() {
      flag.PrintDefaults()
 }
 
-func printError(errorMsg string, error os.Error) {
-     if error != nil {
-          fmt.Fprintf(os.Stderr, "%s\n", errorMsg)
-     }
-}
-
 func requestNumber() (tmpAllocationNumber uint64) {
-     nm := nummsg{numNodes, image, 300}
+     nm := heckleTypes.Nummsg{numNodes, image, 300}
      
      someBytes, error := json.Marshal(nm)
-     printError("ERROR: Failed to marshal nummsg in requestNumber function.", error)
+     heckleFuncs.PrintError("ERROR: Failed to marshal nummsg in requestNumber function.", error)
      
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/number", buf)
-     printError("ERROR: Failed to post the request for number of nodes to heckle.", error)
+     heckleFuncs.PrintError("ERROR: Failed to post the request for number of nodes to heckle.", error)
      
      error = json.Unmarshal(someBytes, &tmpAllocationNumber)
-     printError("ERROR: Failed to unmarshal allocation number from http response in request number.", error)
+     heckleFuncs.PrintError("ERROR: Failed to unmarshal allocation number from http response in request number.", error)
      
      return
 }
 
 func requestList() (tmpAllocationNumber uint64) {
-     nm := listmsg{allocationList, image, 300}
+     nm := heckleTypes.Listmsg{allocationList, image, 300}
      
      someBytes, error := json.Marshal(nm)
-     printError("ERROR: Failed to marshal nummsg in requestList function.", error)
+     heckleFuncs.PrintError("ERROR: Failed to marshal nummsg in requestList function.", error)
      
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/list", buf)
-     printError("ERROR: Failed to post the request for list of nodes to heckle.", error)
+     heckleFuncs.PrintError("ERROR: Failed to post the request for list of nodes to heckle.", error)
      
      error = json.Unmarshal(someBytes, &tmpAllocationNumber)
-     printError("ERROR: Failed to unmarshal allocation number from http response in request list.", error)
+     heckleFuncs.PrintError("ERROR: Failed to unmarshal allocation number from http response in request list.", error)
      
      return
 }
@@ -116,28 +88,28 @@ func requestTimeIncrease() {
      tmpTimeMsg := int64(timeIncrease * 3600)
 
      someBytes, error := json.Marshal(tmpTimeMsg)
-     printError("ERROR: Failed to marshal time increase in requestTimeIncrease function.", error)
+     heckleFuncs.PrintError("ERROR: Failed to marshal time increase in requestTimeIncrease function.", error)
      
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/increaseTime", buf)
-     printError("ERROR: Failed to post the request for time increase to heckle.", error)
+     heckleFuncs.PrintError("ERROR: Failed to post the request for time increase to heckle.", error)
      
      return
 }
 
 func pollForStatus() {
-     statMap := make(map[string]*statusMessage)
+     statMap := make(map[string]*heckleTypes.StatusMessage)
      for {
           time.Sleep(10000000000)
           someBytes, error := json.Marshal(allocationNumber)
-          printError("ERROR: Failed to marshal allocation number for status poll.", error)
+          heckleFuncs.PrintError("ERROR: Failed to marshal allocation number for status poll.", error)
      
           buf := bytes.NewBufferString(string(someBytes))
           someBytes, error = bs.Post("/status", buf)
-          printError("ERROR: Failed to post for status of nodes to heckle.", error)
+          heckleFuncs.PrintError("ERROR: Failed to post for status of nodes to heckle.", error)
 
           error = json.Unmarshal(someBytes, &statMap)
-          printError("ERROR: Failed to unmarshal status info from http response in status polling.", error)
+          heckleFuncs.PrintError("ERROR: Failed to unmarshal status info from http response in status polling.", error)
           
           done := true
           for key, value := range statMap {
@@ -161,11 +133,11 @@ func pollForStatus() {
 
 func freeAllocation() {
      someBytes, error := json.Marshal(freeAlloc)
-     printError("ERROR: Failed to marshal allocation number for status poll.", error)
+     heckleFuncs.PrintError("ERROR: Failed to marshal allocation number for status poll.", error)
      
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/freeAllocation", buf)
-     printError("ERROR: Failed to post for status of nodes to heckle.", error)
+     heckleFuncs.PrintError("ERROR: Failed to post for status of nodes to heckle.", error)
 }
 
 func main() {  

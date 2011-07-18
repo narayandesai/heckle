@@ -11,137 +11,47 @@ import (
      "bytes"
      "sync"
      "runtime"
-     "syscall"
      "./flunky"
-     "encoding/base64"
+     "./heckleTypes"
+     "./heckleFuncs"
 )
 
-type ctlmsg struct {
-     Addresses []string
-     Time      int64
-     Image     string
-     Extra     map[string]string
-}
-
-type ResourceInfo struct {
-     Allocated                          bool
-     TimeAllocated, AllocationEndTime   int64
-     Owner, Image, Comments             string
-     AllocationNumber                   uint64
-}
-
-type currentRequestsNode struct {
-     User                string
-     Image               string
-     Status              string
-     AllocationNumber    uint64
-     ActivityTimeout     int64
-     TryOnFail           bool
-     LastActivity        int64
-     Info                []infoMsg
-}
-
-type listmsg struct {
-     Addresses           []string
-     Image               string
-     ActivityTimeout     int64
-}
-
-type nummsg struct {
-     NumNodes            int
-     Image               string
-     ActivityTimeout     int64
-}
-
-type statusMessage struct {
-     Status         string
-     LastActivity   int64
-     Info           []infoMsg
-}
-
-type infoMsg struct {
-     Time    int64
-     Message string
-     MsgType string
-}
-
-type userNode struct {
-     Password  string
-     Admin     bool
-}
-
-var currentRequests           map[string]*currentRequestsNode
+var currentRequests           map[string]*heckleTypes.CurrentRequestsNode
 var cfgOptions                map[string]string
-var resources                 map[string]*ResourceInfo
+var resources                 map[string]*heckleTypes.ResourceInfo
 var allocationNumber          uint64
-var heckleToAllocateChan      chan listmsg
+var heckleToAllocateChan      chan heckleTypes.Listmsg
 var allocateToPollingChan     chan []string
-var pollingToHeckleChan       chan map[string]*statusMessage
+var pollingToHeckleChan       chan map[string]*heckleTypes.StatusMessage
 var pollingCancelChan         chan []string
 var currentRequestsLock       sync.Mutex
 var resourcesLock             sync.Mutex
 var allocationNumberLock      sync.Mutex
 
-func (resource *ResourceInfo) Reset() {
-     resource.Allocated = false
-     resource.TimeAllocated = 0
-     resource.AllocationEndTime = 0
-     resource.Owner = "None"
-     resource.Image = "None"
-     resource.Comments = ""
-     resource.AllocationNumber = 0
-}
-
-func (resource *ResourceInfo) Allocate(owner string, image string, allocationNum uint64) {
-     resource.Allocated = true
-     resource.Owner = owner
-     resource.Image = image
-     resource.TimeAllocated = time.Seconds()
-     resource.AllocationEndTime = time.Seconds() + 604800
-     resource.AllocationNumber = allocationNum
-}
-
-func (resource *ResourceInfo) Broken() {
-     resource.Allocated = true
-     resource.TimeAllocated = time.Seconds()
-     resource.AllocationEndTime = 9223372036854775807
-     resource.Owner = "System Admin"
-     resource.Image = "brokenNode-headAche-amd64"
-     resource.Comments = "Installation failed or there was a timeout."
-     resource.AllocationNumber = 0
-}
-
 func init() {
      //This populates the cfgOptions map with the json cfg file.
      cfgOptions = make(map[string]string)
-     heckleToAllocateChan = make(chan listmsg)
+     heckleToAllocateChan = make(chan heckleTypes.Listmsg)
      allocateToPollingChan = make(chan []string)
-     pollingToHeckleChan = make (chan map[string]*statusMessage)
+     pollingToHeckleChan = make (chan map[string]*heckleTypes.StatusMessage)
      pollingCancelChan = make(chan []string)
      
-     currentRequests = make(map[string]*currentRequestsNode)
+     currentRequests = make(map[string]*heckleTypes.CurrentRequestsNode)
 
      allocationNumber = 1
      getResources()
 
      cfgFile, error := os.Open("heckle.cfg")
-     printError("ERROR: Unable to open heckle.cfg for reading.", error)
+     heckleFuncs.PrintError("ERROR: Unable to open heckle.cfg for reading.", error)
      
      someBytes, error := ioutil.ReadAll(cfgFile)
-     printError("ERROR: Unable to read from file heckle.cfg.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read from file heckle.cfg.", error)
      
      error = cfgFile.Close()
-     printError("ERROR: Failed to close heckle.cfg.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close heckle.cfg.", error)
      
      error = json.Unmarshal(someBytes, &cfgOptions)
-     printError("ERROR: Failed to unmarshal data read from heckle cfg file.", error)
-}
-
-func printError(errorMsg string, error os.Error) {
-     //This function prints the error passed if error is not nil.
-     if error != nil {
-          fmt.Fprintf(os.Stderr, "%s\n", errorMsg)
-     }
+     heckleFuncs.PrintError("ERROR: Failed to unmarshal data read from heckle cfg file.", error)
 }
 
 func resetResources(resourceNames []string) {
@@ -149,10 +59,10 @@ func resetResources(resourceNames []string) {
      //it just creates a new resource map with all the resourceNames
      //entries in it.
      resourcesLock.Lock()
-     resources = make(map[string]*ResourceInfo)
+     resources = make(map[string]*heckleTypes.ResourceInfo)
      
      for _, value := range resourceNames {
-          resources[value] = &ResourceInfo{false, 0, 0, "None", "None", "", 0}
+          resources[value] = &heckleTypes.ResourceInfo{false, 0, 0, "None", "None", "", 0}
      }
      resourcesLock.Unlock()
 }
@@ -162,30 +72,30 @@ func updateDatabase() {
      //resource map.
      //databaseFile, error := os.OpenFile("ResourceDatabase", os.O_RDWR | os.O_TRUNC, 0777)
      databaseFile, error := os.Create("ResourceDatabase")
-     printError("ERROR: Unable to open resource database file for writing.", error)
+     heckleFuncs.PrintError("ERROR: Unable to open resource database file for writing.", error)
      
      resourcesLock.Lock()
      js, error := json.Marshal(resources)
-     printError("ERROR: Failed to marshal resources for resources database file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to marshal resources for resources database file.", error)
      resourcesLock.Unlock()
      
      _, error = databaseFile.Write(js)
-     printError("ERROR: Failed to write resources to resources database file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to write resources to resources database file.", error)
      
      error = databaseFile.Close()
-     printError("ERROR: Failed to close resources database file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close resources database file.", error)
 }
 
 func resetResourceDatabase() {
      //This function is intended for admins to reset the json database file.
      resourceFile, error := os.Open("resources")
-     printError("ERROR: Failed to open resources file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to open resources file.", error)
      
      someBytes, error := ioutil.ReadAll(resourceFile)
-     printError("ERROR: Failed to read resources file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to read resources file.", error)
      
      error = resourceFile.Close()
-     printError("ERROR: Failed to close resource file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close resource file.", error)
      
      resourceNames := strings.Split(string(someBytes), "\n")
      resourceNames = resourceNames[:len(resourceNames)-1]
@@ -197,18 +107,18 @@ func resetResourceDatabase() {
 func getResources() {
      //This function populated the resources map from the json database file.
      databaseFile, error := os.Open("ResourceDatabase")
-     printError("ERROR: Failed to open resource database file for reading.", error)
+     heckleFuncs.PrintError("ERROR: Failed to open resource database file for reading.", error)
      
      someBytes, error := ioutil.ReadAll(databaseFile)
-     printError("ERROR: Failed to read from resource database file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to read from resource database file.", error)
      
      error = databaseFile.Close()
-     printError("ERROR: Failed to close resource database file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close resource database file.", error)
      
      resourcesLock.Lock()
-     resources = make(map[string]*ResourceInfo)
+     resources = make(map[string]*heckleTypes.ResourceInfo)
      error = json.Unmarshal(someBytes, &resources)
-     printError("ERROR: Failed to unmarshal data read from resource database file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to unmarshal data read from resource database file.", error)
      resourcesLock.Unlock()
 }
 
@@ -228,7 +138,7 @@ func printResources(onlyAllocated bool) {
      resourcesLock.Unlock()
 }
 
-func printResource(node string, resource *ResourceInfo) {
+func printResource(node string, resource *heckleTypes.ResourceInfo) {
      //This function will print an individual resource from the resource map.
      fmt.Fprintf(os.Stdout, "NODE: %s\tALLOCATED: ", node)
      if resource.Allocated {
@@ -289,69 +199,29 @@ func checkNodeList(nodeList []string, owner string, image string, allocationNum 
      return tmpList
 }
 
-func authenticate(tmpAuth string) (username string, authed bool, admin bool) {
-     tmpAuthArray := strings.Split(tmpAuth, " ")
-     
-     authValues , error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
-     printError("ERROR: Failed to decode encoded auth settings in http request.", error)
-     
-     authValuesArray := strings.Split(string(authValues), ":")
-     username = authValuesArray[0]
-     password := authValuesArray[1]
-     
-     var auth  map[string]userNode
-     
-     authFile, error := os.Open("UserDatabase")
-     printError("ERROR: Unable to open UserDatabase for reading.", error)
-     
-     intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
-     if intError != 0 {
-          printError("ERROR: Unable to lock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
-     }
-     
-     someBytes, error := ioutil.ReadAll(authFile)
-     printError("ERROR: Unable to read from file UserDatabase.", error)
-     
-     intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
-     if intError != 0 {
-          printError("ERROR: Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
-     }
-     
-     error = authFile.Close()
-     printError("ERROR: Failed to close UserDatabase.", error)
-     
-     error = json.Unmarshal(someBytes, &auth)
-     printError("ERROR: Failed to unmarshal data read from UserDatabase file.", error)
-     
-     authed = (password == auth[username].Password)
-     admin = auth[username].Admin
-     
-     return
-}
-
 func allocateList(writer http.ResponseWriter, request *http.Request) {
      //This is an http handler function to deal with allocation list requests.
      //It grabs the list from the message, makes a new lsit of all available
      //nodes within that original list.  Gets an allocation number, and adds
      //them to the current requests map.
-     listMsg := new(listmsg)
+     listMsg := new(heckleTypes.Listmsg)
      request.ProtoMinor = 0
 
-     username, authed, _ := authenticate(request.Header.Get("Authorization"))
+     username, authed, _ := heckleFuncs.Authenticate(request.Header.Get("Authorization"), cfgOptions["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from allocate list POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from allocate list POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close allocation list request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close allocation list request body.", error)
      
      error = json.Unmarshal(someBytes, &listMsg)
-     printError("ERROR: Unable to unmarshal allocation list.", error)
+     heckleFuncs.PrintError("ERROR: Unable to unmarshal allocation list.", error)
      
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
@@ -359,11 +229,11 @@ func allocateList(writer http.ResponseWriter, request *http.Request) {
      allocationNumberLock.Unlock()
      
      allocationList := checkNodeList(listMsg.Addresses, username, listMsg.Image, tmpAllocationNumber)
-     heckleToAllocateChan<- listmsg{allocationList, listMsg.Image, 0}
+     heckleToAllocateChan<- heckleTypes.Listmsg{allocationList, listMsg.Image, 0}
      
      currentRequestsLock.Lock()
      for _, value := range allocationList {
-          currentRequests[value] = &currentRequestsNode{username, listMsg.Image, "Building", tmpAllocationNumber, listMsg.ActivityTimeout, false, 0, []infoMsg{}}
+          currentRequests[value] = &heckleTypes.CurrentRequestsNode{username, listMsg.Image, "Building", tmpAllocationNumber, listMsg.ActivityTimeout, false, 0, []heckleTypes.InfoMsg{}}
      }
      currentRequestsLock.Unlock()
      
@@ -377,24 +247,24 @@ func allocateNumber(writer http.ResponseWriter, request *http.Request) {
      //This is just an http function that deals with allocation number requests.
      //It grabs the number, gets a list of that number or less of nodes, gets
      //an allocation number, and adds them to the current requests map.
-     numMsg := new(nummsg)
+     numMsg := new(heckleTypes.Nummsg)
      request.ProtoMinor = 0
      
-     username, authed, _ := authenticate(request.Header.Get("Authorization"))
+     username, authed, _ := heckleFuncs.Authenticate(request.Header.Get("Authorization"), cfgOptions["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from allocate list POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from allocate list POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close allocation number request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close allocation number request body.", error)
      
      error = json.Unmarshal(someBytes, &numMsg)
-     printError("ERROR: Unable to unmarshal allocation list.", error)
+     heckleFuncs.PrintError("ERROR: Unable to unmarshal allocation list.", error)
      
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
@@ -402,11 +272,11 @@ func allocateNumber(writer http.ResponseWriter, request *http.Request) {
      allocationNumberLock.Unlock()
      
      allocationList := getFreeNodes(numMsg.NumNodes, username, numMsg.Image, tmpAllocationNumber)
-     heckleToAllocateChan<- listmsg{allocationList, numMsg.Image, 0}
+     heckleToAllocateChan<- heckleTypes.Listmsg{allocationList, numMsg.Image, 0}
      
      currentRequestsLock.Lock()
      for _, value := range allocationList {
-          currentRequests[value] = &currentRequestsNode{username, numMsg.Image, "Building", tmpAllocationNumber, numMsg.ActivityTimeout, true, 0, []infoMsg{}}
+          currentRequests[value] = &heckleTypes.CurrentRequestsNode{username, numMsg.Image, "Building", tmpAllocationNumber, numMsg.ActivityTimeout, true, 0, []heckleTypes.InfoMsg{}}
      }
      currentRequestsLock.Unlock()
      
@@ -421,17 +291,17 @@ func allocate() {
      //flunky master.  On each iteration it grabs new nodes from heckle to be
      //allocated and send them off to flunkymaster.
      fs := flunky.NewBuildServer(cfgOptions["allocationServer"], false, "heckle", cfgOptions["heckle"])
-     rs := flunky.NewBuildServer(cfgOptions["radixServer"], false, "heckle", cfgOptions["heckle"])
+     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      
      for i := range heckleToAllocateChan {
-          cm := new(ctlmsg)
+          cm := new(heckleTypes.Ctlmsg)
           cm.Image = i.Image
           cm.Addresses = i.Addresses
           // FIXME: need to add in extradata
           js, _ := json.Marshal(cm)
           buf := bytes.NewBufferString(string(js))
           _, err := fs.Post("/ctl", buf)
-          printError("ERROR: Failed to post for allocation of nodes.", err)
+          heckleFuncs.PrintError("ERROR: Failed to post for allocation of nodes.", err)
           
           if err == nil {
                allocateToPollingChan<-i.Addresses
@@ -439,7 +309,7 @@ func allocate() {
                js, _ = json.Marshal(i.Addresses)
                buf = bytes.NewBufferString(string(js))
                _, err = rs.Post("/reboot", buf)
-               printError("ERROR: Failed to post for reboot of nodes in allocation go routine.", err)
+               heckleFuncs.PrintError("ERROR: Failed to post for reboot of nodes in allocation go routine.", err)
           }
      }
 }
@@ -474,20 +344,20 @@ func polling() {
      pollAddresses := []string{}
      var pollAddressesLock sync.Mutex
      bs := flunky.NewBuildServer(cfgOptions["pollingServer"], false, "heckle", cfgOptions["heckle"])
-     rs := flunky.NewBuildServer(cfgOptions["radixServer"], false, "heckle", cfgOptions["heckle"])
+     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      pollTime := time.Seconds()
      
      go addToPollList(&pollAddressesLock, &pollAddresses)
      go deleteFromPollList(&pollAddressesLock, &pollAddresses)
      
      for ;  ; time.Sleep(10000000000){
-          statRequest := new(ctlmsg)
+          statRequest := new(heckleTypes.Ctlmsg)
           pollAddressesLock.Lock()
           statRequest.Addresses = pollAddresses
           pollAddressesLock.Unlock()
           statRequest.Time = pollTime
 
-          var statmap map[string]*statusMessage
+          var statmap map[string]*heckleTypes.StatusMessage
                
           sRjs, _ := json.Marshal(statRequest)
           reqbuf := bytes.NewBufferString(string(sRjs))
@@ -502,7 +372,7 @@ func polling() {
           json.Unmarshal(ret, &outletStatus)
 
           for key, value := range statmap {
-               value.Info = append(value.Info, infoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
+               value.Info = append(value.Info, heckleTypes.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
           }
           
           pollingToHeckleChan<- statmap
@@ -514,11 +384,11 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
      //a number of nodes.  It then sends this node to the allocation thread and tosses it
      //on the current requests map.
      allocationList := getFreeNodes(1, owner, image, tmpAllocationNumber)
-     heckleToAllocateChan<- listmsg{allocationList, image, 0}
+     heckleToAllocateChan<- heckleTypes.Listmsg{allocationList, image, 0}
      
      currentRequestsLock.Lock()
      for _, value := range allocationList {
-          currentRequests[value] = &currentRequestsNode{owner, image, "Building", tmpAllocationNumber, activityTimeout, true, 0, []infoMsg{}}
+          currentRequests[value] = &heckleTypes.CurrentRequestsNode{owner, image, "Building", tmpAllocationNumber, activityTimeout, true, 0, []heckleTypes.InfoMsg{}}
      }
      currentRequestsLock.Unlock()
      
@@ -529,35 +399,35 @@ func status(writer http.ResponseWriter, request *http.Request) {
      //This is an http handler function to deal with allocation status requests.
      //if the host has ownership of the allocation number we send back a map
      //of node names and a status message type.
-     allocationStatus := make(map[string]*statusMessage)
+     allocationStatus := make(map[string]*heckleTypes.StatusMessage)
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
-     username, authed, admin := authenticate(request.Header.Get("Authorization"))
+     username, authed, admin := heckleFuncs.Authenticate(request.Header.Get("Authorization"), cfgOptions["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from allocation status POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from allocation status POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close allocation status request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close allocation status request body.", error)
      
      error = json.Unmarshal(someBytes, &allocationNumber)
-     printError("ERROR: Unable to unmarshal allocation number for status request.", error)
+     heckleFuncs.PrintError("ERROR: Unable to unmarshal allocation number for status request.", error)
      
      currentRequestsLock.Lock()
      for key, value := range currentRequests {
           if allocationNumber == value.AllocationNumber {
                if value.User == username || admin{
-                    sm := &statusMessage{value.Status, value.LastActivity, value.Info}
+                    sm := &heckleTypes.StatusMessage{value.Status, value.LastActivity, value.Info}
                     allocationStatus[key] = sm
-                    value.Info = []infoMsg{}
+                    value.Info = []heckleTypes.InfoMsg{}
                } else {
-                    printError("ERROR: Cannot request status of allocations that do not beling to you.", os.NewError("Access Denied"))
+                    heckleFuncs.PrintError("ERROR: Cannot request status of allocations that do not beling to you.", os.NewError("Access Denied"))
                     currentRequestsLock.Unlock()
                     return
                }
@@ -566,35 +436,35 @@ func status(writer http.ResponseWriter, request *http.Request) {
      currentRequestsLock.Unlock()
      
      jsonStat, error := json.Marshal(allocationStatus)
-     printError("ERROR: Unable to marshal allocation status response.", error)
+     heckleFuncs.PrintError("ERROR: Unable to marshal allocation status response.", error)
      
      _, error = writer.Write(jsonStat)
-     printError("ERROR: Unable to write allocation status response.", error)
+     heckleFuncs.PrintError("ERROR: Unable to write allocation status response.", error)
 }
 
 func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      //This function allows a user, if it owns the allocation, to free an allocation
      //number and all associated nodes.  It resets the resource map and current
      //requests map.
-     rs := flunky.NewBuildServer(cfgOptions["radixServer"], false, "heckle", cfgOptions["heckle"])
+     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
-     username, authed, admin := authenticate(request.Header.Get("Authorization"))
+     username, authed, admin := heckleFuncs.Authenticate(request.Header.Get("Authorization"), cfgOptions["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from allocation status POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from allocation status POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close free allocation request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close free allocation request body.", error)
      
      error = json.Unmarshal(someBytes, &allocationNumber)
-     printError("ERROR: Unable to unmarshal allocation number for freeing.", error)
+     heckleFuncs.PrintError("ERROR: Unable to unmarshal allocation number for freeing.", error)
      
      powerDown := []string{}
      
@@ -607,7 +477,7 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
                     powerDown = append(powerDown, key)
                     currentRequests[key] = nil, false
                } else {
-                    printError("ERROR: Cannot free allocations that do not belong to you.", os.NewError("Access Denied"))
+                    heckleFuncs.PrintError("ERROR: Cannot free allocations that do not belong to you.", os.NewError("Access Denied"))
                     currentRequestsLock.Unlock()
                     resourcesLock.Unlock()
                     return
@@ -620,7 +490,7 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      js, _ := json.Marshal(powerDown)
      buf := bytes.NewBufferString(string(js))
      _, err := rs.Post("/off", buf)
-     printError("ERROR: Failed to post for reboot of nodes in free allocation number.", err)
+     heckleFuncs.PrintError("ERROR: Failed to post for reboot of nodes in free allocation number.", err)
      
      updateDatabase()
 }
@@ -632,21 +502,21 @@ func increaseTime(writer http.ResponseWriter, request *http.Request) {
      timeIncrease := int64(0)
      request.ProtoMinor = 0
      
-     username, authed, _ := authenticate(request.Header.Get("Authorization"))
+     username, authed, _ := heckleFuncs.Authenticate(request.Header.Get("Authorization"), cfgOptions["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from increase time POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from increase time POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close free increase time request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close free increase time request body.", error)
      
      error = json.Unmarshal(someBytes, &timeIncrease)
-     printError("ERROR: Unable to unmarshal time increase in related handler func.", error)
+     heckleFuncs.PrintError("ERROR: Unable to unmarshal time increase in related handler func.", error)
      
      resourcesLock.Lock()
      for _, value := range resources {
@@ -682,12 +552,12 @@ func allocationTimeouts() {
      resourcesLock.Unlock()
      
      if found {
-          rs := flunky.NewBuildServer(cfgOptions["radixServer"], false, "heckle", cfgOptions["heckle"])
+          rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
           
           js, _ := json.Marshal(powerDown)
           buf := bytes.NewBufferString(string(js))
           _, err := rs.Post("/off", buf)
-          printError("ERROR: Failed to post for reboot of nodes in allocation time outs.", err)
+          heckleFuncs.PrintError("ERROR: Failed to post for reboot of nodes in allocation time outs.", err)
           
           updateDatabase()
      }
@@ -696,31 +566,31 @@ func allocationTimeouts() {
 func freeNode(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
-     rs := flunky.NewBuildServer(cfgOptions["radixServer"], false, "heckle", cfgOptions["heckle"])
+     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      var node string
      request.ProtoMinor = 0
      
-     username, authed, _ := authenticate(request.Header.Get("Authorization"))
+     username, authed, _ := heckleFuncs.Authenticate(request.Header.Get("Authorization"), cfgOptions["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from allocation status POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from allocation status POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close free node request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close free node request body.", error)
      
      error = json.Unmarshal(someBytes, &node)
-     printError("ERROR: Unable to unmarshal node to be unallocated.", error)
+     heckleFuncs.PrintError("ERROR: Unable to unmarshal node to be unallocated.", error)
      
      currentRequestsLock.Lock()
      resourcesLock.Lock()
      
      if resources[node].Owner != username {
-          printError("ERROR: Access denied, cannot free nodes that do not belong to you.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Access denied, cannot free nodes that do not belong to you.", os.NewError("Access Denied"))
           currentRequestsLock.Unlock()
           resourcesLock.Unlock()
           return
@@ -735,7 +605,7 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
      js, _ := json.Marshal([]string{node})
      buf := bytes.NewBufferString(string(js))
      _, err := rs.Post("/off", buf)
-     printError("ERROR: Failed to post for reboot of nodes in free node.", err)
+     heckleFuncs.PrintError("ERROR: Failed to post for reboot of nodes in free node.", err)
      
      updateDatabase()
 }
@@ -743,7 +613,7 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
 func listenAndServeWrapper() {
      //This branches off another thread to loop through listening and serving http requests.
      error := http.ListenAndServe(":" + cfgOptions["hecklePort"], nil)
-     printError("ERROR: Failed to listen on http socket.", error)
+     heckleFuncs.PrintError("ERROR: Failed to listen on http socket.", error)
 }
 
 func freeCurrentRequests() {
@@ -763,12 +633,12 @@ func dealWithBrokenNode(node string) {
      resources[node].Broken()
      resourcesLock.Unlock()
      
-     rs := flunky.NewBuildServer(cfgOptions["radixServer"], false, "heckle", cfgOptions["heckle"])
+     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      
      js, _ := json.Marshal([]string{node})
      buf := bytes.NewBufferString(string(js))
      _, err := rs.Post("/off", buf)
-     printError("ERROR: Failed to post for reboot of nodes in free node.", err)
+     heckleFuncs.PrintError("ERROR: Failed to post for reboot of nodes in free node.", err)
      
      //pass node off to diagnosing process
      updateDatabase()
@@ -804,33 +674,33 @@ func interpretPollMessages() {
 }
 
 func outletStatus(writer http.ResponseWriter, request *http.Request) {
-     rs := flunky.NewBuildServer(cfgOptions["radixServer"], false, "heckle", cfgOptions["heckle"])
+     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      request.ProtoMinor = 0
      
-     _, authed, admin := authenticate(request.Header.Get("Authorization"))
+     _, authed, admin := heckleFuncs.Authenticate(request.Header.Get("Authorization"), cfgOptions["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      if admin {
-          printError("ERROR: No access to admin command.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from outlet status POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from outlet status POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close outlet status request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close outlet status request body.", error)
 
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = rs.Post("/status", buf)
-     printError("ERROR: Failed to post for status of outlets to radixPower.go.", error)
+     heckleFuncs.PrintError("ERROR: Failed to post for status of outlets to radixPower.go.", error)
 
      _, error = writer.Write(someBytes)
-     printError("ERROR: Unable to write outlet status response in heckle.", error)
+     heckleFuncs.PrintError("ERROR: Unable to write outlet status response in heckle.", error)
 }
 
 func main() {

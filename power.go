@@ -4,80 +4,65 @@ import (
      "http"
      "json"
      //"sync"
-     "fmt"
      "exec"
      "os"
      "io/ioutil"
      "strings"
-     "syscall"
      "encoding/base64"
+     "./heckleTypes"
+     "./heckleFuncs"
 )
 
-type outletNode struct{
-     Address   string
-     Outlet    string
-}
 
-type userNode struct {
-     Password  string
-     Admin     bool
-}
 
-var resources  map[string]outletNode
+var resources  map[string]heckleTypes.OutletNode
 var powerCFG   map[string]string
-var auth       map[string]userNode
+var auth       map[string]heckleTypes.UserNode
 //var resourcesLock   sync.Mutex   shouldn't need a lock, never changing data.
 
 func init() {
      powerDBFile, error := os.Open("powerCont.db")
-     printError("ERROR: Unable to open powerCont.db for reading.", error)
+     heckleFuncs.PrintError("ERROR: Unable to open powerCont.db for reading.", error)
      
      someBytes, error := ioutil.ReadAll(powerDBFile)
-     printError("ERROR: Unable to read from file powerCont.db.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read from file powerCont.db.", error)
      
      error = powerDBFile.Close()
-     printError("ERROR: Failed to close powerCont.db.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close powerCont.db.", error)
      
      error = json.Unmarshal(someBytes, &resources)
-     printError("ERROR: Failed to unmarshal data read from powerCont.db file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to unmarshal data read from powerCont.db file.", error)
      
      powerCFGFile, error := os.Open("powerCont.cfg")
-     printError("ERROR: Unable to open powerCont.cfg for reading.", error)
+     heckleFuncs.PrintError("ERROR: Unable to open powerCont.cfg for reading.", error)
      
      someBytes, error = ioutil.ReadAll(powerCFGFile)
-     printError("ERROR: Unable to read from file powerCont.cfg.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read from file powerCont.cfg.", error)
      
      error = powerCFGFile.Close()
-     printError("ERROR: Failed to close powerCont.cfg.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close powerCont.cfg.", error)
      
      error = json.Unmarshal(someBytes, &powerCFG)
-     printError("ERROR: Failed to unmarshal data read from powerCont.cfg file.", error)
+     heckleFuncs.PrintError("ERROR: Failed to unmarshal data read from powerCont.cfg file.", error)
      
      authFile, error := os.Open("PowerUserDatabase")
-     printError("ERROR: Unable to open PowerUserDatabase for reading.", error)
+     heckleFuncs.PrintError("ERROR: Unable to open PowerUserDatabase for reading.", error)
      
      someBytes, error = ioutil.ReadAll(authFile)
-     printError("ERROR: Unable to read from file PowerUserDatabase.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read from file PowerUserDatabase.", error)
      
      error = authFile.Close()
-     printError("ERROR: Failed to close PowerUserDatabase.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close PowerUserDatabase.", error)
      
      error = json.Unmarshal(someBytes, &auth)
-     printError("ERROR: Failed to unmarshal data read from PowerUserDatabase file.", error)
-}
-
-func printError(errorMsg string, error os.Error) {
-     //This function prints the error passed if error is not nil.
-     if error != nil {
-          fmt.Fprintf(os.Stderr, "%s\n", errorMsg)
-     }
+     heckleFuncs.PrintError("ERROR: Failed to unmarshal data read from PowerUserDatabase file.", error)
 }
 
 func decode(tmpAuth string) (username string, password string) {
      tmpAuthArray := strings.Split(tmpAuth, " ")
      
      authValues , error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
-     printError("ERROR: Failed to decode encoded auth settings in http request.", error)
+     heckleFuncs.PrintError("ERROR: Failed to decode encoded auth settings in http request.", error)
      
      authValuesArray := strings.Split(string(authValues), ":")
      username = authValuesArray[0]
@@ -92,31 +77,31 @@ func rebootList(writer http.ResponseWriter, request *http.Request) {
      var nodes []string
      request.ProtoMinor = 0
      
-     authed, admin := authenticate(request.Header.Get("Authorization"))
+     _, authed, admin := heckleFuncs.Authenticate(request.Header.Get("Authorization"), powerCFG["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      if !admin {
-          printError("ERROR: No access to admin command.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from reboot POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from reboot POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close reboot request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close reboot request body.", error)
      
      error = json.Unmarshal(someBytes, &nodes)
-     printError("ERROR: Unable to unmarshal nodes to be rebooted.", error)
+     heckleFuncs.PrintError("ERROR: Unable to unmarshal nodes to be rebooted.", error)
      
      for _, value := range nodes {
           go func(value string) {
                error = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "reboot", resources[value].Outlet).Run()
-               printError("ERROR: Failed to run powerCont.sh in rebootList.", error)
+               heckleFuncs.PrintError("ERROR: Failed to run powerCont.sh in rebootList.", error)
           }(value)
      }
 }
@@ -127,31 +112,31 @@ func offList(writer http.ResponseWriter, request *http.Request) {
      var nodes []string
      request.ProtoMinor = 0
      
-     authed, admin := authenticate(request.Header.Get("Authorization"))
+     _, authed, admin := heckleFuncs.Authenticate(request.Header.Get("Authorization"), powerCFG["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      if !admin {
-          printError("ERROR: No access to admin command.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from off POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from off POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close off request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close off request body.", error)
      
      error = json.Unmarshal(someBytes, &nodes)
-     printError("ERROR: Unable to unmarshal nodes to be turned off.", error)
+     heckleFuncs.PrintError("ERROR: Unable to unmarshal nodes to be turned off.", error)
      
      for _, value := range nodes {
           go func(value string) {
                error = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "off", resources[value].Outlet).Run()
-               printError("ERROR: Failed to run powerCont.sh in offList.", error)
+               heckleFuncs.PrintError("ERROR: Failed to run powerCont.sh in offList.", error)
           }(value)
      }
 }
@@ -163,33 +148,33 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
      outletStatus := make(map[string]string)
      request.ProtoMinor = 0
      
-     authed, admin := authenticate(request.Header.Get("Authorization"))
+     _, authed, admin := heckleFuncs.Authenticate(request.Header.Get("Authorization"), powerCFG["userDatabasePath"])
      
      if !authed {
-          printError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      if !admin {
-          printError("ERROR: No access to admin command.", os.NewError("Access Denied"))
+          heckleFuncs.PrintError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     printError("ERROR: Unable to read all from off POST.", error)
+     heckleFuncs.PrintError("ERROR: Unable to read all from off POST.", error)
      
      error = request.Body.Close()
-     printError("ERROR: Failed to close off request body.", error)
+     heckleFuncs.PrintError("ERROR: Failed to close off request body.", error)
      
      error = json.Unmarshal(someBytes, &nodes)
-     printError("ERROR: Unable to unmarshal nodes to be turned off.", error)
+     heckleFuncs.PrintError("ERROR: Unable to unmarshal nodes to be turned off.", error)
      
      for _, value := range nodes {
           _, ok := outletStatus[value]
           
           if !ok {
                someBytes, error = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "status").Output()
-               printError("ERROR: Failed to execute powerCont.sh and get out put in power status request.", error)
+               heckleFuncs.PrintError("ERROR: Failed to execute powerCont.sh and get out put in power status request.", error)
 
                tmpStatusLines := strings.Split(string(someBytes), "\n")
 
@@ -206,50 +191,10 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
      }
 
      jsonStat, error := json.Marshal(outletStatus)
-     printError("ERROR: Unable to marshal outlet status response.", error)
+     heckleFuncs.PrintError("ERROR: Unable to marshal outlet status response.", error)
      
      _, error = writer.Write(jsonStat)
-     printError("ERROR: Unable to write outlet status response.", error)
-}
-
-func authenticate(tmpAuth string) (authed bool, admin bool) {
-     tmpAuthArray := strings.Split(tmpAuth, " ")
-     
-     authValues , error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
-     printError("ERROR: Failed to decode encoded auth settings in http request.", error)
-     
-     authValuesArray := strings.Split(string(authValues), ":")
-     username := authValuesArray[0]
-     password := authValuesArray[1]
-     
-     var auth  map[string]userNode
-     
-     authFile, error := os.Open("UserDatabase")
-     printError("ERROR: Unable to open UserDatabase for reading.", error)
-     
-     intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
-     if intError != 0 {
-          printError("ERROR: Unable to lock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
-     }
-     
-     someBytes, error := ioutil.ReadAll(authFile)
-     printError("ERROR: Unable to read from file UserDatabase.", error)
-     
-     intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
-     if intError != 0 {
-          printError("ERROR: Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
-     }
-     
-     error = authFile.Close()
-     printError("ERROR: Failed to close UserDatabase.", error)
-     
-     error = json.Unmarshal(someBytes, &auth)
-     printError("ERROR: Failed to unmarshal data read from UserDatabase file.", error)
-     
-     authed = (password == auth[username].Password)
-     admin = auth[username].Admin
-     
-     return
+     heckleFuncs.PrintError("ERROR: Unable to write outlet status response.", error)
 }
 
 func main() {
@@ -258,5 +203,5 @@ func main() {
      http.HandleFunc("/status", statusList)
      
      error := http.ListenAndServe(":" + powerCFG["powerPort"], nil)
-     printError("ERROR: Failed to listen on http socket.", error)
+     heckleFuncs.PrintError("ERROR: Failed to listen on http socket.", error)
 }
