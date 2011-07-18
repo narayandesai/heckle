@@ -1,7 +1,7 @@
 all: flunky flunkymaster heckle power testHeckle
 
 clean:
-	rm -f *.6 6.out flunky flunkymaster heckle power testHeckle 
+	rm -f *.6 6.out flunky flunkymaster heckle power testHeckle fctl
 
 flunky: flunky.6 main.6
 	6l -o $@ main.6
