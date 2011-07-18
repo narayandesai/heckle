@@ -484,7 +484,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	fm.Store()
 }
 
-//Mutex needed
+
 func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	req.ProtoMinor = 0
 	username, password := decode(req.Header.Get("Authorization"))
@@ -515,6 +515,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	fm.Store()
 }
 
+//Need go routine for each address
 func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	req.ProtoMinor = 0
 	username, password := decode(req.Header.Get("Authorization"))
@@ -549,7 +550,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	m.Unlock()
 }
 
-//Mutex needed
+//Go routine needed for each address
 func StatusCall(w http.ResponseWriter, req *http.Request) {
 	req.ProtoMinor = 0
 	username, password := decode(req.Header.Get("Authorization"))
