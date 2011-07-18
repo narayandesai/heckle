@@ -1,143 +1,64 @@
 #!/bin/sh
 
+finfo () {
+  /bin/flunky -S http://140.221.42.4:8080 -i "$${1}"
+  echo "$${1}"
+}
+
+finfo "Starting up"
+
 # this is to make sure we don't hork up the swap alreadyt being used.
 #swapoff -a
-swapoff /dev/sda*
-
-#make sure no disks are mounted.
-umount /mnt/sd*
-
-
-
-################################################################################
-# BEGIN disk enumeration
-#
-# Note the kludgey way to get /dev/sd* and /dev/*/c*d* to sort properly...
-#
-# Parse the correct file depending by the kernel release -AR-
-PATH=$${PATH}:/usr/local/bin:/usr/local/sbin
-
-diskfile=/proc/diskstats
-
-IMAGENAME=${IMAGE}
-
-DISKORDER=
-
-[ -z $$DISKORDER ] || {
- echo enumerate_disks
- order=`echo "$$DISKORDER" | sed 's/ /,/g' | sed s/,,*/,/g | sed s/^,//`
- DISKS=0
- cdroms=`cat /proc/sys/dev/cdrom/info 2>/dev/null | sed -ne "s/^drive
-name:[[:space:]]*//p"`
- while : ; do
-   [ -z $$order ] && break
-   type=`expr $$order : '\([^,]*\),' \| $$order`
-   case $type in
-   cciss | ida | rd )
-     for dev in `cat $$diskfile | sed -ne
-"s/.*\($$type\\/c[0-9]d[0-9]\).*/\1/p" | sort -u` ; do
-       echo " $$dev"
-       eval DISK$$DISKS=/dev/$${dev}
-       DISKS=`expr $$DISKS + 1`
-     done
-     ;;
-   hd | sd | xvd )
-    for dev in `cat $$diskfile | sed -ne "s/.*\($$type[a-z]\+\).*/\1/p" |
-sort -u` ; do
-       skip=0
-       for cdrom in $$cdroms; do
-           if [ "$$dev" = "$$cdrom" ]; then
-               skip=1
-               break
-           fi
-       done
-       if [ $$skip -eq 0 ]; then
-           echo " $$dev"
-           eval DISK$$DISKS=/dev/$${dev}
-           DISKS=`expr $$DISKS + 1`
-       fi
-     done
-     ;;
-   * )
-     echo "type='$$type'"
-     exit 1
-     ;;
-   esac
-   order=`expr $$order : '[^,]*,\(.*\)'`
- done
- echo DISKS=$$DISKS
- [ $$DISKS -eq 0 ] && {
+for dev in /dev/sda*; do
+  # turn off swap
+  grep $$dev /proc/swaps > /dev/null && swapoff $$dev
+  # unmount if needed
+  grep $$dev /proc/mounts > /dev/null && umount $$dev
+done
 
 
-   echo ""
-   echo "NO DISK DEVICE FILES WERE FOUND.  THIS USUALLY MEANS THE
-KERNEL DID NOT"
-   echo "RECOGNIZE ANY OF THE ATTACHED DISKS."
-   echo ""
-   echo "The kernel boot messages, which preceded this, may indicate why."
-   echo ""
-   echo "Reverting to disk configuration specified by image master script."
-   DISKORDER=
-   echo ""
- }
- echo
-
-}
-#
-# END disk enumeration
-################################################################################
-
-if [ -z $$DISKORDER ] ; then
- DISK0=/dev/sda
-elif [ -z $$DISK0 ] ; then
- echo "Undefined: DISK0"
- exit 1
-fi
 ### BEGIN partition $$DISK0 ###
-echo "Partitioning $$DISK0 ..." 
-echo "Old partition table for $$DISK0:"
-parted -s -- $$DISK0 print
+DISK0=/dev/sda
+finfo "Partitioning disk $$DISK0"
+#echo "Old partition table for $$DISK0:"
+#parted -s -- $$DISK0 print
 
 # Wipe the MBR (Master Boot Record) clean.
 echo "dd if=/dev/zero of=$$DISK0 bs=512 count=1 "
-dd if=/dev/zero of=$$DISK0 bs=512 count=1
+dd if=/dev/zero of=$$DISK0 bs=512 count=1 
 
-# Create disk label.  This ensures that all remnants of the old label,
-whatever
+# Create disk label.  This ensures that all remnants of the old label, whatever
 # type it was, are removed and that we're starting with a clean label.
 echo "parted -s -- $$DISK0 mklabel msdos "
-parted -s -- $$DISK0 mklabel msdos
+parted -s -- $$DISK0 mklabel msdos 
 
-# Get the size of the destination disk so that we can make the
-partitions fit properly.
-#DISK_SIZE=`parted -s $$DISK0 unit MB print | grep 'Disk geometry for' |
-sed 's/^.*-//g' | sed 's/\..*$//' | sed 's/MB//' `
-DISK_SIZE=`parted -s $$DISK0 unit MB print | grep Disk | awk '{print
-$$NF}' | sed 's/MB//'`
+# Get the size of the destination disk so that we can make the partitions fit properly.
+#DISK_SIZE=`parted -s $$DISK0 unit MB print | grep 'Disk geometry for' | sed 's/^.*-//g' | sed 's/\..*$$//' | sed 's/MB//' `
+DISK_SIZE=`parted -s $$DISK0 unit MB print | grep Disk | awk '{print $$NF}' | sed 's/MB//'`
 
 END_OF_LAST_PRIMARY=0
 
 echo "Creating partition $${DISK0}1."
 START_MB=$$END_OF_LAST_PRIMARY
-END_MB=$(echo "scale=3; ($$START_MB + 10000)" | bc)
+END_MB=$$(echo "scale=3; ($$START_MB + 10000)" | bc)
 echo "parted -s -- $$DISK0 mkpart primary $$START_MB $$END_MB "
-parted -s -- $$DISK0 mkpart primary $$START_MB $$END_MB
+parted -s -- $$DISK0 mkpart primary $$START_MB $$END_MB 
 END_OF_LAST_PRIMARY=$$END_MB
-echo parted -s -- $$DISK0 set 1 boot on
-parted -s -- $$DISK0 set 1 boot on
+echo parted -s -- $$DISK0 set 1 boot on 
+parted -s -- $$DISK0 set 1 boot on 
 
 echo "Creating partition $${DISK0}2."
 START_MB=$$END_OF_LAST_PRIMARY
-END_MB=$(echo "scale=3; ($$START_MB + 16000)" | bc)
+END_MB=$$(echo "scale=3; ($$START_MB + 16000)" | bc)
 echo "parted -s -- $$DISK0 mkpart primary $$START_MB $$END_MB "
-parted -s -- $$DISK0 mkpart primary $$START_MB $$END_MB
+parted -s -- $$DISK0 mkpart primary $$START_MB $$END_MB 
 END_OF_LAST_PRIMARY=$$END_MB
 
 echo "Creating partition $${DISK0}3."
 START_MB=$$END_OF_LAST_PRIMARY
-END_MB=$(echo "scale=3; ($$DISK_SIZE - 3)" | bc)
+END_MB=$$(echo "scale=3; ($$DISK_SIZE - 3)" | bc)
 echo "parted -s -- $$DISK0 mkpart primary $$START_MB $$END_MB "
-parted -s -- $$DISK0 mkpart primary $$START_MB $$END_MB
+parted -s -- $$DISK0 mkpart primary $$START_MB $$END_MB 
 END_OF_LAST_PRIMARY=$$END_MB
 
 echo "New partition table for $$DISK0:"
@@ -147,25 +68,26 @@ parted -s -- $$DISK0 print
 
 sleep 5
 
+finfo "Creating filesystems and swap"
 ### BEGIN swap and filesystem creation commands ###
 echo "mkswap $${DISK0}2 "
-mkswap $${DISK0}2
+mkswap $${DISK0}2 
 echo "swapon $${DISK0}2 "
-swapon $${DISK0}2
+swapon $${DISK0}2 
 
 echo "mkfs.ext4 $${DISK0}1 "
-mkfs.ext4  $${DISK0}1
+mkfs.ext4  $${DISK0}1 
 echo "mkdir -p /a/ "
-mkdir -p /a/
+mkdir -p /a/ 
 echo "mount $${DISK0}1 /a/ -t ext4  "
-mount $${DISK0}1 /a/ -t ext4
+mount $${DISK0}1 /a/ -t ext4  
 
 echo "mkfs.ext4  $${DISK0}3 "
-mkfs.ext4  $${DISK0}3
-echo "mkdir -p /a/var/lib/nova "
-mkdir -p /a/var/lib/nova
-echo "mount $${DISK0}3 /a/var/lib/nova -t ext4  "
-mount $${DISK0}3 /a/var/lib/nova -t ext4
+mkfs.ext4  $${DISK0}3 
+echo "mkdir -p /a/sandbox "
+mkdir -p /a/sandbox 
+echo "mount $${DISK0}3 /a/sandbox -t ext4  "
+mount $${DISK0}3 /a/sandbox -t ext4 
 
 ### END swap and filesystem creation commands ###
 
@@ -174,60 +96,64 @@ mount $${DISK0}3 /a/var/lib/nova -t ext4
 #   Lay the image down on the freshly formatted disk(s)
 #
 
-echo "rsync --timeout=190000 -aHS$${VERBOSE_OPT} --exclude=lost+found/
---exclude=/proc/* --numeric-ids ${BUILDSERVER}::$${IMAGENAME}/ /a/"
+finfo "Syncing image $Data.BUILDSERVER::/images/${Data.Image}"
+echo "rsync -aHS$${VERBOSE_OPT} --exclude=lost+found/ --exclude=/proc/* --numeric-ids $Data.BUILDSERVER::images/${Data.Image}/ /a/" 
 
-while ! rsync --timeout=190000 -aHS$${VERBOSE_OPT} --exclude=lost+found/
---exclude=/proc/* --numeric-ids ${BUILDSERVER}::$${IMAGENAME}/ /a/ >
-/dev/console ;
+while ! rsync -aHS$${VERBOSE_OPT} --exclude=lost+found/ --exclude=/proc/* --numeric-ids $Data.BUILDSERVER::images/${Data.Image}/ /a/ > /dev/console ; 
 do
-  sleep 10;
-  echo "rsync --timeout=190000 -aHS$${VERBOSE_OPT} --exclude=lost+found/
---exclude=/proc/* --numeric-ids ${BUILDSERVER}::$${IMAGENAME}/ /a/"
+   sleep 10; 
+   echo "rsync -aHS$${VERBOSE_OPT} --exclude=lost+found/ --exclude=/proc/* --numeric-ids $Data.BUILDSERVER::images/${Data.Image}/ /a/" 
 done
 #
 ################################################################################
 
 
+finfo "Creating fstab"
 ### BEGIN generate new fstab file from autoinstallscript.conf ###
 cat <<'EOF' > /a/etc/fstab
 # /etc/fstab: static file system information.
 #
 # <file system> <mount point>   <type>  <options>       <dump>  <pass>
-proc    /proc    proc    defaults    0    0
-/dev/sda1 /    ext4    relatime,errors=remount-ro    0    1    # /dev/sda1
-/dev/sda3 /var/lib/nova    ext4    defaults    0    2    # /dev/sda3
-/dev/sda2 none    swap    sw    0    0    # /dev/sda2
-/dev/scd0    /media/cdrom0    udf,iso9660    user,noauto,exec,utf8    0    0
+proc	/proc	proc	defaults	0	0
+/dev/sda1 /	ext4	relatime,errors=remount-ro	0	1	# /dev/sda1
+/dev/sda3 /sandbox	ext4	defaults	0	2	# /dev/sda3
+/dev/sda2 none	swap	sw	0	0	# /dev/sda2
+/dev/scd0	/media/cdrom0	udf,iso9660	user,noauto,exec,utf8	0	0
 EOF
 ### END generate new fstab ###
 
 
 # fix the hostname
-nslookup `ifconfig | grep 172 | awk '{print $$2}' | awk -F: '{print $$2}'`
-| tail -n 1 | awk '{print $$4}' | awk -F. '{print $$1}' > /a/etc/hostname
+nslookup `ifconfig | grep 140 | awk '{print $$2}' | awk -F: '{print $$2}'` | tail -n 1 | awk '{print $$4}' | awk -F. '{print $$1}' > /a/etc/hostname
 
-echo -n "setting hostname to: "
+echo -n "setting hostname to: " 
 cat /a/etc/hostname
 
 #run post install scripts
-/usr/local/bin/curl http://172.16.0.2/post-install -o /a/tmp/post-install.sh
-chmod +x /a/tmp/post-install.sh
-chroot /a /tmp/post-install.sh
+#/usr/local/bin/curl http://${Data.BUILDSERVER}/install-scripts/post-install.sh -o /a/tmp/post-install.sh
+#chmod +x /a/tmp/post-install.sh
+#chroot /a /tmp/post-install.sh
 
+# Install boot loader
+finfo "Installing Grub"
+chroot /a /usr/sbin/grub-install $$DISK0
+finfo "Running Bcfg2"
+chroot /a /usr/sbin/bcfg2 -qvk
 
 ################################################################################
 #
 #   Unmount filesystems
 #
 
-echo "sync to disk"
+finfo "Syncing disks"
 sync
-
+finfo "Unmounting disks"
 echo "umount /a/sandbox || mount -no remount,ro /a//sandbox "
-umount /a/sandbox || mount -no remount,ro /a//sandbox
+umount /a/sandbox || mount -no remount,ro /a//sandbox 
 
 echo "umount /a/ || mount -no remount,ro /a// "
-umount /a/ || mount -no remount,ro /a//
+umount /a/ || mount -no remount,ro /a// 
 
 echo "done unmounting filesystems"
+
+reboot

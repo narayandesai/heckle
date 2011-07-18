@@ -1,0 +1,6 @@
+{% if Count > 1 %}
+Ready
+{% end %}
+{% if Count <= 1 %}
+Building
+{% end %}

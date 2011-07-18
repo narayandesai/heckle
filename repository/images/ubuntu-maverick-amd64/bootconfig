@@ -1,19 +1,22 @@
-{% if Count < 1 %}
+$if Counts.bootconfig < 1:
+
+
 DEFAULT tcl
 SERIAL 0 57600
 PROMPT 1
 TIMEOUT 1
 LABEL tcl
 KERNEL http://140.221.42.4:8080/static/bzImage-build-64-110623
-APPEND initrd=http://140.221.42.4:8080/static/initrd-build-64-110623.gz console
-{% end %}
-{% if Count >= 1 %}
+APPEND initrd=http://140.221.42.4:8080/static/initrd-build-64-110623.gz console=ttyS0,57600 superuser ssh flunky=http://140.221.42.4:8080 PROFILE=compute-node
+
+ 
+$end
+$if Counts.bootconfig >= 1:
 DEFAULT boot
 SERIAL 0 57600
 PROMPT 1
 TIMEOUT 1
 LABEL boot
 KERNEL http://140.221.42.4:8080/static/vmlinuz-2.6.35-28-server
-APPEND initrd=http://140.221.42.4:8080/static/initrd.img-2.6.35-28-server root=
-{% end %}
-
+APPEND initrd=http://140.221.42.4:8080/static/initrd.img-2.6.35-28-server root=/dev/sda1 console=ttyS0,57600
+$end
