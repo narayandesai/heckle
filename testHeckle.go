@@ -14,7 +14,7 @@ import (
      )
 
 var cfgOptions                          map[string]string
-var help                                bool
+var help, status                        bool
 var server, image                       string
 var allocationList                      []string
 var numNodes, timeIncrease              int
@@ -23,6 +23,7 @@ var bs                                  *flunky.BuildServer
 
 func init() {
      flag.BoolVar(&help, "h", false, "Print usage of command.")
+     flag.BoolVar(&status, "s", false, "Print status of used nodes.")
      flag.IntVar(&numNodes, "n", 0, "Request an arbitrary number of nodes.")
      flag.IntVar(&timeIncrease, "t", 0, "Increase current allocation by this many hours.")
      flag.Uint64Var(&freeAlloc, "f", 0, "Free a reserved allocation number preemptively.")
@@ -140,16 +141,31 @@ func freeAllocation() {
      heckleFuncs.PrintError("ERROR: Failed to post for status of nodes to heckle.", error)
 }
 
+func nodeStatus() {
+     buf := bytes.NewBufferString("")
+     someBytes, error := bs.Post("/nodeStatus", buf)
+     heckleFuncs.PrintError("ERROR: Failed to post the request for node status to heckle.", error)
+     
+     fmt.Fprintf(os.Stdout, "%s", string(someBytes))
+     
+     return
+}
+
 func main() {  
      if len(allocationList) != 0 && numNodes != 0 {
           fmt.Fprintf(os.Stderr, "ERROR: Cannot use node list, and number of nodes option at the same time.\n")
           os.Exit(1)
-     } else if (len(allocationList) == 0 && numNodes == 0 && timeIncrease == 0 && freeAlloc == 0) || help {
+     } else if (len(allocationList) == 0 && numNodes == 0 && timeIncrease == 0 && freeAlloc == 0 && !status) || help {
           usage()
           os.Exit(0)
      }
      
      bs = flunky.NewBuildServer(cfgOptions["heckleServer"], false, cfgOptions["Username"], cfgOptions["Password"])
+     
+     if status {
+          nodeStatus()
+          os.Exit(0)
+     }
      
      if timeIncrease != 0 {
           requestTimeIncrease()

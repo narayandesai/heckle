@@ -10,59 +10,36 @@ import (
      "strings"
      "encoding/base64"
      "./heckleTypes"
-     "./heckleFuncs"
+     "./src/pkg/daemon/_obj/flunky/daemon"
 )
 
 
 
-var resources  map[string]heckleTypes.OutletNode
-var powerCFG   map[string]string
-var auth       map[string]heckleTypes.UserNode
+var resources       map[string]heckleTypes.OutletNode
+var powerDaemon     *daemon.Daemon
 //var resourcesLock   sync.Mutex   shouldn't need a lock, never changing data.
 
 func init() {
+     powerDaemon = daemon.New("Power", "power.cfg")
+     
      powerDBFile, error := os.Open("powerCont.db")
-     heckleFuncs.PrintError("ERROR: Unable to open powerCont.db for reading.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to open powerCont.db for reading.", error)
      
      someBytes, error := ioutil.ReadAll(powerDBFile)
-     heckleFuncs.PrintError("ERROR: Unable to read from file powerCont.db.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to read from file powerCont.db.", error)
      
      error = powerDBFile.Close()
-     heckleFuncs.PrintError("ERROR: Failed to close powerCont.db.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Failed to close powerCont.db.", error)
      
      error = json.Unmarshal(someBytes, &resources)
-     heckleFuncs.PrintError("ERROR: Failed to unmarshal data read from powerCont.db file.", error)
-     
-     powerCFGFile, error := os.Open("powerCont.cfg")
-     heckleFuncs.PrintError("ERROR: Unable to open powerCont.cfg for reading.", error)
-     
-     someBytes, error = ioutil.ReadAll(powerCFGFile)
-     heckleFuncs.PrintError("ERROR: Unable to read from file powerCont.cfg.", error)
-     
-     error = powerCFGFile.Close()
-     heckleFuncs.PrintError("ERROR: Failed to close powerCont.cfg.", error)
-     
-     error = json.Unmarshal(someBytes, &powerCFG)
-     heckleFuncs.PrintError("ERROR: Failed to unmarshal data read from powerCont.cfg file.", error)
-     
-     authFile, error := os.Open("PowerUserDatabase")
-     heckleFuncs.PrintError("ERROR: Unable to open PowerUserDatabase for reading.", error)
-     
-     someBytes, error = ioutil.ReadAll(authFile)
-     heckleFuncs.PrintError("ERROR: Unable to read from file PowerUserDatabase.", error)
-     
-     error = authFile.Close()
-     heckleFuncs.PrintError("ERROR: Failed to close PowerUserDatabase.", error)
-     
-     error = json.Unmarshal(someBytes, &auth)
-     heckleFuncs.PrintError("ERROR: Failed to unmarshal data read from PowerUserDatabase file.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Failed to unmarshal data read from powerCont.db file.", error)
 }
 
 func decode(tmpAuth string) (username string, password string) {
      tmpAuthArray := strings.Split(tmpAuth, " ")
      
      authValues , error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
-     heckleFuncs.PrintError("ERROR: Failed to decode encoded auth settings in http request.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Failed to decode encoded auth settings in http request.", error)
      
      authValuesArray := strings.Split(string(authValues), ":")
      username = authValuesArray[0]
@@ -77,31 +54,31 @@ func rebootList(writer http.ResponseWriter, request *http.Request) {
      var nodes []string
      request.ProtoMinor = 0
      
-     _, authed, admin := heckleFuncs.Authenticate(request.Header.Get("Authorization"), powerCFG["userDatabasePath"])
+     _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
      
      if !authed {
-          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          powerDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      if !admin {
-          heckleFuncs.PrintError("ERROR: No access to admin command.", os.NewError("Access Denied"))
+          powerDaemon.DaemonLog.LogError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     heckleFuncs.PrintError("ERROR: Unable to read all from reboot POST.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to read all from reboot POST.", error)
      
      error = request.Body.Close()
-     heckleFuncs.PrintError("ERROR: Failed to close reboot request body.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Failed to close reboot request body.", error)
      
      error = json.Unmarshal(someBytes, &nodes)
-     heckleFuncs.PrintError("ERROR: Unable to unmarshal nodes to be rebooted.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to unmarshal nodes to be rebooted.", error)
      
      for _, value := range nodes {
           go func(value string) {
                error = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "reboot", resources[value].Outlet).Run()
-               heckleFuncs.PrintError("ERROR: Failed to run powerCont.sh in rebootList.", error)
+               powerDaemon.DaemonLog.LogError("ERROR: Failed to run powerCont.sh in rebootList.", error)
           }(value)
      }
 }
@@ -112,31 +89,31 @@ func offList(writer http.ResponseWriter, request *http.Request) {
      var nodes []string
      request.ProtoMinor = 0
      
-     _, authed, admin := heckleFuncs.Authenticate(request.Header.Get("Authorization"), powerCFG["userDatabasePath"])
+     _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
      
      if !authed {
-          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          powerDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      if !admin {
-          heckleFuncs.PrintError("ERROR: No access to admin command.", os.NewError("Access Denied"))
+          powerDaemon.DaemonLog.LogError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     heckleFuncs.PrintError("ERROR: Unable to read all from off POST.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to read all from off POST.", error)
      
      error = request.Body.Close()
-     heckleFuncs.PrintError("ERROR: Failed to close off request body.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Failed to close off request body.", error)
      
      error = json.Unmarshal(someBytes, &nodes)
-     heckleFuncs.PrintError("ERROR: Unable to unmarshal nodes to be turned off.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to unmarshal nodes to be turned off.", error)
      
      for _, value := range nodes {
           go func(value string) {
                error = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "off", resources[value].Outlet).Run()
-               heckleFuncs.PrintError("ERROR: Failed to run powerCont.sh in offList.", error)
+               powerDaemon.DaemonLog.LogError("ERROR: Failed to run powerCont.sh in offList.", error)
           }(value)
      }
 }
@@ -148,33 +125,33 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
      outletStatus := make(map[string]string)
      request.ProtoMinor = 0
      
-     _, authed, admin := heckleFuncs.Authenticate(request.Header.Get("Authorization"), powerCFG["userDatabasePath"])
+     _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
      
      if !authed {
-          heckleFuncs.PrintError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          powerDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      if !admin {
-          heckleFuncs.PrintError("ERROR: No access to admin command.", os.NewError("Access Denied"))
+          powerDaemon.DaemonLog.LogError("ERROR: No access to admin command.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     heckleFuncs.PrintError("ERROR: Unable to read all from off POST.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to read all from off POST.", error)
      
      error = request.Body.Close()
-     heckleFuncs.PrintError("ERROR: Failed to close off request body.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Failed to close off request body.", error)
      
      error = json.Unmarshal(someBytes, &nodes)
-     heckleFuncs.PrintError("ERROR: Unable to unmarshal nodes to be turned off.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to unmarshal nodes to be turned off.", error)
      
      for _, value := range nodes {
           _, ok := outletStatus[value]
           
           if !ok {
                someBytes, error = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "status").Output()
-               heckleFuncs.PrintError("ERROR: Failed to execute powerCont.sh and get out put in power status request.", error)
+               powerDaemon.DaemonLog.LogError("ERROR: Failed to execute powerCont.sh and get out put in power status request.", error)
 
                tmpStatusLines := strings.Split(string(someBytes), "\n")
 
@@ -191,10 +168,10 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
      }
 
      jsonStat, error := json.Marshal(outletStatus)
-     heckleFuncs.PrintError("ERROR: Unable to marshal outlet status response.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to marshal outlet status response.", error)
      
      _, error = writer.Write(jsonStat)
-     heckleFuncs.PrintError("ERROR: Unable to write outlet status response.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to write outlet status response.", error)
 }
 
 func main() {
@@ -202,6 +179,6 @@ func main() {
      http.HandleFunc("/off", offList)
      http.HandleFunc("/status", statusList)
      
-     error := http.ListenAndServe(":" + powerCFG["powerPort"], nil)
-     heckleFuncs.PrintError("ERROR: Failed to listen on http socket.", error)
+     error := http.ListenAndServe(":" + powerDaemon.Cfg.Data["powerPort"], nil)
+     powerDaemon.DaemonLog.LogError("ERROR: Failed to listen on http socket.", error)
 }
