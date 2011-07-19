@@ -1,6 +1,6 @@
 //Shouldn't have to care about authentication
 //
-package config
+package daemon
 
 import (
 	"sync"
@@ -18,14 +18,7 @@ type ConfigInfo struct {
 	tmstamp int64
 }
 
-func PrintError(errorMsg string, error os.Error) {
-	//This function prints the error passed if error is not nil.
-	if error != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", errorMsg)
-	}
-}
-
-func (config *ConfigInfo) Load() (err os.Error) {
+func (config *ConfigInfo) load() (err os.Error) {
 	configFile, err := os.Open(config.path)
 	errmsg := fmt.Sprintf("ERROR: Cannot open %s for reading", config.path)
 	PrintError(errmsg, err)
@@ -64,5 +57,7 @@ func NewConfigInfo(path string) *ConfigInfo {
 	config := new(ConfigInfo)
 	config.path = path
 	config.Data = make(map[string]string)
+     config.load()
+     
 	return config
 }

@@ -1,18 +1,18 @@
 package daemon
 
 type Daemon struct {
-     name      string
-     DaemonLog DaemonLogger
-     AuthN     AuthInfo
-     Cfg       ConfigInfo
+     Name      string
+     DaemonLog *DaemonLogger
+     AuthN     *Authinfo
+     Cfg       *ConfigInfo
 }
 
 func New(name string, cfgFile string, authPath string) *Daemon {
      daemon := new(Daemon)
      daemon.Name = name
-     daemon.AuthN = NewAuthInfo(path)
+     daemon.AuthN = NewAuthInfo(authPath)
      daemon.Cfg = NewConfigInfo(cfgFile)
-     daemon.DaemonLog = NewDaemonLogger(Cfg.Data["logfile"])
+     daemon.DaemonLog = NewDaemonLogger(daemon.Cfg.Data["logfile"], daemon.Name)
      
      return daemon
 }

@@ -6,14 +6,14 @@ import (
 )
 
 type DaemonLogger struct {
-     stdoutLog log.Logger
-     fileLog   log.Logger
+     stdoutLog *log.Logger
+     fileLog   *log.Logger
 }
 
 func NewDaemonLogger(logFileName string, daemonName string) *DaemonLogger {
      daemonLogger := new(DaemonLogger)
      daemonLogger.stdoutLog = log.New(os.Stdout, daemonName + ": ", 0)
-     logFile, _ := os.OpenFile(logFileName, os.O_WRONLY | os.O_CREAT, 0666)
+     logFile, _ := os.OpenFile(logFileName, os.O_WRONLY | os.O_CREATE, 0666)
      daemonLogger.fileLog = log.New(logFile, daemonName + ": ", 0)
      
      return daemonLogger
