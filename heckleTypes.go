@@ -1,4 +1,4 @@
-package heckleTypes
+package interfaces
 
 import (
      "time"
@@ -51,11 +51,6 @@ type InfoMsg struct {
      Time    int64
      Message string
      MsgType string
-}
-
-type UserNode struct {
-     Password  string
-     Admin     bool
 }
 
 type OutletNode struct{

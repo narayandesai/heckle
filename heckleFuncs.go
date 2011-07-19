@@ -8,7 +8,6 @@ import (
      "io/ioutil"
      "syscall"
      "encoding/base64"
-     "./heckleTypes"
 )
 
 func PrintError(errorMsg string, error os.Error) {
