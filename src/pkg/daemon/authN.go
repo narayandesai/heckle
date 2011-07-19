@@ -34,6 +34,7 @@ func NewAuthInfo(path string) *Authinfo {
 	auth := new(Authinfo)
 	auth.path = path
 	auth.Users = make(map[string]UserNode, 20)
+     auth.Load()
 	return auth
 }
 

@@ -7,11 +7,11 @@ type Daemon struct {
      Cfg       *ConfigInfo
 }
 
-func New(name string, cfgFile string, authPath string) *Daemon {
+func New(name string, cfgFile string) *Daemon {
      daemon := new(Daemon)
      daemon.Name = name
-     daemon.AuthN = NewAuthInfo(authPath)
      daemon.Cfg = NewConfigInfo(cfgFile)
+     daemon.AuthN = NewAuthInfo(daemon.Cfg.Data["authpath"])
      daemon.DaemonLog = NewDaemonLogger(daemon.Cfg.Data["logfile"], daemon.Name)
      
      return daemon
