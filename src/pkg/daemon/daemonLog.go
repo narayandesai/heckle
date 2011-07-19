@@ -23,3 +23,10 @@ func (daemonLogger *DaemonLogger) Log(message string) {
      daemonLogger.stdoutLog.Print(message)
      daemonLogger.fileLog.Print(message)
 }
+
+func (daemonLogger *DaemonLogger) LogError(message string, error os.Error) {
+     if error != nil {
+          daemonLogger.stdoutLog.Print(message)
+          daemonLogger.fileLog.Print(message)
+     }
+}
