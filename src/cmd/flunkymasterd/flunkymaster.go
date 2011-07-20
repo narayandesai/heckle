@@ -288,9 +288,12 @@ func (fm *Flunkym) RenderImage(toRender string, address string) []byte {
 func DumpCall(w http.ResponseWriter, req *http.Request) {
         fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+	if _, ok := req.Header["Authorization"]; ok {
+	   username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	}else{Fail
+	   fmDaemon.DaemonLog.LogError("Failed to authorized in DumpCall", os.NewError("Authrozationa Failure"
+	   if !authed {
+	        fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
 	}
 	m.Lock()
