@@ -72,12 +72,9 @@ func (auth *Authinfo) Load() (err os.Error) {
 }
 
 func (auth *Authinfo) HTTPAuthenticate(req *http.Request) (user string, valid bool, admin bool) {
-     if _, ok := req.Header["Authorization"] ; !ok {
-          auth.DaemonLog.LogError("Request header did not contain Authorization information.", os.NewError("HTTP Auth Missing"))
-          return
-     }
      
-     header := request.Header.Get("Authorization")
+     request.Header.Get("Authorization")
+     
 	tmpAuthArray := strings.Split(header, " ")
 
 	authValues, error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
