@@ -3,6 +3,7 @@ package daemon
 import (
      "log"
      "os"
+     "time"
 )
 
 type DaemonLogger struct {
@@ -20,13 +21,13 @@ func NewDaemonLogger(logFileName string, daemonName string) *DaemonLogger {
 }
 
 func (daemonLogger *DaemonLogger) Log(message string) {
-     daemonLogger.stdoutLog.Print(message)
-     daemonLogger.fileLog.Print(message)
+     daemonLogger.stdoutLog.Printf("%s - INFO: %s", time.LocalTime(), message)
+     daemonLogger.fileLog.Printf("%s - INFO: %s", time.LocalTime(), message)
 }
 
 func (daemonLogger *DaemonLogger) LogError(message string, error os.Error) {
      if error != nil {
-          daemonLogger.stdoutLog.Print(message)
-          daemonLogger.fileLog.Print(message)
+          daemonLogger.stdoutLog.Printf("%s - ERROR: %s", time.LocalTime(), message)
+          daemonLogger.fileLog.Printf("%s - ERROR: %s", time.LocalTime(), message)
      }
 }

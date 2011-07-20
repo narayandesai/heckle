@@ -20,18 +20,17 @@ package flunkymaster
 //8. Conform to the golang style doc
 //9. Interfaces for each class
 //11. Add error returns to all functions
-//12. Implement sync package and select statuments
+//12. Implement select statuments
 //13. Find a way to make fm not a global var.
 //15. Write documentation for new system. 
 //21. Overload the http handler func in order to to make fm not local. 
 //22. Find out if GET and POST are really important.
 //23. Change the data.errors to and itoa function.
-//24. Write exception if a file becomes damaged for reading in data.json.
-//25. Create a flunky master config file. 
+//24. Write exception if a file becomes damaged for reading in data.json. 
 //26. Add information to handle a heclke allocation (#) which can conatin information about 
 // all nodes for that build request. 
 // 27. Future: add information for the build number that is internal to the system for log messages. 
-
+// 28. Provide Error handling for mismatched types when loading configuration files
 
 import (
 	"http"
@@ -41,28 +40,17 @@ import (
 	"time"
 	"bytes"
 	"strings"
-	"log"
 	"github.com/ziutek/kasia.go"
 	//"runtime"
 	"net"
-	"encoding/base64"
 	"sync"
+	"fmt"
+	"./src/pkg/daemon/_obj/flunky/daemon"
 )
 
-var config map[string]string
 var fm Flunkym
 var m sync.Mutex
-var auth map[string]userNode
-
-type ConfigType struct {
-	serverIP string
-}
-
-//User node is a data type that holds a user's authtcation credintials. 
-type userNode struct {
-	Password string
-	Admin    bool
-}
+var fmDaemon *daemon.Daemon
 
 //Bvar stores the build information for a node requesting a render.
 type Bvar struct {
@@ -78,7 +66,6 @@ type PathType struct {
 	static         string
 	dynamic        string
 	staticdataPath string
-	log            string
 	image          string
 }
 
@@ -126,64 +113,14 @@ type Flunkym struct {
 	path   PathType
 	data   map[string]DataStore
 	static map[string]string
-	log    *log.Logger
-}
-
-func decode(tmpAuth string) (username string, password string) {
-	tmpAuthArray := strings.Split(tmpAuth, " ")
-	authValues, error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
-	CheckError(error, "Could not decode message")
-
-	authValuesArray := strings.Split(string(authValues), ":")
-	username = authValuesArray[0]
-	password = authValuesArray[1]
-
-	return
 }
 
 func (fm *Flunkym) init() {
-	configFile, err := ioutil.ReadFile("flunkyMaster.cfg")
-	CheckError(err, "Could not unmarshal data")
-
-	err = json.Unmarshal(configFile, &config)
-	CheckError(err, "Could not unmarshal file")
-
-	auth = make(map[string]userNode)
-	//user := make(map[string]userNode)
-
-	logger := CreateLog("Flunky Master: ")
-	fm.log = logger
-
-	fm.SetPath(config["repoPath"])
+        fmDaemon = daemon.New("Flunky Master", "flunkyMaster.cfg")
+	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	fm.Load()
 	fm.Assert_setup("ubuntu-maverick-amd64", "127.0.0.1")
-
-	authFile, error := os.Open("PowerUserDatabase")
-	CheckError(error, "Cannot open user database")
-	someBytes, error := ioutil.ReadAll(authFile)
-	CheckError(error, "ERROR: Unable to read from file UserDatabase.")
-	error = json.Unmarshal(someBytes, &auth)
-	CheckError(error, "Cannot unmarshal file")
-
-	someBytes, error = ioutil.ReadFile("UserDatabase")
-	CheckError(error, "Cannot open user database")
-	error = json.Unmarshal(someBytes, &auth)
-	CheckError(error, "ERROR: Failed to unmarshal data read from UserDatabase file.")
 	return
-}
-
-
-func CheckError(err os.Error, info string) bool {
-	var correct bool
-	correct = true
-
-	if err != nil {
-		m.Lock()
-		fm.log.Printf("%s - ERROR: %s", time.LocalTime(), err)
-		m.Unlock()
-		correct = false
-	}
-	return correct
 }
 
 func build_vars(address string, path string) map[string]Bvar {
@@ -203,30 +140,12 @@ func build_vars(address string, path string) map[string]Bvar {
 	return data
 }
 
-//Add information to handle file names as well
-func CreateLog(title string) *log.Logger {
-	/*var file *os.File
-	        _, err := os.Stat(fm.path.log)
-		if err != nil {
-			file, err =os.Create("flunky.log")
-			CheckError(err, "Could not create file")
-		} else {
-			file, err = os.OpenFile(fm.path.log, os.O_RDWR, 0666)
-			CheckError(err, "Could not locate file")
-		}
-		logger := log.New(file, "Flunky Master: ", 0)*/
-	logger := log.New(os.Stdout, title, 0)
-	return logger
-
-}
-
-
 //Mutex lock needed
 func (fm *Flunkym) Assert_setup(image string, ip string) {
 	info := make([]infoMsg, 0)
 	image_dir := fm.path.image + "/" + image
 	_, err := os.Stat(image_dir)
-	CheckError(err, "Could not find specified Image")
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s", image), err)
 
 	newsetup := make(map[string]DataStore)
 	counts := make(map[string]int)
@@ -235,7 +154,7 @@ func (fm *Flunkym) Assert_setup(image string, ip string) {
 	//newsetup[ip].AllocateNum = msg.AllocateNum)
 	fm.data[ip] = newsetup[ip]
 	fm.Store()
-	fm.log.Printf("%s - INFO: Allocated %s as %s", time.LocalTime(), ip, image)
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocated %s as %s", ip, image))
 	return
 }
 
@@ -244,22 +163,22 @@ func (fm *Flunkym) Load() {
 	if err != nil {
 		data := make(map[string]DataStore)
 		fm.data = data
-		fm.log.Printf("%s - INFO: No previous data exsists. Data created", time.LocalTime())
+		fmDaemon.DaemonLog.Log("No previous data exsists. Data created")
 	} else {
-		fm.log.Printf("%s - INFO: Loading previous fm data", time.LocalTime())
+		fmDaemon.DaemonLog.Log("Loading previous fm data")
 		file, err := ioutil.ReadFile(fm.path.dataFile)
-		CheckError(err, "Could not locate file")
+		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read %s", fm.path.dataFile),err)
 
 		err = json.Unmarshal(file, &fm.data)
-		CheckError(err, "Could not unmarshall json")
-		fm.log.Printf("%s - INFO: Data Loaded", time.LocalTime())
+		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not unmarshall json"), err)
+		fmDaemon.DaemonLog.Log("Data Loaded")
 	}
 
 	file, err := ioutil.ReadFile(fm.path.staticdataPath)
-	CheckError(err, "Could not Read File")
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not read %s", fm.path.staticdataPath), err)
 
 	err = json.Unmarshal(file, &fm.static)
-	CheckError(err, "Could not unmarshall Json")
+	fmDaemon.DaemonLog.LogError("Could not unmarshall Json", err)
 
 	return
 }
@@ -269,29 +188,26 @@ func (fm *Flunkym) Store() {
 	_, err := os.Stat(fm.path.dataFile)
 	if err != nil {
 		_, err := os.Create(fm.path.dataFile)
-		CheckError(err, "Could not create a file")
+		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not create %s", fm.path.dataFile), err)
 	}
 
 	backup, err := json.Marshal(fm.data)
-	CheckError(err, "Could not marshall Data")
+	fmDaemon.DaemonLog.LogError("Could not marshall Data", err)
 
 	err = ioutil.WriteFile(fm.path.dataFile, backup, 0666)
-	CheckError(err, "Could not write file")
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not write fm.data to %s", fm.path.dataFile), err)
 	return
 }
 
 func (fm *Flunkym) SetPath(root string) {
-	fm.log.Printf("%s - INFO: Setting up path variables", time.LocalTime())
+	fmDaemon.DaemonLog.Log("Setting up path variables")
 	path := new(PathType)
 	path.root = root + "/repository"
-	path.static = path.root + "/static"
-	//path.dynamic = path.root + "/dynamic"
-	path.dataFile = path.root + "/" + config["backupFile"]
+	path.dataFile = path.root + "/" + fmDaemon.Cfg.Data["backupFile"]
 	path.staticdataPath = path.root + "/staticVars.json"
-	path.log = path.root + "/" + config["logFile"]
 	path.image = path.root + "/images"
 	fm.path = *path
-	fm.log.Printf("%s - INFO: Path variables Created", time.LocalTime())
+	fmDaemon.DaemonLog.Log("Path variables Created")
 	return
 }
 
@@ -308,106 +224,83 @@ func (fm *Flunkym) Increment_Count(address string, path string) {
 
 
 func (fm *Flunkym) RenderGetStatic(loc string, address string) []byte {
-	//m.Lock()
-	fm.log.Printf("%s - INFO: Rendering %s for %s", time.LocalTime(), loc, address)
-	//m.Unlock()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Rendering %s for %s", loc, address))
 	fname := fm.path.root + loc
-	_, e := os.Stat(fname)
-	CheckError(e, "Could not find the specified file")
+	_, err := os.Stat(fname)
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s", fname), err)
 
 	fm.Increment_Count(address, loc)
-	contents, er := ioutil.ReadFile(fname)
-	CheckError(er, "Could not read file")
-	//m.Lock()
-	fm.log.Printf("%s - INFO: Rendered %s for %s", time.LocalTime(), loc, address)
-	//m.Unlock()
+	contents, err := ioutil.ReadFile(fname)
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not read %s", fname), err)
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Rendered %s for %s", loc, address))
 	return contents
 }
 
 func (fm *Flunkym) RenderGetDynamic(loc string, address string) []byte {
-	m.Lock()
-	fm.log.Printf("%s - INFO: Rendering %s for %s", time.LocalTime(), loc, address)
-	m.Unlock()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Rendering %s for %s", loc, address))
 	var tmp []byte
 	dynamic_buf := bytes.NewBuffer(tmp)
 	bvar := build_vars(address, loc)
 	fname := fm.path.root + loc
-	_, e := os.Stat(fname)
-	CheckError(e, "Could not find specified file")
+	_, err := os.Stat(fname)
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s", fname), err)
 
 	ans, err := ioutil.ReadFile(fname)
-	CheckError(err, "Cannot read file")
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not read %s", fname), err)
 
 	tmpl, err := kasia.Parse(string(ans))
-	CheckError(err, "Cannot Parse Template")
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot Parse Template for %s", fname), err)
 
 	err = tmpl.Run(dynamic_buf, bvar[address])
-	CheckError(err, "Cannot render template")
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot execute template render for %s",  fname), err)
 
 	fm.Increment_Count(address, loc)
 
 	dynamic := dynamic_buf.Bytes()
-	m.Lock()
-	fm.log.Printf("%s - INFO: %s Rendered for %s", time.LocalTime(), loc, address)
-	m.Unlock()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered for %s", loc, address))
 	return dynamic
 }
 
 func (fm *Flunkym) RenderImage(toRender string, address string) []byte {
-	//m.Lock()
-	//fm.log.Printf("%s - INFO: Rendering %s to %s", time.LocalTime(), toRender, address)
-	//m.Unlock()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Rendering %s to %s", toRender, address))
 	var buf []byte
 	key := fm.data[address]
 	l := bytes.NewBuffer(buf)
 	bvar := build_vars(address, toRender)
 	request := fm.path.image + "/" + key.Image + "/" + toRender
-	_, e := os.Stat(request)
-	CheckError(e, "Could not find file specified")
+	_, err := os.Stat(request)
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot find %s", request), err)
 	ans, err := ioutil.ReadFile(request)
-	CheckError(e, "Could not Read file")
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read %s", request), err)
 
 	tmpl, err := kasia.Parse(string(ans))
-	CheckError(err, "Could not parse file to be rendered")
+	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot parse template for %s", request), err)
 
 	err = tmpl.Run(l, bvar[address])
-	CheckError(err, "Could not render template")
+	fmDaemon.DaemonLog.LogError("Cannot render template", err)
 
 	fm.Increment_Count(address, toRender)
 	v := l.Bytes()
-	//m.Lock()
-	fm.log.Printf("%s - INFO: %s Rendered to %s", time.LocalTime(), toRender, address)
-	//m.Unlock()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered to %s", toRender, address))
 	return v
-}
-
-func Authenticate(req *http.Request) bool {
-	valid := true
-	username, password := decode(req.Header.Get("Authorization"))
-	if password != auth[username].Password {
-		p := "Access Denied for " + username
-		CheckError(os.NewError(p), "Username password combo invalid.")
-		valid = false
-	}
-	return valid
 }
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
 	req.ProtoMinor = 0
-	allowed := Authenticate(req)
-	if !allowed {
-		return
+	username, authed, _:=fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	if !authed{
+	   	    fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username ), os.NewError("Access Denied"))
 	}
 	m.Lock()
 	tmp, err := json.Marshal(fm.data)
 	m.Unlock()
-	CheckError(err, "Cannot Marshal data")
+	fmDaemon.DaemonLog.LogError("Cannot Marshal fm.data", err)
 	_, err = w.Write(tmp)
 	if err != nil {
 		http.Error(w, "Cannot write to socket", 500)
 	}
 	m.Lock()
-	fm.log.Printf("%s - INFO: Data dump processed", time.LocalTime())
+	fmDaemon.DaemonLog.Log("Data dump processed")
 	m.Unlock()
 }
 
@@ -416,12 +309,11 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*allowed:= Authenticate(req)
-	if !allowed{
-		return
-	}*/
+	username, authed, _:= fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	if !authed{
+	    fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username ), os.NewError("Access Denied"))
+	}
 	tmp := fm.RenderGetStatic(req.RawURL, address) //allow for random type names
-	//status := strings.TrimSpace(string(tmp))
 	w.Write(tmp)
 }
 
@@ -430,10 +322,10 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*allowed:= Authenticate(req)
-	if !allowed{
-		return
-	}*/
+	username, authed, _:= fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	if !authed{
+	    fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username ), os.NewError("Access Denied"))
+	}
 	tmp := fm.RenderGetDynamic(req.RawURL, address)
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
@@ -445,22 +337,15 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*allowed:= Authenticate(req)
-	if !allowed{
-		return
-	}*/
-	//m.Lock()
-	fm.log.Printf("%s - INFO: Creating bootconfig image for %s", time.LocalTime(), address)
-	//m.Unlock()
+	username, authed, _:= fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	if !authed{
+	    fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username ), os.NewError("Access Denied"))
+	}
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Creating bootconfig image for %s", address))
 	tmp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
-	//status := strings.TrimSpace(string(tmp))
-	//fm.log.Println(string(tmp))
-	num, err := w.Write(tmp)
-	CheckError(err, "Will not work")
-	fm.log.Println(num)
-	//m.Lock()
-	fm.log.Printf("%s - INFO: bootconfig image Rendered for %s", time.LocalTime(), address)
-	//m.Unlock()
+	_, err := w.Write(tmp)
+        fmDaemon.DaemonLog.LogError("Will not write status",  err)
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("bootconfig image Rendered for %s", address))
 }
 
 func InstallCall(w http.ResponseWriter, req *http.Request) {
@@ -468,17 +353,13 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*allowed:= Authenticate(req)
-	if !allowed{
-		return
-	}*/
-	m.Lock()
-	fm.log.Printf("%s - INFO: Creating install script for %s", time.LocalTime(), address)
-	m.Unlock()
+	username, authed, _:= fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	if !authed{
+	    fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username ), os.NewError("AccessDenied"))
+	}
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Creating install script for %s", address))
 	tmp := fm.RenderImage("install", address)
-	m.Lock()
-	fm.log.Printf("%s - INFO: install rendered for %s", time.LocalTime(), address)
-	m.Unlock()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Install rendered for %s", address))
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
 }
@@ -489,18 +370,16 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*allowed:= Authenticate(req)
-	if !allowed{
-		return
-	}*/
+	username, authed, _:= fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	if !authed{
+	    fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username ), os.NewError("Access Denied"))
+	}
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
-	m.Lock()
-	fm.log.Printf("%s - INFO: Recived Info", time.LocalTime())
-	m.Unlock()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Recived Info", time.LocalTime()))
 	var msg infoMsg
 	err := json.Unmarshal(body, &msg)
-	CheckError(err, "Cannot unmarshal message")
+	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
 	tmp = fm.data[address]
 	tmp.Activity = time.Seconds()
 	msg.Time = time.Seconds()
@@ -518,18 +397,18 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	//allowed:= Authenticate(req)
-	//if !allowed{
-	//	return
-	//}
+	username, authed, _:= fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	if !authed{
+	    fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username ), os.NewError("Access Denied"))
+	}
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
 	m.Lock()
-	fm.log.Printf("%s - INFO: Recieved error!", time.LocalTime())
+	fmDaemon.DaemonLog.Log("Recieved error!")
 	m.Unlock()
 	var msg infoMsg
 	err := json.Unmarshal(body, &msg)
-	CheckError(err, "Cannot Unmarsal message")
+	fmDaemon.DaemonLog.LogError("Cannot unmarsahll data", err)
 	tmp = fm.data[address]
 	tmp.Activity = time.Seconds()
 	tmp.Errors += 1
@@ -547,36 +426,32 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	allowed := Authenticate(req)
-	if !allowed {
-		return
+        username, authed, _:= fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	if !authed{
+	    fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username ), os.NewError("Access Denied"))
 	}
 	body, _ := ioutil.ReadAll(req.Body)
 	temper, err := net.LookupIP(address)
-	CheckError(err, "Coud not find address")
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Could not find %s in host tables", address))
 	iaddr := temper[0].String()
 	var msg ctlmsg
 	m.Lock()
-	fm.log.Printf("%s - INFO: Recived ctrl message from %s", time.LocalTime(), iaddr)
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recived ctrl message from %s", iaddr))
 	m.Unlock()
 	err = json.Unmarshal(body, &msg)
-	CheckError(err, "Cannot Unmarshall message")
+	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
 	if len(msg.Addresses) == 0 {
-		fm.log.Printf("%s - INFO: Recieved empty update. No action taken", time.LocalTime())
+		fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved empty update from %s. No action taken", address))
 	} else {
 		for _, addr := range msg.Addresses {
 			temper, err := net.LookupIP(addr)
-			CheckError(err, "Coud not find address")
+			fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s in host table", addr), err)
 			iaddr := temper[0].String()
-			m.Lock()
-			fm.log.Printf("%s - INFO: Allocating %s as %s", time.LocalTime(), addr, msg.Image)
-			m.Unlock()
+			fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %s as %s", addr, msg.Image))
 			fm.Assert_setup(msg.Image, iaddr)
 		}
 
-		m.Lock()
-		fm.log.Printf("%s - INFO: Added %s to flunkyMaster", time.LocalTime(), msg.Addresses)
-		m.Unlock()
+		fmDaemon.DaemonLog.Log(fmt.Sprintf("Added %s to flunkyMaster", msg.Addresses))
 	}
 }
 
@@ -586,24 +461,23 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	allowed := Authenticate(req)
-	if !allowed {
-		return
+	username, authed, _:= fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
+	if !authed{
+	   fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username ), os.NewError("Access Denied"))
 	}
 	body, _ := ioutil.ReadAll(req.Body)
 	var msg ctlmsg
 	err := json.Unmarshal(body, &msg)
-	CheckError(err, "Could not unmarshal message")
+	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
 
-	fm.log.Printf("%s - INFO: Recieved request for status from %s", time.LocalTime(), address)
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved request for status from %s", address))
 	cstatus := make(map[string]RetType)
 	for _, addr := range msg.Addresses {
 		temper, err := net.LookupIP(addr)
 		iaddr := temper[0].String()
-		CheckError(err, "Could not find adderss")
-		//m.Lock()
-		//fm.log.Printf("%s - INFO: Recieved request for status from %s", time.LocalTime(), iaddr)
-		//m.Unlock()
+		fmDaemon.DaemonLog.LogError("Could not find the ip addess in host tables", err)
+
+		fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved request for status from %s", iaddr))
 		tmp := fm.data[iaddr]
 		key := cstatus[addr]
 		tmpl := fm.RenderImage("status1", iaddr)
@@ -619,16 +493,23 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		cstatus[addr] = key
 	}
 	ret, err := json.Marshal(cstatus)
-	CheckError(err, "Could not Marsal status")
+	fmDaemon.DaemonLog.LogError("Could not Marsal status", err)
 	w.Write(ret)
 }
 
+/*func makeHandler(fn  func(w http.ResponseWriter, r *http.Request, f chan Flunkym))http.HandlerFunc{
+     return func (w http.ResponseWriter, r *http.Request){
+     tmp := <- f
+     fn(w, r, tmp)
+     }
+}*/
+     
+
 func main() {
-	servPort := "8080"
 	//runtime.GOMAXPROCS(4)
 	fm.init()
 	fm.Store()
-	fm.log.Printf("%s - INFO: Starting server on port %s...", time.LocalTime(), servPort)
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Starting server on port %s...", fmDaemon.Cfg.Data["serverIP"]))
 
 	http.Handle("/dump", http.HandlerFunc(DumpCall))
 	http.Handle("/static/", http.HandlerFunc(StaticCall))
@@ -640,8 +521,8 @@ func main() {
 	http.Handle("/ctl", http.HandlerFunc(CtrlCall))
 	http.Handle("/status", http.HandlerFunc(StatusCall))
 
-	err := http.ListenAndServe("0.0.0.0:8080", nil)
-	CheckError(err, "ListenandServe error : "+err.String())
-	fm.log.Printf("%s - INFO: Server exited gracefully", time.LocalTime())
+	err := http.ListenAndServe(fmDaemon.Cfg.Data["serverIP"], nil)
+	fmDaemon.DaemonLog.LogError(("ListenandServe error : "+err.String()),err)
+	fmDaemon.DaemonLog.Log("Server exited gracefully")
 
 }
