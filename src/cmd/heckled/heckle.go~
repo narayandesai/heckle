@@ -426,7 +426,7 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
      
      currentRequestsLock.Lock()
      for _, value := range allocationList {
-          currentRequests[value] = &iface.CurrentRequestsNode{owner, image, "Building", tmpAllocationNumber, activityTimeout, true, 0, []iface.InfoMsg{}}
+          currentRequests[value] = &currentRequestsNode{owner, image, "Building", tmpAllocationNumber, activityTimeout, true, 0, []iface.InfoMsg{}}
      }
      currentRequestsLock.Unlock()
      

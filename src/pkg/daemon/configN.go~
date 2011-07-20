@@ -56,5 +56,6 @@ func NewConfigInfo(path string, daemonLog *DaemonLogger) *ConfigInfo {
 	config.Data = make(map[string]string)
      config.daemonLog = daemonLog
      config.load()
+     
 	return config
 }
