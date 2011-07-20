@@ -53,7 +53,7 @@ func NewConfigInfo(path string) *ConfigInfo {
 	config := new(ConfigInfo)
 	config.path = path
 	config.Data = make(map[string]string)
-     config.load()
-     
+	config.load()
+
 	return config
 }
