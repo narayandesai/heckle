@@ -80,7 +80,7 @@ var allocationNumberLock      sync.Mutex
 
 func init() {
      //This populates the cfgOptions map with the json cfg file.
-     heckleDaemon = daemon.New("Heckle", "heckle.cfg")
+     heckleDaemon = daemon.New("Heckle")
      heckleToAllocateChan = make(chan iface.Listmsg)
      allocateToPollingChan = make(chan []string)
      pollingToHeckleChan = make (chan map[string]*iface.StatusMessage)

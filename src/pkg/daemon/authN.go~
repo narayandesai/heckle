@@ -11,6 +11,13 @@ import (
 	"syscall"
 )
 
+func auth.daemonLog.LogError(errorMsg string, error os.Error) {
+	//This function prints the error passed if error is not nil.
+	if error != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", errorMsg)
+	}
+}
+
 type UserNode struct {
 	Password string
 	Admin    bool

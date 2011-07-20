@@ -54,7 +54,7 @@ func usage() {
 }
 
 func requestNumber() (tmpAllocationNumber uint64) {
-     nm := heckleTypes.Nummsg{numNodes, image, 300}
+     nm := iface.Nummsg{numNodes, image, 300}
      
      someBytes, error := json.Marshal(nm)
      daemon.PrintError("ERROR: Failed to marshal nummsg in requestNumber function.", error)
@@ -70,7 +70,7 @@ func requestNumber() (tmpAllocationNumber uint64) {
 }
 
 func requestList() (tmpAllocationNumber uint64) {
-     nm := heckleTypes.Listmsg{allocationList, image, 300}
+     nm := iface.Listmsg{allocationList, image, 300}
      
      someBytes, error := json.Marshal(nm)
      daemon.PrintError("ERROR: Failed to marshal nummsg in requestList function.", error)
@@ -99,7 +99,7 @@ func requestTimeIncrease() {
 }
 
 func pollForStatus() {
-     statMap := make(map[string]*heckleTypes.StatusMessage)
+     statMap := make(map[string]*iface.StatusMessage)
      for {
           time.Sleep(10000000000)
           someBytes, error := json.Marshal(allocationNumber)
