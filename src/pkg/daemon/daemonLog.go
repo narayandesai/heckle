@@ -4,6 +4,7 @@ import (
      "log"
      "os"
      "time"
+     "http"
 )
 
 type DaemonLogger struct {
@@ -31,3 +32,15 @@ func (daemonLogger *DaemonLogger) LogError(message string, error os.Error) {
           daemonLogger.fileLog.Printf("%s - ERROR: %s", time.LocalTime(), message)
      }
 }
+
+func (daemonLogger *DaemonLogger)LogHttp(request *http.Request){
+     //if req.Status != "200 OK"{
+     	  daemonLogger.stdoutLog.Printf("%s - %s: %s %s", time.LocalTime(), request.Method, request.RawURL, request.Proto)
+	  daemonLogger.fileLog.Printf("%s - %s: %s %s", time.LocalTime(), request.Method, request.RawURL, request.Proto)
+    /* }else{
+	  daemonLogger.stdoutLog.Printf("%s -- %s %s %s", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.Status)
+	  daemonLogger.fileLog.Printf("%s -- %s %s %s", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.Status)
+     }*/
+}
+	   
+
