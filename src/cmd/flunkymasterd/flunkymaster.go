@@ -116,7 +116,7 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
-	fmDaemon = daemon.New("Flunky Master", "flunkyMaster.cfg")
+	fmDaemon = daemon.New("FlunkyMaster", "flunkyMaster.cfg")
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	fm.Load()
 	fm.Assert_setup("ubuntu-maverick-amd64", "127.0.0.1")
