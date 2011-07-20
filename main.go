@@ -9,7 +9,7 @@ import (
 	"strings"
 	"io/ioutil"
      "time"
-	"./flunky"
+	fnet "flunky/net"
 )
 
 var Usage = func() {
@@ -77,7 +77,7 @@ func main() {
 	if os.Args[0] == "/opt/bootlocal.sh" {
 		parseCmdLine()
 		exec = "install"
-          bs := flunky.NewBuildServer(server, verbose, "flunky", "hateWeddings")
+          bs := fnet.NewBuildServer(server, verbose, "flunky", "hateWeddings")
           fmt.Fprintf(os.Stdout, "Getting and executing %s script.\n", exec)
           startTime := time.Seconds()
           bail := false
@@ -91,7 +91,7 @@ func main() {
           os.Exit(0)
 	} else {
 
-          bs := flunky.NewBuildServer(server, verbose, "flunky", "hateWeddings")
+          bs := fnet.NewBuildServer(server, verbose, "flunky", "hateWeddings")
 
           bs.DebugLog(fmt.Sprintf("Server is %s", server))
 

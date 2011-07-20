@@ -13,7 +13,7 @@ import (
      "runtime"
      "os/signal"
      "syscall"
-     "./flunky"
+     fnet "flunky/net"
      "./heckleTypes"
      "./src/pkg/daemon/_obj/flunky/daemon"
 )
@@ -280,8 +280,8 @@ func allocate() {
      //This is the allocate thread.  It set up a client for ctl messages to
      //flunky master.  On each iteration it grabs new nodes from heckle to be
      //allocated and send them off to flunkymaster.
-     fs := flunky.NewBuildServer(cfgOptions["allocationServer"], false, "heckle", cfgOptions["heckle"])
-     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     fs := fnet.NewBuildServer(cfgOptions["allocationServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      
      for i := range heckleToAllocateChan {
           cm := new(heckleTypes.Ctlmsg)
@@ -334,8 +334,8 @@ func polling() {
      //grabs nodes for cancelation and removes them from the list.
      pollAddresses := []string{}
      var pollAddressesLock sync.Mutex
-     bs := flunky.NewBuildServer(cfgOptions["pollingServer"], false, "heckle", cfgOptions["heckle"])
-     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     bs := fnet.NewBuildServer(cfgOptions["pollingServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      pollTime := time.Seconds()
      
      go addToPollList(&pollAddressesLock, &pollAddresses)
@@ -437,7 +437,7 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      //This function allows a user, if it owns the allocation, to free an allocation
      //number and all associated nodes.  It resets the resource map and current
      //requests map.
-     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
@@ -543,7 +543,7 @@ func allocationTimeouts() {
      resourcesLock.Unlock()
      
      if found {
-          rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+          rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
           
           js, _ := json.Marshal(powerDown)
           buf := bytes.NewBufferString(string(js))
@@ -557,7 +557,7 @@ func allocationTimeouts() {
 func freeNode(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
-     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      var node string
      request.ProtoMinor = 0
      
@@ -624,7 +624,7 @@ func dealWithBrokenNode(node string) {
      resources[node].Broken()
      resourcesLock.Unlock()
      
-     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      
      js, _ := json.Marshal([]string{node})
      buf := bytes.NewBufferString(string(js))
@@ -665,7 +665,7 @@ func interpretPollMessages() {
 }
 
 func outletStatus(writer http.ResponseWriter, request *http.Request) {
-     rs := flunky.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
      request.ProtoMinor = 0
      
      _, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))

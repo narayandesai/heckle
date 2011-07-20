@@ -1,17 +1,17 @@
 package main
 
 import (
-     "flag"
-     "json"
-     "os"
-     "bytes"
-     "fmt"
-     "io/ioutil"
-     "time"
-     "./flunky"
-     "./heckleTypes"
-     "./src/pkg/daemon/_obj/flunky/daemon"
-     )
+    "flag"
+    "json"
+    "os"
+    "bytes"
+    "fmt"
+    "io/ioutil"
+    "time"
+    fnet "flunky/net"
+    "./heckleTypes"
+    "./src/pkg/daemon/_obj/flunky/daemon"
+)
 
 var cfgOptions                          map[string]string
 var help, status                        bool
@@ -19,7 +19,7 @@ var server, image                       string
 var allocationList                      []string
 var numNodes, timeIncrease              int
 var allocationNumber, freeAlloc         uint64
-var bs                                  *flunky.BuildServer
+var bs                                  *fnet.BuildServer
 
 func init() {
      flag.BoolVar(&help, "h", false, "Print usage of command.")
@@ -160,7 +160,7 @@ func main() {
           os.Exit(0)
      }
      
-     bs = flunky.NewBuildServer(cfgOptions["heckleServer"], false, cfgOptions["Username"], cfgOptions["Password"])
+     bs = fnet.NewBuildServer(cfgOptions["heckleServer"], false, cfgOptions["Username"], cfgOptions["Password"])
      
      if status {
           nodeStatus()

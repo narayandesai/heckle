@@ -7,7 +7,7 @@ import (
 	"json"
 	"os"
 	"time"
-	"./flunky"
+    fnet "flunky/net"
 )
 
 var Usage = func() {
@@ -23,12 +23,15 @@ var image           string
 var wait            bool
 var minutesTimeout  int64
 var extra           string
+var username, password string
 
 func init() {
 	flag.BoolVar(&help, "h", false, "print usage")
 	flag.BoolVar(&verbose, "v", false, "print debug information")
 	flag.StringVar(&server, "S", "http://localhost:8080", "server base URL")
 	flag.StringVar(&image, "i", "", "image")
+	flag.StringVar(&username, "u", "", "username")
+	flag.StringVar(&password, "p", "", "password")
 	flag.BoolVar(&wait, "w", false, "Wait for build completion")
 	flag.StringVar(&extra, "e", "", "Extradata for allocation")
 	flag.Int64Var(&minutesTimeout, "t", 45, "Allocation timeout in minutes")
@@ -78,7 +81,7 @@ func determineDone(readyBail map[string]readyBailNode) bool {
 	return done
 }
 
-func pollForMessages(cancelTime int64, addresses []string, bs *flunky.BuildServer) {
+func pollForMessages(cancelTime int64, addresses []string, bs *fnet.BuildServer) {
 	done := false
 	readyBail := make(map[string]readyBailNode, len(addresses))
 	for _, value := range addresses {
@@ -136,7 +139,7 @@ func main() {
 	addresses := flag.Args()
 
 
-	bs := flunky.NewBuildServer(server, verbose)
+	bs := fnet.NewBuildServer(server, verbose, username, password)
 
 	bs.DebugLog(fmt.Sprintf("Server is %s", server))
 

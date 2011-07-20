@@ -6,6 +6,6 @@ mk () {
     popd
 }
 
-for pkg in pkg/daemon ; do
-    mk $pkg $1
+for target in pkg/daemon pkg/net cmd/diagd; do
+    mk $target $1
 done
