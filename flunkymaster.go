@@ -291,6 +291,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+		return
 	}
 	m.Lock()
 	tmp, err := json.Marshal(fm.data)
@@ -314,6 +315,7 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+		return
 	}
 	tmp := fm.RenderGetStatic(req.RawURL, address) //allow for random type names
 	w.Write(tmp)
@@ -328,6 +330,7 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+		return
 	}
 	tmp := fm.RenderGetDynamic(req.RawURL, address)
 	status := strings.TrimSpace(string(tmp))
@@ -344,6 +347,7 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+		return
 	}
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Creating bootconfig image for %s", address))
 	tmp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
@@ -361,6 +365,7 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("AccessDenied"))
+		return
 	}
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Creating install script for %s", address))
 	tmp := fm.RenderImage("install", address)
@@ -379,6 +384,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+		return
 	}
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
@@ -407,6 +413,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+		return
 	}
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
@@ -437,6 +444,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+		return
 	}
 	body, _ := ioutil.ReadAll(req.Body)
 	temper, err := net.LookupIP(address)
@@ -473,6 +481,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req.Header.Get("Authorization"))
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+		return
 	}
 	body, _ := ioutil.ReadAll(req.Body)
 	var msg ctlmsg
