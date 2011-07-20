@@ -9,7 +9,7 @@ import (
      "io/ioutil"
      "strings"
      "encoding/base64"
-	//iface "flunky/interfaces"
+	iface "flunky/interfaces"
 	daemon "flunky/daemon"
 )
 

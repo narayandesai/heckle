@@ -1,7 +1,7 @@
 include $(GOROOT)/src/Make.inc
 
-TARG=flunky/net
+TARG=flunky/interfaces
 GOFILES=\
-	flunky.go
+	interfaceTypes.go
 include $(GOROOT)/src/Make.pkg
 
