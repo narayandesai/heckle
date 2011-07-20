@@ -6,14 +6,12 @@ import (
     "os"
     "bytes"
     "fmt"
-    "io/ioutil"
     "time"
     fnet "flunky/net"
     iface "flunky/interfaces"
     daemon "flunky/daemon"
 )
 
-var cfgOptions                          map[string]string
 var help, status                        bool
 var server, image                       string
 var allocationList                      []string
@@ -34,21 +32,10 @@ func init() {
      
      testHeckleD = daemon.New("TestHeckle")
      
-     cfgOptions = make(map[string]string)
      allocationNumber = uint64(0)
      allocationList = flag.Args()
      
-     cfgFile, error := os.Open("testHeckle.cfg")
-     testHeckleD.DaemonLog.LogError("ERROR: Unable to open testHeckle.cfg for reading.", error)
      
-     someBytes, error := ioutil.ReadAll(cfgFile)
-     testHeckleD.DaemonLog.LogError("ERROR: Unable to read from file testHeckle.cfg", error)
-     
-     error = cfgFile.Close()
-     testHeckleD.DaemonLog.LogError("ERROR: Failed to close testHeckle.cfg.", error)
-     
-     error = json.Unmarshal(someBytes, &cfgOptions)
-     testHeckleD.DaemonLog.LogError("ERROR: Failed to unmarshal data read from testHeckle cfg file.", error)
 }
 
 func usage() {
@@ -163,7 +150,7 @@ func main() {
           os.Exit(0)
      }
      
-     bs = fnet.NewBuildServer(cfgOptions["heckleServer"], false, cfgOptions["Username"], cfgOptions["Password"])
+     bs = fnet.NewBuildServer(testHeckleD.Cfg.Data["heckleServer"], false, testHeckleD.Cfg.Data["Username"], testHeckleD.Cfg.Data["Password"])
      
      if status {
           nodeStatus()

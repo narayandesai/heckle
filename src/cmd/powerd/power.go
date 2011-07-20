@@ -24,7 +24,7 @@ var powerDaemon     *daemon.Daemon
 //var resourcesLock   sync.Mutex   shouldn't need a lock, never changing data.
 
 func init() {
-     powerDaemon = daemon.New("Power", "power.cfg")
+     powerDaemon = daemon.New("Power")
      
      powerDBFile, error := os.Open("powerCont.db")
      powerDaemon.DaemonLog.LogError("ERROR: Unable to open powerCont.db for reading.", error)

@@ -66,7 +66,6 @@ func (resource *resourceInfo) Broken() {
 }
 
 var currentRequests           map[string]*currentRequestsNode
-var cfgOptions                map[string]string
 var resources                 map[string]*resourceInfo
 var allocationNumber          uint64
 var heckleToAllocateChan      chan iface.Listmsg
@@ -90,18 +89,6 @@ func init() {
 
      allocationNumber = 1
      getResources()
-
-     cfgFile, error := os.Open("heckle.cfg")
-     heckleDaemon.DaemonLog.LogError("ERROR: Unable to open heckle.cfg for reading.", error)
-     
-     someBytes, error := ioutil.ReadAll(cfgFile)
-     heckleDaemon.DaemonLog.LogError("ERROR: Unable to read from file heckle.cfg.", error)
-     
-     error = cfgFile.Close()
-     heckleDaemon.DaemonLog.LogError("ERROR: Failed to close heckle.cfg.", error)
-     
-     error = json.Unmarshal(someBytes, &cfgOptions)
-     heckleDaemon.DaemonLog.LogError("ERROR: Failed to unmarshal data read from heckle cfg file.", error)
 }
 
 func resetResources(resourceNames []string) {
@@ -327,8 +314,8 @@ func allocate() {
      //This is the allocate thread.  It set up a client for ctl messages to
      //flunky master.  On each iteration it grabs new nodes from heckle to be
      //allocated and send them off to flunkymaster.
-     fs := fnet.NewBuildServer(cfgOptions["allocationServer"], false, "heckle", cfgOptions["heckle"])
-     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     fs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["allocationServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
+     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
      
      for i := range heckleToAllocateChan {
           cm := new(iface.Ctlmsg)
@@ -381,8 +368,8 @@ func polling() {
      //grabs nodes for cancelation and removes them from the list.
      pollAddresses := []string{}
      var pollAddressesLock sync.Mutex
-     bs := fnet.NewBuildServer(cfgOptions["pollingServer"], false, "heckle", cfgOptions["heckle"])
-     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     bs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["pollingServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
+     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
      pollTime := time.Seconds()
      
      go addToPollList(&pollAddressesLock, &pollAddresses)
@@ -484,7 +471,7 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      //This function allows a user, if it owns the allocation, to free an allocation
      //number and all associated nodes.  It resets the resource map and current
      //requests map.
-     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
@@ -590,7 +577,7 @@ func allocationTimeouts() {
      resourcesLock.Unlock()
      
      if found {
-          rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+          rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
           
           js, _ := json.Marshal(powerDown)
           buf := bytes.NewBufferString(string(js))
@@ -604,7 +591,7 @@ func allocationTimeouts() {
 func freeNode(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
-     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
      var node string
      request.ProtoMinor = 0
      
@@ -650,7 +637,7 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
 
 func listenAndServeWrapper() {
      //This branches off another thread to loop through listening and serving http requests.
-     error := http.ListenAndServe(":" + cfgOptions["hecklePort"], nil)
+     error := http.ListenAndServe(":" + heckleDaemon.Cfg.Data["hecklePort"], nil)
      heckleDaemon.DaemonLog.LogError("ERROR: Failed to listen on http socket.", error)
 }
 
@@ -671,7 +658,7 @@ func dealWithBrokenNode(node string) {
      resources[node].Broken()
      resourcesLock.Unlock()
      
-     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
      
      js, _ := json.Marshal([]string{node})
      buf := bytes.NewBufferString(string(js))
@@ -712,7 +699,7 @@ func interpretPollMessages() {
 }
 
 func outletStatus(writer http.ResponseWriter, request *http.Request) {
-     rs := fnet.NewBuildServer(cfgOptions["powerServer"], false, "heckle", cfgOptions["heckle"])
+     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
      request.ProtoMinor = 0
      
      _, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
