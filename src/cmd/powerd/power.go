@@ -9,13 +9,13 @@ import (
      "io/ioutil"
      "strings"
      "encoding/base64"
-     "./heckleTypes"
-     "./src/pkg/daemon/_obj/flunky/daemon"
+	iface "flunky/interfaces"
+	daemon "flunky/daemon"
 )
 
 
 
-var resources       map[string]heckleTypes.OutletNode
+var resources       map[string]iface.OutletNode
 var powerDaemon     *daemon.Daemon
 //var resourcesLock   sync.Mutex   shouldn't need a lock, never changing data.
 

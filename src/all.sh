@@ -6,6 +6,6 @@ mk () {
     popd
 }
 
-for target in pkg/daemon pkg/net cmd/fctl cmd/diagd; do
+for target in pkg/daemon pkg/net pkg/interfaces cmd/flunky cmd/fctl cmd/diagd cmd/powerd; do
     mk $target $1
 done
