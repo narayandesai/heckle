@@ -231,7 +231,7 @@ func allocateList(writer http.ResponseWriter, request *http.Request) {
      listMsg := new(iface.Listmsg)
      request.ProtoMinor = 0
 
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
@@ -274,7 +274,7 @@ func allocateNumber(writer http.ResponseWriter, request *http.Request) {
      numMsg := new(iface.Nummsg)
      request.ProtoMinor = 0
      
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
@@ -428,7 +428,7 @@ func status(writer http.ResponseWriter, request *http.Request) {
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
-     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
@@ -475,7 +475,7 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
-     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
@@ -527,7 +527,7 @@ func increaseTime(writer http.ResponseWriter, request *http.Request) {
      timeIncrease := int64(0)
      request.ProtoMinor = 0
      
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
@@ -595,7 +595,7 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
      var node string
      request.ProtoMinor = 0
      
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
@@ -702,7 +702,7 @@ func outletStatus(writer http.ResponseWriter, request *http.Request) {
      rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
      request.ProtoMinor = 0
      
-     _, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     _, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
@@ -732,7 +732,7 @@ func nodeStatus(writer http.ResponseWriter, request *http.Request) {
      response := ""
      request.ProtoMinor = 0
      
-     _, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     _, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))

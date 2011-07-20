@@ -58,7 +58,7 @@ func rebootList(writer http.ResponseWriter, request *http.Request) {
      var nodes []string
      request.ProtoMinor = 0
      
-     _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           powerDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
@@ -93,7 +93,7 @@ func offList(writer http.ResponseWriter, request *http.Request) {
      var nodes []string
      request.ProtoMinor = 0
      
-     _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           powerDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
@@ -129,7 +129,7 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
      outletStatus := make(map[string]string)
      request.ProtoMinor = 0
      
-     _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request.Header.Get("Authorization"))
+     _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
           powerDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
