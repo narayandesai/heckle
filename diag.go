@@ -28,7 +28,7 @@ package diag
 //Generate error report for all faield nodes function. 
 
 /*  if err := viewTemplate.Execute(w, record); err != nil {
-        http.Error(w, err.String(), 500)*/
+    http.Error(w, err.String(), 500)*/
 
 import (
 	"http"
@@ -98,7 +98,7 @@ func Get(serverurl string) *http.Response {
 
 func CheckMethod(req *http.Request) bool {
 	var exsist bool
-	k := strings.Split(req.UserAgent, "/", -1)
+	k := strings.Split(req.UserAgent(), "/")
 	l := k[0]
 	if l == "curl" {
 		exsist = true
@@ -167,8 +167,8 @@ func Post(path string, buf *bytes.Buffer) (body []byte, err os.Error) {
 }
 
 func PrepareCurl(ret []byte) []byte {
-	woo := strings.Split(string(ret), "[", -1)
-	koo := strings.Split(woo[1], "]", -1)
+	woo := strings.Split(string(ret), "[")
+	koo := strings.Split(woo[1], "]")
 	maw := "[" + koo[0] + "]"
 	baz := []byte(maw)
 	return baz
