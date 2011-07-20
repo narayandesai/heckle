@@ -1,4 +1,4 @@
-package diag
+package main
 
 //On all code there should be diagLogic to see if a node is unavialble.
 //Something to keep in mind... Do we have to worry about post and get
@@ -91,7 +91,7 @@ type statusMessage struct {
 
 func Get(serverurl string) *http.Response {
 	var worker http.Client
-	file, _, err := worker.Get(serverurl)
+	file,  err := worker.Get(serverurl)
 	CheckError(err, "Cannot perform GET")
 	return file
 }
