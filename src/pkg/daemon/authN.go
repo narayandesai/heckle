@@ -77,7 +77,7 @@ func (auth *Authinfo) HTTPAuthenticate(req *http.Request) (user string, valid bo
           return
      }
      
-     header := request.Header.Get("Authorization")
+     header := req.Header.Get("Authorization")
 	tmpAuthArray := strings.Split(header, " ")
 
 	authValues, error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
