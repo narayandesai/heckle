@@ -20,6 +20,7 @@ var allocationList                      []string
 var numNodes, timeIncrease              int
 var allocationNumber, freeAlloc         uint64
 var bs                                  *fnet.BuildServer
+var testHeckleD                         *daemon.Daemon
 
 func init() {
      flag.BoolVar(&help, "h", false, "Print usage of command.")
@@ -30,6 +31,8 @@ func init() {
      flag.StringVar(&image, "i", "ubuntu-maverick-amd64", "Image to be loaded on to the nodes.")
      
      flag.Parse()
+     
+     testHeckleD = daemon.New("TestHeckle")
      
      cfgOptions = make(map[string]string)
      allocationNumber = uint64(0)
