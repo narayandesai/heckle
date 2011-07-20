@@ -45,7 +45,7 @@ import (
 	"net"
 	"sync"
 	"fmt"
-	"./src/pkg/daemon/_obj/flunky/daemon"
+	"flunky/daemon"
 )
 
 var fm Flunkym
