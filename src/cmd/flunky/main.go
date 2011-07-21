@@ -77,7 +77,7 @@ func main() {
 	if os.Args[0] == "/opt/bootlocal.sh" {
 		parseCmdLine()
 		exec = "install"
-		bs := fnet.NewBuildServer(server, verbose, "flunky", "hateWeddings")
+		bs := fnet.NewBuildServer(server, verbose)
 		fmt.Fprintf(os.Stdout, "Getting and executing %s script.\n", exec)
 		startTime := time.Seconds()
 		bail := false
@@ -91,7 +91,7 @@ func main() {
 		os.Exit(0)
 	} else {
 
-		bs := fnet.NewBuildServer(server, verbose, "flunky", "hateWeddings")
+		bs := fnet.NewBuildServer(server, verbose)
 
 		bs.DebugLog(fmt.Sprintf("Server is %s", server))
 

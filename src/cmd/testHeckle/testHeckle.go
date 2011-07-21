@@ -151,7 +151,7 @@ func main() {
           os.Exit(0)
      }
      
-     bs = fnet.NewBuildServer(testHeckleD.Cfg.Data["heckleServer"], false, testHeckleD.Cfg.Data["Username"], testHeckleD.Cfg.Data["Password"])
+     bs = fnet.NewBuildServer("http://" + testHeckleD.Cfg.Data["username"] + ":" + testHeckleD.Cfg.Data["password"] + "@" + testHeckleD.Cfg.Data["heckleServer"], false)
      
      if status {
           nodeStatus()

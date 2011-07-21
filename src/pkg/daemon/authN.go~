@@ -80,7 +80,7 @@ func (auth *Authinfo) HTTPAuthenticate(req *http.Request) (user string, valid bo
      header := req.Header.Get("Authorization")
 	tmpAuthArray := strings.Split(header, " ")
 
-	authValues, error := base64.URLEncoding.DecodeString(tmpAuthArray[1])
+	authValues, error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
 	auth.daemonLog.LogError("ERROR: Failed to decode encoded auth settings in http request.", error)
 
 	authValuesArray := strings.Split(string(authValues), ":")

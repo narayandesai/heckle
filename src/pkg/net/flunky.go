@@ -13,13 +13,11 @@ type BuildServer struct {
 	URL    string
 	client http.Client
 	debug  bool
-	Username string
-	Password string
 }
 
-func NewBuildServer(serverURL string, debug bool, username string, password string) *BuildServer {
+func NewBuildServer(serverURL string, debug bool) *BuildServer {
 	var client http.Client
-	return &BuildServer{serverURL, client, debug, username, password}
+	return &BuildServer{serverURL, client, debug}
 }
 
 func (server *BuildServer) DebugLog(message string) {
@@ -31,7 +29,6 @@ func (server *BuildServer) DebugLog(message string) {
 func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
      tmpRequest, err := http.NewRequest("GET", server.URL + "/" + path, nil)
      tmpRequest.Header.Set("Content-Type", "text/plain")
-     tmpRequest.SetBasicAuth(server.Username, server.Password)
      
      response, err := server.client.Do(tmpRequest)
 	if err != nil {
@@ -55,7 +52,6 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
      tmpRequest, err := http.NewRequest("GET", path, nil)
      tmpRequest.Header.Set("Content-Type", "text/plain")
-     tmpRequest.SetBasicAuth(server.Username, server.Password)
      
      response, err := server.client.Do(tmpRequest)
 	if err != nil {
@@ -102,7 +98,6 @@ func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err o
      
      tmpRequest, err := http.NewRequest("POST", server.URL+path, data)
      tmpRequest.Header.Set("Content-Type", "text/plain")
-     tmpRequest.SetBasicAuth(server.Username, server.Password)
      
      response, err := server.client.Do(tmpRequest)
      

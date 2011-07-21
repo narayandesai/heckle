@@ -79,7 +79,7 @@ var allocationNumberLock      sync.Mutex
 
 func init() {
      //new comments here
-     fileDir = "../../../etc/Heckle/"
+     fileDir = "../../../etc/Heckle"
      heckleDaemon = daemon.New("Heckle", fileDir)
      heckleToAllocateChan = make(chan iface.Listmsg)
      allocateToPollingChan = make(chan []string)
@@ -315,8 +315,8 @@ func allocate() {
      //This is the allocate thread.  It set up a client for ctl messages to
      //flunky master.  On each iteration it grabs new nodes from heckle to be
      //allocated and send them off to flunkymaster.
-     fs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["allocationServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
-     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
+     fs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["allocationServer"], false)
+     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      
      for i := range heckleToAllocateChan {
           cm := new(iface.Ctlmsg)
@@ -369,8 +369,8 @@ func polling() {
      //grabs nodes for cancelation and removes them from the list.
      pollAddresses := []string{}
      var pollAddressesLock sync.Mutex
-     bs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["pollingServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
-     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
+     bs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["allocationServer"], false)
+     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      pollTime := time.Seconds()
      
      go addToPollList(&pollAddressesLock, &pollAddresses)
@@ -472,7 +472,7 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      //This function allows a user, if it owns the allocation, to free an allocation
      //number and all associated nodes.  It resets the resource map and current
      //requests map.
-     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
+     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
@@ -578,7 +578,7 @@ func allocationTimeouts() {
      resourcesLock.Unlock()
      
      if found {
-          rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
+          rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
           
           js, _ := json.Marshal(powerDown)
           buf := bytes.NewBufferString(string(js))
@@ -592,7 +592,7 @@ func allocationTimeouts() {
 func freeNode(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
-     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
+     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      var node string
      request.ProtoMinor = 0
      
@@ -659,7 +659,7 @@ func dealWithBrokenNode(node string) {
      resources[node].Broken()
      resourcesLock.Unlock()
      
-     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
+     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      
      js, _ := json.Marshal([]string{node})
      buf := bytes.NewBufferString(string(js))
@@ -700,7 +700,7 @@ func interpretPollMessages() {
 }
 
 func outletStatus(writer http.ResponseWriter, request *http.Request) {
-     rs := fnet.NewBuildServer(heckleDaemon.Cfg.Data["powerServer"], false, "heckle", heckleDaemon.Cfg.Data["heckle"])
+     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      request.ProtoMinor = 0
      
      _, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request)

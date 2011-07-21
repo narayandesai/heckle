@@ -139,7 +139,7 @@ func main() {
 	addresses := flag.Args()
 
 
-	bs := fnet.NewBuildServer(server, verbose, username, password)
+	bs := fnet.NewBuildServer("http://" + username + ":" + password + "@" + server, verbose)
 
 	bs.DebugLog(fmt.Sprintf("Server is %s", server))
 
