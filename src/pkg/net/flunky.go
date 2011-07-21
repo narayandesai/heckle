@@ -27,10 +27,11 @@ func (server *BuildServer) DebugLog(message string) {
 }
 
 func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
-     tmpRequest, err := http.NewRequest("GET", server.URL + "/" + path, nil)
-     tmpRequest.Header.Set("Content-Type", "text/plain")
-     
-     response, err := server.client.Do(tmpRequest)
+
+	fullpath := server.URL + "/" + path
+
+	response, _, err := server.client.Get(fullpath)
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "err is %s\n", err)
 		return
@@ -49,34 +50,30 @@ func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
 
 func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	status = 255
+	data, err := server.Get(path)
 
-     tmpRequest, err := http.NewRequest("GET", path, nil)
-     tmpRequest.Header.Set("Content-Type", "text/plain")
-     
-     response, err := server.client.Do(tmpRequest)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "File fetch of %s failed\n", path)
 		return
 	}
 
-     data, err := ioutil.ReadAll(response.Body)
-     if err != nil {
-          return
-     }
-     
-	newbin, err := ioutil.TempFile("", "bin")
-	if err != nil {
-		return
-	}
+	runpath := os.TempDir() + path + fmt.Sprintf("%s", os.Getpid())
 
-	runpath := newbin.Name()
 	server.DebugLog(fmt.Sprintf("runpath is %s", runpath))
 
+	newbin, err := os.Create(runpath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create file %s\n", runpath)
+		return
+	}
 	_, err = newbin.Write(data)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to write data\n")
 		return
 	}
 	err = newbin.Chmod(0777)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to chmod %s\n", runpath)
 		return
 	}
 
@@ -84,33 +81,27 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 	server.DebugLog(fmt.Sprintf("wrote executable to %s", runpath))
 
-     err = exec.Command(runpath).Run()
+	cmd, err := exec.Run(runpath, []string{runpath}, os.Environ(), "/", exec.PassThrough, exec.PassThrough, exec.PassThrough)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	}
+
+	wmsg, err := cmd.Wait(0)
+	status = wmsg.ExitStatus()
+
+	server.DebugLog(fmt.Sprintf("Exit status:%d", status))
 
 	err = os.Remove(runpath)
 	return
 }
 
 func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err os.Error) {
-	//response, err := server.client.Post(server.URL+path, "text/plain", data)
-     
-     tmpRequest, err := http.NewRequest("POST", server.URL+path, data)
-     tmpRequest.Header.Set("Content-Type", "text/plain")
-     
-     response, err := server.client.Do(tmpRequest)
-     
+	response, err := server.client.Post(server.URL+path, "text/plain", data)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Post failed: %s\n", err)
 		return
 	}
-
-	if response.StatusCode != 200 {
-		server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
-		err = os.NewError("Fetch Failed")
-		return
-	}
+	server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
 
 	body, _ = ioutil.ReadAll(response.Body)
 	response.Body.Close()
