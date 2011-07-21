@@ -51,6 +51,7 @@ import (
 var fm Flunkym
 var m sync.Mutex
 var fmDaemon *daemon.Daemon
+var fileDir string
 
 //Bvar stores the build information for a node requesting a render.
 type Bvar struct {
@@ -116,7 +117,8 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
-	fmDaemon = daemon.New("FlunkyMaster")
+     fileDir = "../../../etc/FlunkyMaster/"
+	fmDaemon = daemon.New("FlunkyMaster", fileDir)
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	fm.Load()
 	fm.Assert_setup("ubuntu-maverick-amd64", "127.0.0.1")

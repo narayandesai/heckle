@@ -6,7 +6,6 @@ import (
      "os"
      "time"
      "io/ioutil"
-     "strings"
      "http"
      "bytes"
      "sync"
@@ -73,13 +72,15 @@ var allocateToPollingChan     chan []string
 var pollingToHeckleChan       chan map[string]*iface.StatusMessage
 var pollingCancelChan         chan []string
 var heckleDaemon              *daemon.Daemon
+var fileDir                   string
 var currentRequestsLock       sync.Mutex
 var resourcesLock             sync.Mutex
 var allocationNumberLock      sync.Mutex
 
 func init() {
-     //This populates the cfgOptions map with the json cfg file.
-     heckleDaemon = daemon.New("Heckle")
+     //new comments here
+     fileDir = "../../../etc/Heckle/"
+     heckleDaemon = daemon.New("Heckle", fileDir)
      heckleToAllocateChan = make(chan iface.Listmsg)
      allocateToPollingChan = make(chan []string)
      pollingToHeckleChan = make (chan map[string]*iface.StatusMessage)
@@ -108,7 +109,7 @@ func updateDatabase(term bool) {
      //This updates the json database file with the information in the
      //resource map.
      //databaseFile, error := os.OpenFile("ResourceDatabase", os.O_RDWR | os.O_TRUNC, 0777)
-     databaseFile, error := os.Create("ResourceDatabase")
+     databaseFile, error := os.Create(fileDir + "ResourceDatabase")
      heckleDaemon.DaemonLog.LogError("ERROR: Unable to open resource database file for writing.", error)
      
      intError := syscall.Flock(databaseFile.Fd(), 2) //2 is exclusive lock
@@ -137,7 +138,7 @@ func updateDatabase(term bool) {
      heckleDaemon.DaemonLog.LogError("ERROR: Failed to close resources database file.", error)
 }
 
-func resetResourceDatabase() {
+/*func resetResourceDatabase() {
      //This function is intended for admins to reset the json database file.
      resourceFile, error := os.Open("resources")
      heckleDaemon.DaemonLog.LogError("ERROR: Failed to open resources file.", error)
@@ -153,11 +154,11 @@ func resetResourceDatabase() {
      
      resetResources(resourceNames)
      updateDatabase(false)
-}
+}*/
 
 func getResources() {
      //This function populated the resources map from the json database file.
-     databaseFile, error := os.Open("ResourceDatabase")
+     databaseFile, error := os.Open(fileDir + "ResourceDatabase")
      heckleDaemon.DaemonLog.LogError("ERROR: Failed to open resource database file for reading.", error)
      
      someBytes, error := ioutil.ReadAll(databaseFile)

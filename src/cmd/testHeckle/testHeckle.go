@@ -13,7 +13,7 @@ import (
 )
 
 var help, status                        bool
-var server, image                       string
+var server, image, fileDir              string
 var allocationList                      []string
 var numNodes, timeIncrease              int
 var allocationNumber, freeAlloc         uint64
@@ -30,7 +30,8 @@ func init() {
      
      flag.Parse()
      
-     testHeckleD = daemon.New("TestHeckle")
+     fileDir = "../../../etc/TestHeckle/"
+     testHeckleD = daemon.New("TestHeckle", fileDir)
      
      allocationNumber = uint64(0)
      allocationList = flag.Args()

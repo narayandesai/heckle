@@ -21,12 +21,14 @@ type outletNode struct{
 
 var resources       map[string]outletNode
 var powerDaemon     *daemon.Daemon
+var fileDir         string
 //var resourcesLock   sync.Mutex   shouldn't need a lock, never changing data.
 
 func init() {
-     powerDaemon = daemon.New("Power")
+     fileDir = "../../../etc/Power/"
+     powerDaemon = daemon.New("Power", fileDir)
      
-     powerDBFile, error := os.Open("powerCont.db")
+     powerDBFile, error := os.Open(fileDir + "powerCont.db")
      powerDaemon.DaemonLog.LogError("ERROR: Unable to open powerCont.db for reading.", error)
      
      someBytes, error := ioutil.ReadAll(powerDBFile)
