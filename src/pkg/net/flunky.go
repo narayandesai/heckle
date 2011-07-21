@@ -30,7 +30,7 @@ func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
 
 	fullpath := server.URL + "/" + path
 
-	response, _, err := server.client.Get(fullpath)
+	response, err := server.client.Get(fullpath)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "err is %s\n", err)
@@ -81,13 +81,10 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 	server.DebugLog(fmt.Sprintf("wrote executable to %s", runpath))
 
-	cmd, err := exec.Run(runpath, []string{runpath}, os.Environ(), "/", exec.PassThrough, exec.PassThrough, exec.PassThrough)
+	err = exec.Command(runpath).Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	}
-
-	wmsg, err := cmd.Wait(0)
-	status = wmsg.ExitStatus()
 
 	server.DebugLog(fmt.Sprintf("Exit status:%d", status))
 
