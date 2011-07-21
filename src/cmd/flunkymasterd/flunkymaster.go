@@ -46,6 +46,7 @@ import (
 	"sync"
 	"fmt"
 	"flunky/daemon"
+	"flunky/interfaces"
 	"rand"
 )
 
@@ -72,22 +73,6 @@ type PathType struct {
 	image          string
 }
 
-//infoMsg store information for any information that is passed into Flunky Master
-// from a clients.
-type infoMsg struct {
-	Time    int64
-	Message string
-	MsgType string
-}
-
-//RetType allow for information to be sent back to the requesting client
-// in the buildvars function. 
-type RetType struct {
-	Status       string
-	LastActivity int64
-	Info         []infoMsg
-}
-
 //DataStore is the main user database for all compute nodes that have
 // connected to the Flunky Master system for build orders. 
 type DataStore struct {
@@ -95,21 +80,12 @@ type DataStore struct {
 	Counts   map[string]int
 	Errors   int
 	Activity int64
-	Info     []infoMsg
+	Info     []interfaces.InfoMsg
 	Image    string
 	Extra    map[string]string
 	Username string
 	Password string
 	//AllocNum string
-}
-
-//ctrlmsg is the message that is sent to Flunky Master in order to assert
-// as setup of the compute node to be built. 
-type ctlmsg struct {
-	Addresses []string
-	Time      int64
-	Image     string
-	Extra     map[string]string
 }
 
 //Flunkym is the main data type that will allow the user to interface and add
@@ -162,7 +138,7 @@ func build_vars(address string, path string) map[string]Bvar {
 
 //Mutex lock needed
 func (fm *Flunkym) Assert_setup(image string, ip string) {
-	info := make([]infoMsg, 0)
+	info := make([]interfaces.InfoMsg, 0)
 	image_dir := fm.path.image + "/" + image
 	_, err := os.Stat(image_dir)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s", image), err)
@@ -414,7 +390,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Recived Info", time.LocalTime()))
-	var msg infoMsg
+	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
 	tmp = fm.data[address]
@@ -445,7 +421,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	m.Lock()
 	fmDaemon.DaemonLog.Log("Recieved error!")
 	m.Unlock()
-	var msg infoMsg
+	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Cannot unmarsahll data", err)
 	tmp = fm.data[address]
@@ -475,7 +451,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	temper, err := net.LookupIP(address)
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Could not find %s in host tables", address))
 	iaddr := temper[0].String()
-	var msg ctlmsg
+	var msg interfaces.Ctlmsg
 	m.Lock()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recived ctrl message from %s", iaddr))
 	m.Unlock()
@@ -509,12 +485,12 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	body, _ := ioutil.ReadAll(req.Body)
-	var msg ctlmsg
+	var msg interfaces.Ctlmsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
 
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved request for status from %s", address))
-	cstatus := make(map[string]RetType)
+	cstatus := make(map[string]interfaces.StatusMessage)
 	for _, addr := range msg.Addresses {
 		temper, err := net.LookupIP(addr)
 		iaddr := temper[0].String()
