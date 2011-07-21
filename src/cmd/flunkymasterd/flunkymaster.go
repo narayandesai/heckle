@@ -46,12 +46,15 @@ import (
 	"sync"
 	"fmt"
 	"flunky/daemon"
+	"flunky/interfaces"
+	"rand"
 )
 
 var fm Flunkym
 var m sync.Mutex
 var fmDaemon *daemon.Daemon
 var fileDir string
+var random *rand.Rand
 
 //Bvar stores the build information for a node requesting a render.
 type Bvar struct {
@@ -70,22 +73,6 @@ type PathType struct {
 	image          string
 }
 
-//infoMsg store information for any information that is passed into Flunky Master
-// from a clients.
-type infoMsg struct {
-	Time    int64
-	Message string
-	MsgType string
-}
-
-//RetType allow for information to be sent back to the requesting client
-// in the buildvars function. 
-type RetType struct {
-	Status       string
-	LastActivity int64
-	Info         []infoMsg
-}
-
 //DataStore is the main user database for all compute nodes that have
 // connected to the Flunky Master system for build orders. 
 type DataStore struct {
@@ -93,18 +80,12 @@ type DataStore struct {
 	Counts   map[string]int
 	Errors   int
 	Activity int64
-	Info     []infoMsg
+	Info     []interfaces.InfoMsg
 	Image    string
 	Extra    map[string]string
-}
-
-//ctrlmsg is the message that is sent to Flunky Master in order to assert
-// as setup of the compute node to be built. 
-type ctlmsg struct {
-	Addresses []string
-	Time      int64
-	Image     string
-	Extra     map[string]string
+	Username string
+	Password string
+	//AllocNum string
 }
 
 //Flunkym is the main data type that will allow the user to interface and add
@@ -117,12 +98,23 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
-     fileDir = "../../../etc/FlunkyMaster/"
+        fileDir = "../../../etc/FlunkyMaster/"
 	fmDaemon = daemon.New("FlunkyMaster", fileDir)
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
+	src := rand.NewSource(time.Seconds())
+	random = rand.New(src)
+	random.Seed(time.Seconds())
 	fm.Load()
 	fm.Assert_setup("ubuntu-maverick-amd64", "127.0.0.1")
 	return
+}
+
+func CreateCredin(len int) string {
+     var rawCredin []byte
+     for i:= 0; i < len; i++{
+     	 rawCredin = append(rawCredin, byte((random.Intn(256)% 52)+65))
+     }
+     return string(rawCredin)
 }
 
 func build_vars(address string, path string) map[string]Bvar {
@@ -135,6 +127,8 @@ func build_vars(address string, path string) map[string]Bvar {
 	orders["IMAGE"] = fm.data[address].Image
 	orders["Image"] = fm.data[address].Image
 	orders["Errors"] = string(fm.data[address].Errors) //itoa function needed
+	orders["Username"] = fm.data[address].Username
+	orders["Password"] = fm.data[address].Password
 	key := data[address]
 	key.Data = orders
 	key.Counts = fm.data[address].Counts
@@ -144,15 +138,20 @@ func build_vars(address string, path string) map[string]Bvar {
 
 //Mutex lock needed
 func (fm *Flunkym) Assert_setup(image string, ip string) {
-	info := make([]infoMsg, 0)
+	info := make([]interfaces.InfoMsg, 0)
 	image_dir := fm.path.image + "/" + image
 	_, err := os.Stat(image_dir)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s", image), err)
-
+        usr := CreateCredin(8)
+	pass := CreateCredin(8)
 	newsetup := make(map[string]DataStore)
 	counts := make(map[string]int)
-	newsetup[ip] = DataStore{time.Seconds(), counts, 0, time.Seconds(), info, image, nil}
+	newsetup[ip] = DataStore{time.Seconds(), counts, 0, time.Seconds(), info, image, nil, "", ""}
 	newsetup[ip].Counts["bootconfig"] = 0
+	key := newsetup[ip]
+        key.Username = usr
+	key.Password = pass
+	newsetup[ip] = key
 	//newsetup[ip].AllocateNum = msg.AllocateNum)
 	fm.data[ip] = newsetup[ip]
 	fm.Store()
@@ -172,7 +171,7 @@ func (fm *Flunkym) Load() {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read %s", fm.path.dataFile), err)
 
 		err = json.Unmarshal(file, &fm.data)
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not unmarshall json"), err)
+		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not unmarshall fm.data"), err)
 		fmDaemon.DaemonLog.Log("Data Loaded")
 	}
 
@@ -180,7 +179,7 @@ func (fm *Flunkym) Load() {
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not read %s", fm.path.staticdataPath), err)
 
 	err = json.Unmarshal(file, &fm.static)
-	fmDaemon.DaemonLog.LogError("Could not unmarshall Json", err)
+	fmDaemon.DaemonLog.LogError("Could not staticBuildVars.Json", err)
 
 	return
 }
@@ -314,11 +313,11 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
+	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	tmp := fm.RenderGetStatic(req.RawURL, address) //allow for random type names
 	w.Write(tmp)
 }
@@ -329,11 +328,11 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
+	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	tmp := fm.RenderGetDynamic(req.RawURL, address)
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
@@ -346,11 +345,11 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
+	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Creating bootconfig image for %s", address))
 	tmp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
 	_, err := w.Write(tmp)
@@ -364,11 +363,11 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
+	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("AccessDenied"))
 		return
-	}
+	}*/
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Creating install script for %s", address))
 	tmp := fm.RenderImage("install", address)
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Install rendered for %s", address))
@@ -383,15 +382,15 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
+	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Recived Info", time.LocalTime()))
-	var msg infoMsg
+	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
 	tmp = fm.data[address]
@@ -412,17 +411,17 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
+	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
 	m.Lock()
 	fmDaemon.DaemonLog.Log("Recieved error!")
 	m.Unlock()
-	var msg infoMsg
+	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Cannot unmarsahll data", err)
 	tmp = fm.data[address]
@@ -452,7 +451,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	temper, err := net.LookupIP(address)
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Could not find %s in host tables", address))
 	iaddr := temper[0].String()
-	var msg ctlmsg
+	var msg interfaces.Ctlmsg
 	m.Lock()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recived ctrl message from %s", iaddr))
 	m.Unlock()
@@ -486,12 +485,12 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	body, _ := ioutil.ReadAll(req.Body)
-	var msg ctlmsg
+	var msg interfaces.Ctlmsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
 
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved request for status from %s", address))
-	cstatus := make(map[string]RetType)
+	cstatus := make(map[string]interfaces.StatusMessage)
 	for _, addr := range msg.Addresses {
 		temper, err := net.LookupIP(addr)
 		iaddr := temper[0].String()
