@@ -169,10 +169,16 @@ func (fm *Flunkym) Load() {
 		fmDaemon.DaemonLog.Log("Loading previous fm data")
 		file, err := ioutil.ReadFile(fm.path.dataFile)
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read %s", fm.path.dataFile), err)
-
-		err = json.Unmarshal(file, &fm.data)
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not unmarshall fm.data"), err)
-		fmDaemon.DaemonLog.Log("Data Loaded")
+		
+		if len(file) <= 0{
+		   fmDaemon.DaemonLog.LogError(fmt.Sprintf("%s is an empty file. Creating new %s", fm.path.dataFile, fm.path.dataFile), os.NewError("Empty Json"))
+		   data := make(map[string]DataStore)
+		   fm.data = data
+		}else{
+			err = json.Unmarshal(file, &fm.data)
+			fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not unmarshall fm.data"), err)
+			fmDaemon.DaemonLog.Log("Data Loaded")
+		}
 	}
 
 	file, err := ioutil.ReadFile(fm.path.staticdataPath)
