@@ -136,7 +136,7 @@ func (fm *Flunkym) init() {
 func CreateCredin(len int) string {
      var rawCredin []byte
      for i:= 0; i < len; i++{
-     	 rawCredin = append(rawCredin, byte(random.Intn(12)))
+     	 rawCredin = append(rawCredin, byte((random.Intn(256)% 52)+65))
      }
      return string(rawCredin)
 }
@@ -177,7 +177,6 @@ func (fm *Flunkym) Assert_setup(image string, ip string) {
 	key.Password = pass
 	newsetup[ip] = key
 	//newsetup[ip].AllocateNum = msg.AllocateNum)
-        fmt.Println(newsetup[ip])
 	fm.data[ip] = newsetup[ip]
 	fm.Store()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocated %s as %s", ip, image))
