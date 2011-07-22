@@ -98,7 +98,7 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
-        fileDir = "../../../etc/FlunkyMaster/"
+	fileDir = "../../../etc/FlunkyMaster/"
 	fmDaemon = daemon.New("FlunkyMaster", fileDir)
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	src := rand.NewSource(time.Seconds())
@@ -110,20 +110,20 @@ func (fm *Flunkym) init() {
 }
 
 func CreateCredin(len int) string {
-     var rawCredin string
-     var genNum	   int
-     for i:=0; i < len; i++{
-	     for ; ;{
-	     	 randNum := random.Intn(256)
-		 if (randNum > 47 && randNum < 58) || (randNum > 64 && randNum < 91) || (randNum > 96  && randNum < 123){
-		    genNum = randNum
-		    break
-		 }
-	 }
-     	 rawCredin = rawCredin + string(byte(genNum))
-     }
-     fmt.Println(rawCredin)
-     return rawCredin
+	var rawCredin string
+	var genNum int
+	for i := 0; i < len; i++ {
+		for {
+			randNum := random.Intn(256)
+			if (randNum > 47 && randNum < 58) || (randNum > 64 && randNum < 91) || (randNum > 96 && randNum < 123) {
+				genNum = randNum
+				break
+			}
+		}
+		rawCredin = rawCredin + string(byte(genNum))
+	}
+	fmt.Println(rawCredin)
+	return rawCredin
 }
 
 func build_vars(address string, path string) map[string]Bvar {
@@ -151,14 +151,14 @@ func (fm *Flunkym) Assert_setup(image string, ip string) {
 	image_dir := fm.path.image + "/" + image
 	_, err := os.Stat(image_dir)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s", image), err)
-        usr := CreateCredin(8)
+	usr := CreateCredin(8)
 	pass := CreateCredin(8)
 	newsetup := make(map[string]DataStore)
 	counts := make(map[string]int)
 	newsetup[ip] = DataStore{time.Seconds(), counts, 0, time.Seconds(), info, image, nil, "", ""}
 	newsetup[ip].Counts["bootconfig"] = 0
 	key := newsetup[ip]
-        key.Username = usr
+	key.Username = usr
 	key.Password = pass
 	newsetup[ip] = key
 	//newsetup[ip].AllocateNum = msg.AllocateNum)
@@ -178,12 +178,12 @@ func (fm *Flunkym) Load() {
 		fmDaemon.DaemonLog.Log("Loading previous fm data")
 		file, err := ioutil.ReadFile(fm.path.dataFile)
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read %s", fm.path.dataFile), err)
-		
-		if len(file) <= 0{
-		   fmDaemon.DaemonLog.LogError(fmt.Sprintf("%s is an empty file. Creating new %s", fm.path.dataFile, fm.path.dataFile), os.NewError("Empty Json"))
-		   data := make(map[string]DataStore)
-		   fm.data = data
-		}else{
+
+		if len(file) <= 0 {
+			fmDaemon.DaemonLog.LogError(fmt.Sprintf("%s is an empty file. Creating new %s", fm.path.dataFile, fm.path.dataFile), os.NewError("Empty Json"))
+			data := make(map[string]DataStore)
+			fm.data = data
+		} else {
 			err = json.Unmarshal(file, &fm.data)
 			fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not unmarshall fm.data"), err)
 			fmDaemon.DaemonLog.Log("Data Loaded")
@@ -302,7 +302,7 @@ func (fm *Flunkym) RenderImage(toRender string, address string) []byte {
 }
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
-        fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
@@ -323,7 +323,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func StaticCall(w http.ResponseWriter, req *http.Request) {
-        fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -338,7 +338,7 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func DynamicCall(w http.ResponseWriter, req *http.Request) {
-        fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -355,7 +355,7 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func BootconfigCall(w http.ResponseWriter, req *http.Request) {
-        fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -373,7 +373,7 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func InstallCall(w http.ResponseWriter, req *http.Request) {
-        fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -392,7 +392,7 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 
 //Mutex needed
 func InfoCall(w http.ResponseWriter, req *http.Request) {
-        fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -421,7 +421,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 
 //Mutex needed
 func ErrorCall(w http.ResponseWriter, req *http.Request) {
-        fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -452,7 +452,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func CtrlCall(w http.ResponseWriter, req *http.Request) {
-        fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -489,7 +489,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 
 //Mutex needed
 func StatusCall(w http.ResponseWriter, req *http.Request) {
-        fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
