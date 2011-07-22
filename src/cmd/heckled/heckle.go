@@ -79,7 +79,7 @@ var allocationNumberLock      sync.Mutex
 
 func init() {
      //new comments here
-     fileDir = "../../../etc/Heckle"
+     fileDir = "../../../etc/Heckle/"
      heckleDaemon = daemon.New("Heckle", fileDir)
      heckleToAllocateChan = make(chan iface.Listmsg)
      allocateToPollingChan = make(chan []string)
@@ -512,6 +512,8 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      }
      currentRequestsLock.Unlock()
      resourcesLock.Unlock()
+     
+     pollingCancelChan<- powerDown //Needed because polling will continue to poll if allocation is freed during allocation. 
      
      js, _ := json.Marshal(powerDown)
      buf := bytes.NewBufferString(string(js))
