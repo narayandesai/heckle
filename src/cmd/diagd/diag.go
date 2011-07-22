@@ -38,10 +38,10 @@ import (
 	"bytes"
 	"strings"
 	"flag"
-	"os"
 	"fmt"
 	"flunky/interfaces"
 	"flunky/daemon"
+	fnet "flunky/net"
 )
 
 /*var Usage = func() {
@@ -90,14 +90,14 @@ func ControlMsg(nodes []string, times int64) (*bytes.Buffer, *interfaces.Ctlmsg)
 	req.Addresses = nodes
 	req.Time = times
 	req.Image = "ubuntu-Rescue"
-	resp, err := json.Marshal(req)
-	diagDaemon.DaemonLog.LogError("Cannot Send ctrl msg",err)
+	resp, _:= json.Marshal(req)
 	buf := bytes.NewBufferString(string(resp))
 	return buf, req
 }
 
 func SendCtrl(addressList []string) bool {
 	exsist := false
+	fmServ := fnet.NewBuildServer("http://localhost:8080", true) 
 	nanoBase := 1000000000
 	interval := int64(5) * int64(nanoBase)
 	buf, _ := ControlMsg(addressList, int64(0))
@@ -106,7 +106,7 @@ func SendCtrl(addressList []string) bool {
 	end := start + int64(timeoutOffset)
 	diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Sending control messages for %s", time.LocalTime(), addressList))
 	for start < end {
-		_, err := Post((server + "/ctl"), buf)
+		_, err :=fmServ.Post("/ctl", buf)
 
 		if err == nil {
 			exsist = true
@@ -129,17 +129,6 @@ func FillNodes(addresses []string) map[string]NodeStatus {
 		nodes[address] = key
 	}
 	return nodes
-}
-
-func Post(path string, buf *bytes.Buffer) (body []byte, err os.Error) {
-	var worker http.Client
-	gen, err := worker.Post(path, "text/plain", buf)
-	if err != nil {
-		return
-	}
-	body, _ = ioutil.ReadAll(gen.Body)
-	gen.Body.Close()
-	return
 }
 
 func PrepareCurl(ret []byte) []byte {
@@ -329,7 +318,7 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 	var kill []string
 	var readyList []string
 	newList := addressList
-
+	fmServ := fnet.NewBuildServer("http://localhost:8080", true)
 	ok := false
 
 	status := make(map[string]interfaces.StatusMessage)
@@ -344,7 +333,7 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 	for times < timeout {
 		time.Sleep(interval)
 		buf, _ := ControlMsg(newList, msgTime)
-		ret, err := Post((server + "/status"), buf)
+                ret, err :=fmServ.Post("/status", buf)	  
 		diagDaemon.DaemonLog.LogError("Could not find server", err)
 		if err == nil {
 			json.Unmarshal(ret, &status)
@@ -392,6 +381,7 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 func CheckPower(addressList []string, cmd string) bool {
 	ready := false
 	exsist := false
+	fmServ := fnet.NewBuildServer("http://localhost:8085", true)
 	nanoBase := 1000000000
 	interval := int64(5) * int64(nanoBase)
 	timeoutOffset := 5 * 60
@@ -400,12 +390,11 @@ func CheckPower(addressList []string, cmd string) bool {
 
 	buf := bytes.NewBufferString(string(resp))
 
-	server := power + "/" + cmd
 	start := time.Seconds()
 	end := start + int64(timeoutOffset)
 
 	for start < end {
-		_, err = Post(server, buf)
+		_, err = fmServ.Post("/reboot", buf)
 		if err == nil {
 			exsist = true
 			break
