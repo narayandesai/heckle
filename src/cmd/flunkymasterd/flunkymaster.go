@@ -113,7 +113,6 @@ func CreateCredin(len int) string {
      var rawCredin string
      var genNum	   int
      for i:=0; i < len; i++{
-     	// for tmpRandom := random.Intn(256); (tmpRandom < 65 || tmpRandom > 90) && (tmpRandom < 97 || tmpRandom > 122) ; tmpRandom = random.Intn(256) {
 	     for ; ;{
 	     	 randNum := random.Intn(256)
 		 if (randNum > 65 && randNum < 90) || (randNum > 97  && randNum < 122){
@@ -123,7 +122,6 @@ func CreateCredin(len int) string {
 	 }
      	 rawCredin = rawCredin + string(byte(genNum))
      }
-     fmt.Println(rawCredin)
      return rawCredin
 }
 
