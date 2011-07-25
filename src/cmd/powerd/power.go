@@ -54,6 +54,23 @@ func decode(tmpAuth string) (username string, password string) {
      return
 }
 
+
+func DumpCall(w http.ResponseWriter, req *http.Request) {
+        powerDaemon.DaemonLog.LogHttp(req)
+        req.ProtoMinor = 0
+       /* username, authed, _ := powerDaemon.AuthN.HTTPAuthenticate(req)
+        if !authed {
+                powerDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
+                return
+        }*/
+        tmp, err := json.Marshal(resources)
+        powerDaemon.DaemonLog.LogError("Cannot Marshal power resources", err)
+        _, err = w.Write(tmp)
+        if err != nil {
+                http.Error(w, "Cannot write to socket", 500)
+        }
+}
+
 func rebootList(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
@@ -181,6 +198,7 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
 }
 
 func main() {
+     http.HandleFunc("/dump", DumpCall)
      http.HandleFunc("/reboot", rebootList)
      http.HandleFunc("/off", offList)
      http.HandleFunc("/status", statusList)
