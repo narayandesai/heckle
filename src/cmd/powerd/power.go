@@ -8,7 +8,6 @@ import (
      "os"
      "io/ioutil"
      "strings"
-     "encoding/base64"
 	//iface "flunky/interfaces"
 	daemon "flunky/daemon"
 )
@@ -28,30 +27,17 @@ func init() {
      fileDir = "../../../etc/Power/"
      powerDaemon = daemon.New("Power", fileDir)
      
-     powerDBFile, error := os.Open(fileDir + "powerCont.db")
-     powerDaemon.DaemonLog.LogError("ERROR: Unable to open powerCont.db for reading.", error)
+     powerDBFile, error := os.Open(fileDir + "power.db")
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to open power.db for reading.", error)
      
      someBytes, error := ioutil.ReadAll(powerDBFile)
-     powerDaemon.DaemonLog.LogError("ERROR: Unable to read from file powerCont.db.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Unable to read from file power.db.", error)
      
      error = powerDBFile.Close()
-     powerDaemon.DaemonLog.LogError("ERROR: Failed to close powerCont.db.", error)
+     powerDaemon.DaemonLog.LogError("ERROR: Failed to close power.db.", error)
      
      error = json.Unmarshal(someBytes, &resources)
-     powerDaemon.DaemonLog.LogError("ERROR: Failed to unmarshal data read from powerCont.db file.", error)
-}
-
-func decode(tmpAuth string) (username string, password string) {
-     tmpAuthArray := strings.Split(tmpAuth, " ")
-     
-     authValues , error := base64.StdEncoding.DecodeString(tmpAuthArray[1])
-     powerDaemon.DaemonLog.LogError("ERROR: Failed to decode encoded auth settings in http request.", error)
-     
-     authValuesArray := strings.Split(string(authValues), ":")
-     username = authValuesArray[0]
-     password = authValuesArray[1]
-     
-     return
+     powerDaemon.DaemonLog.LogError("ERROR: Failed to unmarshal data read from power.db file.", error)
 }
 
 func rebootList(writer http.ResponseWriter, request *http.Request) {
