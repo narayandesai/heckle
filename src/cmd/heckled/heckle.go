@@ -393,7 +393,7 @@ func polling() {
      //grabs nodes for cancelation and removes them from the list.
      heckleDaemon.DaemonLog.Log("Starting polling go routine.")
      pollAddresses := []string{}
-     var pollingOutletStatus map[string]string
+     pollingOutletStatus := make(map[string]string)
      var pollAddressesLock sync.Mutex
      bs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["allocationServer"], false)
      rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
@@ -429,8 +429,8 @@ func polling() {
                     value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
                     pollingOutletStatus[key] = outletStatus[key]
                } else if pollingOutletStatus[key] != outletStatus[key] {
-                         value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
-                         pollingOutletStatus[key] = outletStatus[key]
+                    value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
+                    pollingOutletStatus[key] = outletStatus[key]
                }
           }
           heckleDaemon.DaemonLog.Log("Sending status messages to main routine.")
