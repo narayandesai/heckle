@@ -277,9 +277,7 @@ func (fm *Flunkym) RenderGetDynamic(loc string, address string) []byte {
 	return dynamic
 }
 
-func (fm *Flunkym) RenderImage(toRender string, address string) []byte {
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Rendering %s to %s", toRender, address))
-	var buf []byte
+func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
 	key := fm.data[address]
 	l := bytes.NewBuffer(buf)
 	bvar := build_vars(address, toRender)
@@ -297,7 +295,7 @@ func (fm *Flunkym) RenderImage(toRender string, address string) []byte {
 
 	fm.Increment_Count(address, toRender)
 	v := l.Bytes()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered to %s", toRender, address))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s: Rendered %s", address, toRender))
 	return v
 }
 
@@ -306,7 +304,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	req.ProtoMinor = 0
 	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
+		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
 		return
 	}
 	m.Lock()
@@ -404,7 +402,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	}*/
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Recived Info", time.LocalTime()))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Received Info", time.LocalTime()))
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
@@ -468,7 +466,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	iaddr := temper[0].String()
 	var msg interfaces.Ctlmsg
 	m.Lock()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recived ctrl message from %s", iaddr))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Received ctrl message from %s", iaddr))
 	m.Unlock()
 	err = json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
@@ -511,7 +509,6 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		iaddr := temper[0].String()
 		fmDaemon.DaemonLog.LogError("Could not find the ip addess in host tables", err)
 
-		fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved request for status from %s", iaddr))
 		tmp := fm.data[iaddr]
 		key := cstatus[addr]
 		tmpl := fm.RenderImage("status1", iaddr)
