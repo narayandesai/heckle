@@ -122,7 +122,6 @@ func CreateCredin(len int) string {
 		}
 		rawCredin = rawCredin + string(byte(genNum))
 	}
-	fmt.Println(rawCredin)
 	return rawCredin
 }
 
