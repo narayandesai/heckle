@@ -487,7 +487,7 @@ func status(writer http.ResponseWriter, request *http.Request) {
                     allocationStatus[key] = sm
                     value.Info = []iface.InfoMsg{}
                } else {
-                    heckleDaemon.DaemonLog.LogError("ERROR: Cannot request status of allocations that do not beling to you.", os.NewError("Access Denied"))
+                    heckleDaemon.DaemonLog.LogError("Cannot request status of allocations that do not beling to you.", os.NewError("Access Denied"))
                     currentRequestsLock.Unlock()
                     return
                }
@@ -496,10 +496,10 @@ func status(writer http.ResponseWriter, request *http.Request) {
      currentRequestsLock.Unlock()
      
      jsonStat, error := json.Marshal(allocationStatus)
-     heckleDaemon.DaemonLog.LogError("ERROR: Unable to marshal allocation status response.", error)
+     heckleDaemon.DaemonLog.LogError("Unable to marshal allocation status response.", error)
      
      _, error = writer.Write(jsonStat)
-     heckleDaemon.DaemonLog.LogError("ERROR: Unable to write allocation status response.", error)
+     heckleDaemon.DaemonLog.LogError("Unable to write allocation status response.", error)
 }
 
 func freeAllocation(writer http.ResponseWriter, request *http.Request) {
@@ -514,31 +514,33 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
-          heckleDaemon.DaemonLog.LogError("ERROR: Username password combo invalid.", os.NewError("Access Denied"))
+          heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
      someBytes, error := ioutil.ReadAll(request.Body)
-     heckleDaemon.DaemonLog.LogError("ERROR: Unable to read all from allocation status POST.", error)
+     heckleDaemon.DaemonLog.LogError("Unable to read all from allocation status POST.", error)
      
      error = request.Body.Close()
-     heckleDaemon.DaemonLog.LogError("ERROR: Failed to close free allocation request body.", error)
+     heckleDaemon.DaemonLog.LogError("Failed to close free allocation request body.", error)
      
      error = json.Unmarshal(someBytes, &allocationNumber)
-     heckleDaemon.DaemonLog.LogError("ERROR: Unable to unmarshal allocation number for freeing.", error)
+     heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation number for freeing.", error)
      
      powerDown := []string{}
      
      currentRequestsLock.Lock()
      resourcesLock.Lock()
+     found := false
      for key, value := range resources {
           if allocationNumber == value.AllocationNumber {
                if username == value.Owner || admin {
                     value.Reset()
                     powerDown = append(powerDown, key)
                     currentRequests[key] = nil, false
+                    found = true
                } else {
-                    heckleDaemon.DaemonLog.LogError("ERROR: Cannot free allocations that do not belong to you.", os.NewError("Access Denied"))
+                    heckleDaemon.DaemonLog.LogError("Cannot free allocations that do not belong to you.", os.NewError("Access Denied"))
                     currentRequestsLock.Unlock()
                     resourcesLock.Unlock()
                     return
@@ -547,6 +549,11 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      }
      currentRequestsLock.Unlock()
      resourcesLock.Unlock()
+     
+     if !found {
+          heckleDaemon.DaemonLog.LogError("Allocation number does not exist.", os.NewError("Wrong Number"))
+          return
+     }
      
      pollingCancelChan<- powerDown //Needed because polling will continue to poll if allocation is freed during allocation. 
      
@@ -789,7 +796,7 @@ func nodeStatus(writer http.ResponseWriter, request *http.Request) {
      resourcesLock.Lock()
      for key, value := range resources {
           if value.Allocated {
-               response = response + "NODE: " + key + "\tALLOCATED: yes\tOWNER: " + value.Owner + "\tIMAGE: " + value.Image + "\tTIME ALLOCATED: " + time.SecondsToLocalTime(value.TimeAllocated).Format(time.UnixDate) + "\tALLOCATION END: " + time.SecondsToLocalTime(value.AllocationEndTime).Format(time.UnixDate) + "\tCOMMENTS: " + value.Comments + "\n\n"
+               response = response + "NODE: " + key + "\tALLOCATED: yes\tALLOCATION NUM: " + strconv.Uitoa64(value.AllocationNumber) + "\tOWNER: " + value.Owner + "\tIMAGE: " + value.Image + "\tTIME ALLOCATED: " + time.SecondsToLocalTime(value.TimeAllocated).Format(time.UnixDate) + "\tALLOCATION END: " + time.SecondsToLocalTime(value.AllocationEndTime).Format(time.UnixDate) + "\tCOMMENTS: " + value.Comments + "\n\n"
 
           }
      }
