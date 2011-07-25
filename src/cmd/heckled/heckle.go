@@ -85,9 +85,10 @@ func init() {
      
      flag.Parse()
      
-     heckleDaemon.DaemonLog.Log("Initializing variables and setting up daemon.")
-     
      heckleDaemon = daemon.New("Heckle", fileDir)
+
+     heckleDaemon.DaemonLog.Log("Initializing variables and setting up daemon.")
+
      heckleToAllocateChan = make(chan iface.Listmsg)
      allocateToPollingChan = make(chan []string)
      pollingToHeckleChan = make (chan map[string]*iface.StatusMessage)
@@ -116,13 +117,13 @@ func updateDatabase(term bool) {
      //This updates the json database file with the information in the
      //resource map.
      heckleDaemon.DaemonLog.Log("Updating persistant json resource database file.")
-     databaseFile, error := os.OpenFile("ResourceDatabase", os.O_RDWR, 0777)
+     databaseFile, error := os.OpenFile(fileDir + "ResourceDatabase", os.O_RDWR, 0777)
      //databaseFile, error := os.Create(fileDir + "ResourceDatabase")
      heckleDaemon.DaemonLog.LogError("Unable to open resource database file for reading and writing.", error)
      
      intError := syscall.Flock(databaseFile.Fd(), 2) //2 is exclusive lock
      if intError != 0 {
-          heckleDaemon.DaemonLog.LogError("ERROR: Unable to resource database for reading.", os.NewError("Flock Syscall Failed"))
+          heckleDaemon.DaemonLog.LogError("ERROR: Unable to lock resource database file.", os.NewError("Flock Syscall Failed"))
      }
      
      error = databaseFile.Truncate(0)
@@ -392,7 +393,7 @@ func polling() {
      //grabs nodes for cancelation and removes them from the list.
      heckleDaemon.DaemonLog.Log("Starting polling go routine.")
      pollAddresses := []string{}
-     var pollingOutletStatus map[string]string
+     pollingOutletStatus := make(map[string]string)
      var pollAddressesLock sync.Mutex
      bs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["allocationServer"], false)
      rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
@@ -428,8 +429,8 @@ func polling() {
                     value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
                     pollingOutletStatus[key] = outletStatus[key]
                } else if pollingOutletStatus[key] != outletStatus[key] {
-                         value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
-                         pollingOutletStatus[key] = outletStatus[key]
+                    value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
+                    pollingOutletStatus[key] = outletStatus[key]
                }
           }
           heckleDaemon.DaemonLog.Log("Sending status messages to main routine.")
@@ -841,7 +842,7 @@ func main() {
      for {
           select {
                case sig := <-signal.Incoming:
-                    if sig.(os.UnixSignal) == syscall.SIGTERM {
+                    if sig.(os.UnixSignal) == syscall.SIGTERM || sig.(os.UnixSignal) == syscall.SIGINT || sig.(os.UnixSignal) == syscall.SIGQUIT || sig.(os.UnixSignal) == syscall.SIGTSTP {
                          updateDatabase(true)
                     }
                default:

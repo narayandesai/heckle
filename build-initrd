@@ -27,5 +27,6 @@ echo "ttyS0" >> $tmpdir/etc/securetty
 cd $tmpdir
 find | cpio -o -H newc | gzip -2 > ../microcore/initrd-build-64-$(date +"%y%m%d").gz
 cd ..
+cp boot/bzImage microcore/bzImage-build-64-$(date +"%y%m%d")
 rm -r $tmpdir
 rm -r boot
