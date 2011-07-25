@@ -454,6 +454,22 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
      updateDatabase(false)
 }
 
+func DumpCall(w http.ResponseWriter, req *http.Request) {
+        heckleDaemon.DaemonLog.LogHttp(req)
+        req.ProtoMinor = 0
+        /*username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
+        if !authed {
+                heckleDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
+                return
+        }*/
+        tmp, err := json.Marshal(resources)
+        heckleDaemon.DaemonLog.LogError("Cannot Marshal heckle data", err)
+        _, err = w.Write(tmp)
+        if err != nil {
+                http.Error(w, "Cannot write to socket", 500)
+        }
+}
+
 func status(writer http.ResponseWriter, request *http.Request) {
      //This is an http handler function to deal with allocation status requests.
      //if the host has ownership of the allocation number we send back a map
@@ -807,6 +823,7 @@ func nodeStatus(writer http.ResponseWriter, request *http.Request) {
 }
 
 func main() {
+     http.HandleFunc("/dump", DumpCall)
      http.HandleFunc("/list", allocateList)
      http.HandleFunc("/number", allocateNumber)
      http.HandleFunc("/status", status)

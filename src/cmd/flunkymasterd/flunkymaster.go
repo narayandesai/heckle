@@ -122,7 +122,6 @@ func CreateCredin(len int) string {
 		}
 		rawCredin = rawCredin + string(byte(genNum))
 	}
-	fmt.Println(rawCredin)
 	return rawCredin
 }
 
@@ -302,11 +301,11 @@ func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
 func DumpCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
+	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	m.Lock()
 	tmp, err := json.Marshal(fm.data)
 	m.Unlock()
