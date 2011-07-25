@@ -34,6 +34,6 @@ func (daemonLogger *DaemonLogger) LogError(message string, error os.Error) {
 }
 
 func (daemonLogger *DaemonLogger) LogHttp(request *http.Request) {
-     daemonLogger.stdoutLog.Printf("%s - %s: %s %d Bytes Recieved: %s", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
-     daemonLogger.fileLog.Printf("%s - %s: %s %d Bytes Recieved: %s", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
+     daemonLogger.stdoutLog.Printf("%s - %s: %s %s Bytes Recieved: %d", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
+     daemonLogger.fileLog.Printf("%s - %s: %s %s Bytes Recieved: %d", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
 }
