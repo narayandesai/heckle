@@ -16,7 +16,7 @@ func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
      daemonLogger := new(DaemonLogger)
      daemonLogger.stdoutLog = log.New(os.Stdout, daemonName + ": ", 0)
      logFile, _ := os.OpenFile(logFilePath + daemonName + ".log", os.O_WRONLY | os.O_CREATE, 0666)
-     daemonLogger.fileLog = log.New(logFile, daemonName + ": ", 0)
+     daemonLogger.fileLog = log.New(logFile,  daemonName + ":"  , 0)
      
      return daemonLogger
 }
@@ -34,6 +34,6 @@ func (daemonLogger *DaemonLogger) LogError(message string, error os.Error) {
 }
 
 func (daemonLogger *DaemonLogger) LogHttp(request *http.Request) {
-     daemonLogger.stdoutLog.Printf("%s - %s: %s %s %s", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
-     daemonLogger.fileLog.Printf("%s - %s: %s %s %s", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
+     daemonLogger.stdoutLog.Printf("%s - %s: %s %d Bytes Recieved: %s", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
+     daemonLogger.fileLog.Printf("%s - %s: %s %d Bytes Recieved: %s", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
 }
