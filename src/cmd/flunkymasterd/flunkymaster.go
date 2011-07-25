@@ -218,7 +218,7 @@ func (fm *Flunkym) Store() {
 func (fm *Flunkym) SetPath(root string) {
 	fmDaemon.DaemonLog.Log("Setting up path variables")
 	path := new(PathType)
-	path.root = root + "/repository"
+	path.root = root 
 	path.dataFile = path.root + "/" + fmDaemon.Cfg.Data["backupFile"]
 	path.staticdataPath = path.root + "/staticVars.json"
 	path.image = path.root + "/images"
