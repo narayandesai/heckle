@@ -22,19 +22,23 @@ var comStatDaemon *daemon.Daemon
 func init() {
 	fileDir = "../../../etc/ComStat/"
 	comStatDaemon = daemon.New("ComStat", fileDir)
-	flag.BoolVar(&dump, "d", false, "Print state information")
 	flag.BoolVar(&help, "h", false, "Print help message")
 }
 
 func GetDump(daemonName string) {
 	
-	server := comStatDaemon.Cfg.Data[daemonName]
+	server, ok := comStatDaemon.Cfg.Data[daemonName]
+
+	if ! ok {
+		fmt.Println(fmt.Sprintf("Cannot find URL for component %s", daemonName))
+		os.Exit(1)
+	}
 
 	query := inet.NewBuildServer("http://"+server, true)
 
 	resp, err := query.Get("dump")
 	if err != nil {
-		comStatDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read data from %s", daemonName), err)
+		fmt.Println(fmt.Sprintf("Cannot read data from %s", daemonName), err)
 	} else {
 	        fmt.Println(string(resp))
 		return
@@ -48,11 +52,8 @@ func main() {
 		Usage()
 		os.Exit(0)
 	}
-	if dump {
-		daemonName := flag.Args()
-		for _, name := range daemonName {
-		       GetDump(name)
-		}
-	}
 
+	for _, name := range flag.Args() {
+		GetDump(name)
+	}
 }
