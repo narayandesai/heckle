@@ -6,6 +6,6 @@ mk () {
     popd >/dev/null
 }
 
-for target in pkg/daemon pkg/net pkg/interfaces cmd/flunky cmd/fctl cmd/diagd cmd/powerd cmd/heckled cmd/testHeckle cmd/flunkymasterd; do
+for target in pkg/daemon pkg/net pkg/interfaces cmd/flunky cmd/fctl cmd/diagd cmd/powerd cmd/heckled cmd/testHeckle cmd/flunkymasterd cmd/comstat; do
     mk $target $1
 done
