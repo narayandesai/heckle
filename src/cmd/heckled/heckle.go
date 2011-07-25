@@ -117,13 +117,13 @@ func updateDatabase(term bool) {
      //This updates the json database file with the information in the
      //resource map.
      heckleDaemon.DaemonLog.Log("Updating persistant json resource database file.")
-     databaseFile, error := os.OpenFile("ResourceDatabase", os.O_RDWR, 0777)
+     databaseFile, error := os.OpenFile(fileDir + "ResourceDatabase", os.O_RDWR, 0777)
      //databaseFile, error := os.Create(fileDir + "ResourceDatabase")
      heckleDaemon.DaemonLog.LogError("Unable to open resource database file for reading and writing.", error)
      
      intError := syscall.Flock(databaseFile.Fd(), 2) //2 is exclusive lock
      if intError != 0 {
-          heckleDaemon.DaemonLog.LogError("ERROR: Unable to resource database for reading.", os.NewError("Flock Syscall Failed"))
+          heckleDaemon.DaemonLog.LogError("ERROR: Unable to lock resource database file.", os.NewError("Flock Syscall Failed"))
      }
      
      error = databaseFile.Truncate(0)
