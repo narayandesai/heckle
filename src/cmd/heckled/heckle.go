@@ -842,7 +842,7 @@ func main() {
      for {
           select {
                case sig := <-signal.Incoming:
-                    if sig.(os.UnixSignal) == syscall.SIGTERM {
+                    if sig.(os.UnixSignal) == syscall.SIGTERM || sig.(os.UnixSignal) == syscall.SIGINT || sig.(os.UnixSignal) == syscall.SIGQUIT || sig.(os.UnixSignal) == syscall.SIGTSTP {
                          updateDatabase(true)
                     }
                default:
