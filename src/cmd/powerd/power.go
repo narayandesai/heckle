@@ -3,7 +3,7 @@ package main
 import (
      "http"
      "json"
-     //"sync"
+     "flag"
      "exec"
      "os"
      "io/ioutil"
@@ -24,8 +24,13 @@ var fileDir         string
 //var resourcesLock   sync.Mutex   shouldn't need a lock, never changing data.
 
 func init() {
-     fileDir = "../../../etc/Power/"
+     flag.StringVar(&fileDir, "F", "../../../etc/Power/", "Directory where client files can be found.")
+     
+     flag.Parse()
+     
      powerDaemon = daemon.New("Power", fileDir)
+     
+     powerDaemon.DaemonLog.Log("Initializting data for daemon setup.")
      
      powerDBFile, error := os.Open(fileDir + "power.db")
      powerDaemon.DaemonLog.LogError("ERROR: Unable to open power.db for reading.", error)
@@ -43,6 +48,7 @@ func init() {
 func rebootList(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
+     powerDaemon.DaemonLog.Log("Rebooting list given by client.")
      var nodes []string
      request.ProtoMinor = 0
      
@@ -78,6 +84,7 @@ func rebootList(writer http.ResponseWriter, request *http.Request) {
 func offList(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
+     powerDaemon.DaemonLog.Log("Turning off list of nodes given by client.")
      var nodes []string
      request.ProtoMinor = 0
      
@@ -113,6 +120,7 @@ func offList(writer http.ResponseWriter, request *http.Request) {
 func statusList(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
+     powerDaemon.DaemonLog.Log("Retreiving status for list given by client.")
      var nodes []string
      outletStatus := make(map[string]string)
      request.ProtoMinor = 0

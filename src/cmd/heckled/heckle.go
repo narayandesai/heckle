@@ -81,7 +81,7 @@ var allocationNumberLock      sync.Mutex
 
 func init() {
      //new comments here
-     flag.StringVar(&fileDir, "F", "../../../etc/TestHeckle/", "Directory where client files can be found.")
+     flag.StringVar(&fileDir, "F", "../../../etc/Heckle/", "Directory where client files can be found.")
      
      flag.Parse()
      
