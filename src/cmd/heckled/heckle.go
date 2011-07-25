@@ -85,9 +85,10 @@ func init() {
      
      flag.Parse()
      
-     heckleDaemon.DaemonLog.Log("Initializing variables and setting up daemon.")
-     
      heckleDaemon = daemon.New("Heckle", fileDir)
+
+     heckleDaemon.DaemonLog.Log("Initializing variables and setting up daemon.")
+
      heckleToAllocateChan = make(chan iface.Listmsg)
      allocateToPollingChan = make(chan []string)
      pollingToHeckleChan = make (chan map[string]*iface.StatusMessage)
