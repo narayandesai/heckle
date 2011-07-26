@@ -28,11 +28,10 @@ func init() {
      flag.IntVar(&timeIncrease, "t", 0, "Increase current allocation by this many hours.")
      flag.Uint64Var(&freeAlloc, "f", 0, "Free a reserved allocation number preemptively.")
      flag.StringVar(&image, "i", "ubuntu-maverick-amd64", "Image to be loaded on to the nodes.")
-     flag.StringVar(&fileDir, "F", "../../../etc/TestHeckle/", "Directory where client files can be found.")
      
      flag.Parse()
      
-     testHeckleD = daemon.New("TestHeckle", fileDir)
+     testHeckleD = daemon.New("testheckle")
      testHeckleD.DaemonLog.Log("Parsed command line arguements and set up logging.")
      
      allocationNumber = uint64(0)
