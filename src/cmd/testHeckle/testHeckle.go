@@ -146,7 +146,7 @@ func pollForStatus() {
                     }
                     done = done && (pollStatus[key] == "Ready")
                     if pollStatus[key] == "Cancel" {
-                         pollStatus[key] = nil, false
+                         pollStatus[key] = "", false
                     }
                }
           }
