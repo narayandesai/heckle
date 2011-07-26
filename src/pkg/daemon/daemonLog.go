@@ -2,6 +2,7 @@ package daemon
 
 import (
      "log"
+     "syslog"
      "os"
      "time"
      "http"

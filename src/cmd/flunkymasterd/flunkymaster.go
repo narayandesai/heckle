@@ -486,23 +486,23 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 
 //Mutex needed
 func StatusCall(w http.ResponseWriter, req *http.Request) {
+	var msg interfaces.Ctlmsg
+	cstatus := make(map[string]interfaces.StatusMessage)
 	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
+	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	body, _ := ioutil.ReadAll(req.Body)
-	var msg interfaces.Ctlmsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
-
+       
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved request for status from %s", address))
-	cstatus := make(map[string]interfaces.StatusMessage)
 	for _, addr := range msg.Addresses {
 		temper, err := net.LookupIP(addr)
 		iaddr := temper[0].String()
@@ -539,7 +539,7 @@ func main() {
 	//runtime.GOMAXPROCS(4)
 	fm.init()
 	fm.Store()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Starting server on port %s...", fmDaemon.Cfg.Data["serverIP"]))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Server started on port %s...", fmDaemon.Cfg.Data["serverIP"]))
 
 	http.Handle("/dump", http.HandlerFunc(DumpCall))
 	http.Handle("/static/", http.HandlerFunc(StaticCall))

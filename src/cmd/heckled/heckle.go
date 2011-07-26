@@ -410,8 +410,7 @@ func polling() {
           pollAddressesLock.Unlock()
           statRequest.Time = pollTime
 
-          var statmap map[string]*iface.StatusMessage
-               
+          var statmap map[string]*iface.StatusMessage     
           sRjs, _ := json.Marshal(statRequest)
           reqbuf := bytes.NewBufferString(string(sRjs))
           ret, _ := bs.Post("/status", reqbuf)
