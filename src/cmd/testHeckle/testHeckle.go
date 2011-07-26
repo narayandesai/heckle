@@ -45,6 +45,13 @@ func usage() {
      flag.PrintDefaults()
 }
 
+func allocationFail(error os.Error, allocType string) {
+     if error != nil {
+          testHeckleD.DaemonLog.LogError("Failed to post the request for " + allocType + " of nodes to heckle.", error)
+          os.Exit(1)
+     }
+}
+
 func requestNumber() (tmpAllocationNumber uint64) {
      testHeckleD.DaemonLog.Log("Creating iface.Nummsg.")
      nm := iface.Nummsg{numNodes, image, 300}
@@ -56,7 +63,8 @@ func requestNumber() (tmpAllocationNumber uint64) {
      testHeckleD.DaemonLog.Log("Creating a buffer type of the marshaled data.")
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/number", buf)
-     testHeckleD.DaemonLog.LogError("Failed to post the request for number of nodes to heckle.", error)
+     
+     allocationFail(error, "number")
      
      testHeckleD.DaemonLog.Log("Attempting to unmarshal allocation number.")
      error = json.Unmarshal(someBytes, &tmpAllocationNumber)
@@ -78,7 +86,8 @@ func requestList() (tmpAllocationNumber uint64) {
      testHeckleD.DaemonLog.Log("Creating a buffer type of the marshaled data.")
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/list", buf)
-     testHeckleD.DaemonLog.LogError("Failed to post the request for list of nodes to heckle.", error)
+     
+     allocationFail(error, "list")
      
      testHeckleD.DaemonLog.Log("Attempting to unmarshal allocation number.")
      error = json.Unmarshal(someBytes, &tmpAllocationNumber)
@@ -154,6 +163,7 @@ func freeAllocation() {
      testHeckleD.DaemonLog.Log("Marshaling allocation number to free.")
      someBytes, error := json.Marshal(freeAlloc)
      testHeckleD.DaemonLog.LogError("ERROR: Failed to marshal allocation number for status poll.", error)
+     fmt.Println("Somebytes", someBytes)
      testHeckleD.DaemonLog.Log("Creating buffer type and posting to free allocation.")
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/freeAllocation", buf)
