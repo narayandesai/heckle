@@ -718,6 +718,8 @@ func listenAndServeWrapper() {
      heckleDaemon.DaemonLog.Log("Starting HTTP listen go routine.")
      error := http.ListenAndServe(":" + heckleDaemon.Cfg.Data["hecklePort"], nil)
      heckleDaemon.DaemonLog.LogError("Failed to listen on http socket.", error)
+     
+     updateDatabase(true)
 }
 
 func freeCurrentRequests() {
