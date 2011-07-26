@@ -19,12 +19,13 @@ var help bool
 var fileDir string
 
 func init() {
-	fileDir = "../../../etc/Heckle/"
+	fileDir = "../../../etc/heckle/"
 	flag.BoolVar(&help, "h", false, "Print help message")
 }
 
-func ReadConfig(fname string) (comData map[string]string) {
+func ReadConfig(daemonName string) (comData map[string]string) {
 	var contents []byte
+	fname := fileDir +"comstat.conf"
 	_, err := os.Stat(fname)
 	if err != nil {
 		fmt.Println(fname + " does not exsist")
@@ -48,7 +49,7 @@ func ReadConfig(fname string) (comData map[string]string) {
 }
 
 func GetDump(daemonName string) {
-	config := ReadConfig(fileDir)
+	config := ReadConfig(daemonName)
 	server, ok := config[daemonName]
 
 	if !ok {
