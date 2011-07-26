@@ -36,7 +36,7 @@ func NewAuthInfo(path string, daemonLog *DaemonLogger) *Authinfo {
 
 func (auth *Authinfo) Load() (err os.Error) {
      if auth.path == "" {
-	   auth.daemonLog.LogError("No auth file specified", os.NewError(" Auth file does not exsist"))
+	   auth.daemonLog.LogError("No auth file specified.", os.NewError(" Auth file does not exsist"))
 	   return 
 	}
 	authFile, err := os.Open(auth.path)

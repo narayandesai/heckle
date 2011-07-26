@@ -10,7 +10,7 @@
 // BUG(Mike Guantonio): Errors currently print as ascii characters and not integers. 
 // BUG(Mike Guantonio): Http errors are not handled. 
 // BUG(Mike Guantonio): Render static and dynamic do not allow for dynamic file names
-package flunkymaster
+package main
 
 //Duties to finish
 //3. Implement go routines
@@ -53,7 +53,6 @@ import (
 var fm Flunkym
 var m sync.Mutex
 var fmDaemon *daemon.Daemon
-var fileDir string
 var random *rand.Rand
 
 //Bvar stores the build information for a node requesting a render.
@@ -98,8 +97,7 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
-	fileDir = "../../../etc/FlunkyMaster/"
-	fmDaemon = daemon.New("FlunkyMaster", fileDir)
+	fmDaemon = daemon.New("flunkymaster")
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	src := rand.NewSource(time.Seconds())
 	random = rand.New(src)
