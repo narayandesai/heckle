@@ -105,6 +105,7 @@ func (fm *Flunkym) init() {
 	random = rand.New(src)
 	random.Seed(time.Seconds())
 	fm.Load()
+	
 	fm.Assert_setup("ubuntu-maverick-amd64", "127.0.0.1")
 	return
 }
@@ -157,11 +158,13 @@ func (fm *Flunkym) Assert_setup(image string, ip string) {
 	newsetup[ip] = DataStore{time.Seconds(), counts, 0, time.Seconds(), info, image, nil, "", ""}
 	newsetup[ip].Counts["bootconfig"] = 0
 	key := newsetup[ip]
+	fmDaemon.DaemonLog.LogDebug("Hello")
 	key.Username = usr
 	key.Password = pass
 	newsetup[ip] = key
 	//newsetup[ip].AllocateNum = msg.AllocateNum)
 	fm.data[ip] = newsetup[ip]
+	fmDaemon.DaemonLog.LogDebug("Hello")
 	fm.Store()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocated %s as %s", ip, image))
 	return
