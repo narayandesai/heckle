@@ -108,6 +108,7 @@ func requestTimeIncrease() {
 func pollForStatus() {
      testHeckleD.DaemonLog.Log("Creating map of status messages for polling.")
      statMap := make(map[string]*iface.StatusMessage)
+     pollStatus := make(map[string]string)
      for {
           testHeckleD.DaemonLog.Log("Sleeping for 10 seconds.")
           time.Sleep(10000000000)
@@ -126,16 +127,18 @@ func pollForStatus() {
           
           testHeckleD.DaemonLog.Log("Printing out any new status messages.")
           done := false
+          
           for key, value := range statMap {
                if len(value.Info) != 0 {
                     done = true
                     for i := range value.Info {
+                         pollStatus[key] = value.Status
                          testHeckleD.DaemonLog.Log(fmt.Sprintf("NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %d:%d:%d\tMESSAGE: %d:%d:%d : %s : %s\n", key, value.Status, time.SecondsToLocalTime(value.LastActivity).Hour, time.SecondsToLocalTime(value.LastActivity).Minute, time.SecondsToLocalTime(value.LastActivity).Second, time.SecondsToLocalTime(value.Info[i].Time).Hour, time.SecondsToLocalTime(value.Info[i].Time).Minute, time.SecondsToLocalTime(value.Info[i].Time).Second, value.Info[i].Message, value.Info[i].MsgType))
                     }
-                    done = done && (value.Status == "Ready")
-                    /*if value.Status == "Cancel" {
-                         statMap[key] = nil, false
-                    }*/
+                    done = done && (pollStatus[key] == "Ready")
+                    if pollStatus[key] == "Cancel" {
+                         pollStatus[key] = nil, false
+                    }
                }
           }
           fmt.Fprintf(os.Stdout, "\n")
