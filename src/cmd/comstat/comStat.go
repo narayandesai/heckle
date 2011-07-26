@@ -25,7 +25,7 @@ func init() {
 func GetDump(daemonName string) {
 
 	server, ok := comStatDaemon.Cfg.Data[daemonName]
-
+        fmt.Println("HErE")
 	if !ok {
 		fmt.Println(fmt.Sprintf("Cannot find URL for component %s", daemonName))
 		os.Exit(1)
@@ -49,7 +49,7 @@ func main() {
 		Usage()
 		os.Exit(0)
 	}
-
+        fmt.Println(flag.Args())
 	for _, name := range flag.Args() {
 		GetDump(name)
 	}

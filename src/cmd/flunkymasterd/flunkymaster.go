@@ -98,14 +98,13 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
-	fileDir = "../../../etc/FlunkyMaster/"
+	fileDir = "../../../etc/Heckle/"
 	fmDaemon = daemon.New("FlunkyMaster", fileDir)
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	src := rand.NewSource(time.Seconds())
 	random = rand.New(src)
 	random.Seed(time.Seconds())
 	fm.Load()
-	
 	fm.Assert_setup("ubuntu-maverick-amd64", "127.0.0.1")
 	return
 }
@@ -158,13 +157,11 @@ func (fm *Flunkym) Assert_setup(image string, ip string) {
 	newsetup[ip] = DataStore{time.Seconds(), counts, 0, time.Seconds(), info, image, nil, "", ""}
 	newsetup[ip].Counts["bootconfig"] = 0
 	key := newsetup[ip]
-	fmDaemon.DaemonLog.LogDebug("Hello")
 	key.Username = usr
 	key.Password = pass
 	newsetup[ip] = key
 	//newsetup[ip].AllocateNum = msg.AllocateNum)
 	fm.data[ip] = newsetup[ip]
-	fmDaemon.DaemonLog.LogDebug("Hello")
 	fm.Store()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocated %s as %s", ip, image))
 	return
@@ -177,7 +174,7 @@ func (fm *Flunkym) Load() {
 		fm.data = data
 		fmDaemon.DaemonLog.Log("No previous data exsists. Data created")
 	} else {
-		fmDaemon.DaemonLog.Log("Loading previous fm data")
+		fmDaemon.DaemonLog.LogDebug("Loading previous fm data")
 		file, err := ioutil.ReadFile(fm.path.dataFile)
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read %s", fm.path.dataFile), err)
 
@@ -188,7 +185,7 @@ func (fm *Flunkym) Load() {
 		} else {
 			err = json.Unmarshal(file, &fm.data)
 			fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not unmarshall fm.data"), err)
-			fmDaemon.DaemonLog.Log("Data Loaded")
+			fmDaemon.DaemonLog.LogDebug("Data Loaded")
 		}
 	}
 
@@ -462,14 +459,14 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	body, _ := ioutil.ReadAll(req.Body)
-	//temper, err := net.LookupIP(address)
-	//fmDaemon.DaemonLog.Log(fmt.Sprintf("Could not find %s in host tables", address))
-	//iaddr := temper[0].String()
+	temper, err := net.LookupIP(address)
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Could not find %s in host tables", address))
+	iaddr := temper[0].String()
 	var msg interfaces.Ctlmsg
 	
-	//fmDaemon.DaemonLog.Log(fmt.Sprintf("Received ctrl message from %s", iaddr))
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Received ctrl message from %s", iaddr))
 	
-	err := json.Unmarshal(body, &msg)
+	err = json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
 	if len(msg.Addresses) == 0 {
 		fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved empty update from %s. No action taken", address))
