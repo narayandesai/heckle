@@ -224,7 +224,7 @@ func checkNodeList(nodeList []string, owner string, image string, allocationNum 
      tmpList := []string{}
      resourcesLock.Lock()
      for _, value := range nodeList {
-          if !resources[value].Allocated {
+          if val, ok := resources[value] ; ok && !val.Allocated {
                tmpList = append(tmpList, value)
           }
      }
@@ -408,32 +408,34 @@ func polling() {
           pollAddressesLock.Lock()
           statRequest.Addresses = pollAddresses
           pollAddressesLock.Unlock()
-          statRequest.Time = pollTime
+          if statRequest.Addresses != nil {
+               statRequest.Time = pollTime
 
-          var statmap map[string]*iface.StatusMessage     
-          sRjs, _ := json.Marshal(statRequest)
-          reqbuf := bytes.NewBufferString(string(sRjs))
-          ret, _ := bs.Post("/status", reqbuf)
-          pollTime = time.Seconds()
-          json.Unmarshal(ret, &statmap)
-          
-          outletStatus := make(map[string]string)
-          sRjs, _ = json.Marshal(pollAddresses)
-          reqbuf = bytes.NewBufferString(string(sRjs))
-          ret, _ = rs.Post("/status", reqbuf)
-          json.Unmarshal(ret, &outletStatus)
+               var statmap map[string]*iface.StatusMessage     
+               sRjs, _ := json.Marshal(statRequest)
+               reqbuf := bytes.NewBufferString(string(sRjs))
+               ret, _ := bs.Post("/status", reqbuf)
+               pollTime = time.Seconds()
+               json.Unmarshal(ret, &statmap)
+               
+               outletStatus := make(map[string]string)
+               sRjs, _ = json.Marshal(pollAddresses)
+               reqbuf = bytes.NewBufferString(string(sRjs))
+               ret, _ = rs.Post("/status", reqbuf)
+               json.Unmarshal(ret, &outletStatus)
 
-          for key, value := range statmap {
-               if _, ok := pollingOutletStatus[key] ; !ok {
-                    value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
-                    pollingOutletStatus[key] = outletStatus[key]
-               } else if pollingOutletStatus[key] != outletStatus[key] {
-                    value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
-                    pollingOutletStatus[key] = outletStatus[key]
+               for key, value := range statmap {
+                    if _, ok := pollingOutletStatus[key] ; !ok {
+                         value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
+                         pollingOutletStatus[key] = outletStatus[key]
+                    } else if pollingOutletStatus[key] != outletStatus[key] {
+                         value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
+                         pollingOutletStatus[key] = outletStatus[key]
+                    }
                }
+               heckleDaemon.DaemonLog.Log("Sending status messages to main routine.")
+               pollingToHeckleChan<- statmap
           }
-          heckleDaemon.DaemonLog.Log("Sending status messages to main routine.")
-          pollingToHeckleChan<- statmap
      }
 }
 
@@ -462,7 +464,9 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
                 heckleDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
                 return
         }*/
+        resourcesLock.Lock()
         tmp, err := json.Marshal(resources)
+        resourcesLock.Unlock()
         heckleDaemon.DaemonLog.LogError("Cannot Marshal heckle data", err)
         _, err = w.Write(tmp)
         if err != nil {
@@ -678,7 +682,7 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
      currentRequestsLock.Lock()
      resourcesLock.Lock()
      
-     if resources[node].Owner != username {
+     if val, ok := resources[node] ; !ok || val.Owner != username {
           heckleDaemon.DaemonLog.LogError("ERROR: Access denied, cannot free nodes that do not belong to you.", os.NewError("Access Denied"))
           currentRequestsLock.Unlock()
           resourcesLock.Unlock()
