@@ -408,7 +408,7 @@ func polling() {
           pollAddressesLock.Lock()
           statRequest.Addresses = pollAddresses
           pollAddressesLock.Unlock()
-          if statRequest.Addresses != nil {
+          if len(statRequest.Addresses) != 0 {
                statRequest.Time = pollTime
 
                var statmap map[string]*iface.StatusMessage     
