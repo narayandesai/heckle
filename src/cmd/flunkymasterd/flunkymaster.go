@@ -39,6 +39,7 @@ import (
 	"json"
 	"time"
 	"bytes"
+	"flag"
 	"strings"
 	"github.com/ziutek/kasia.go"
 	//"runtime"
@@ -97,6 +98,7 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
+        flag.Parse()
 	fmDaemon = daemon.New("flunkymaster")
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	src := rand.NewSource(time.Seconds())

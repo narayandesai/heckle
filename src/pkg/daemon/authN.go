@@ -42,6 +42,9 @@ func (auth *Authinfo) Load() (err os.Error) {
 	authFile, err := os.Open(auth.path)
 	emsg := fmt.Sprintf("ERROR: Unable to open %s for reading.", auth.path)
 	auth.daemonLog.LogError(emsg, err)
+	if err != nil { 
+	   os.Exit(1)
+	}
 
 	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
 	if intError != 0 {
