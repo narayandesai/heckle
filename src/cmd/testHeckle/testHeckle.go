@@ -44,11 +44,16 @@ func usage() {
      flag.PrintDefaults()
 }
 
-func allocationFail(error os.Error, allocType string) {
-     if error != nil {
-          testHeckleD.DaemonLog.LogError("Failed to post the request for " + allocType + " of nodes to heckle.", error)
-          os.Exit(1)
+func allocationFail(allocType string) {
+     switch (allocType) {
+          case "number":
+               testHeckleD.DaemonLog.LogError("Not enough nodes to satisfy request number.", os.NewError("Not Enough Nodes"))
+               os.Exit(1)
+          case "list":
+               testHeckleD.DaemonLog.LogError("Some of the nodes in the list provided don't exist are are allocated.", os.NewError("List Nodes Taken"))
+               os.Exit(1)
      }
+     
 }
 
 func requestNumber() (tmpAllocationNumber uint64) {
@@ -62,8 +67,11 @@ func requestNumber() (tmpAllocationNumber uint64) {
      testHeckleD.DaemonLog.Log("Creating a buffer type of the marshaled data.")
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/number", buf)
+     testHeckleD.DaemonLog.LogError("Failed to post the request for number of nodes to heckle.", error)
      
-     allocationFail(error, "number")
+     if len(someBytes) == 0 {
+          allocationFail("number")
+     }
      
      testHeckleD.DaemonLog.Log("Attempting to unmarshal allocation number.")
      error = json.Unmarshal(someBytes, &tmpAllocationNumber)
@@ -85,8 +93,11 @@ func requestList() (tmpAllocationNumber uint64) {
      testHeckleD.DaemonLog.Log("Creating a buffer type of the marshaled data.")
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/list", buf)
+     testHeckleD.DaemonLog.LogError("Failed to post the request for list of nodes to heckle.", error)
      
-     allocationFail(error, "list")
+     if len(someBytes) == 0 {
+          allocationFail("list")
+     }
      
      testHeckleD.DaemonLog.Log("Attempting to unmarshal allocation number.")
      error = json.Unmarshal(someBytes, &tmpAllocationNumber)

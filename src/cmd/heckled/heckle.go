@@ -1,7 +1,6 @@
 package main
 
 import (
-     "fmt"
      "json"
      "flag"
      "os"
@@ -186,7 +185,7 @@ func getResources() {
      resourcesLock.Unlock()
 }
 
-func getFreeNodes(numNodes int, owner string, image string, allocationNum uint64) []string {
+func getNumNodes(numNodes int, owner string, image string, allocationNum uint64) []string {
      //This function is for the http allocate number of nodes function.
      //It will create a list of that many free nodes or as many free
      //nodes as it can, upate the resource map accordingly, and return
@@ -196,46 +195,50 @@ func getFreeNodes(numNodes int, owner string, image string, allocationNum uint64
      index := 0
      
      resourcesLock.Lock()
+     defer resourcesLock.Unlock()
+     
      for key, value := range resources {
           if index < numNodes && !value.Allocated {
-               tmpNodeList = append(tmpNodeList, key)
-               value.Allocate(owner, image, allocationNum)
+               tmpNodeList = append(tmpNodeList, key)  
                index++
           }
      }
-     resourcesLock.Unlock()
    
      if index != numNodes {
-          fmt.Fprintf(os.Stderr, "Not enough open nodes to allocate, allocating %d nodes instead.\n", (index+1))
+          heckleDaemon.DaemonLog.LogError("Not enough open nodes to allocate, cancelling allocation", os.NewError("Not Enough Nodes"))
+          return []string{}
+     } else {
+          for _, value := range tmpNodeList {
+               resources[value].Allocate(owner, image, allocationNum)
+          }
      }
-     
      return tmpNodeList
 }
 
-func checkNodeList(nodeList []string, owner string, image string, allocationNum uint64) []string {
+func checkNodeList(nodeList []string, owner string, image string, allocationNum uint64) (listOk bool) {
      //This function is for the http allocate list function.  It checks
      //the list requested and allocated as many nodes as are available
      //that are in that list.  It updates the resource map accordingly,
      //and returns the new list.
+     listOk = true
      heckleDaemon.DaemonLog.Log("Checking node list to see if all can be allocated.")
-     tmpList := []string{}
+
      resourcesLock.Lock()
+     defer resourcesLock.Unlock()
      for _, value := range nodeList {
-          if val, ok := resources[value] ; ok && !val.Allocated {
-               tmpList = append(tmpList, value)
+          if val, ok := resources[value] ; !ok || val.Allocated {
+               listOk = false
           }
      }
      
-     for _, value := range tmpList {
-          resources[value].Allocate(owner, image, allocationNum)
+     if !listOk {
+          heckleDaemon.DaemonLog.LogError("Some of the nodes asked for are allocated, cancelling allocation.", os.NewError("List Nodes Taken"))
+     } else {
+          for _, value := range nodeList {
+               resources[value].Allocate(owner, image, allocationNum)
+          }
      }
-     resourcesLock.Unlock()
-     
-     if len(tmpList) != len(nodeList) {
-          fmt.Fprintf(os.Stderr, "Some of the nodes asked for are allocated, allocating %d nodes.\n", len(tmpList))
-     }
-     
-     return tmpList
+     return
 }
 
 func allocateList(writer http.ResponseWriter, request *http.Request) {
@@ -265,14 +268,19 @@ func allocateList(writer http.ResponseWriter, request *http.Request) {
      
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
+     
+     allocationListOk := checkNodeList(listMsg.Addresses, username, listMsg.Image, tmpAllocationNumber)
+     if !allocationListOk {
+          allocationNumberLock.Unlock()
+          return
+     }
      allocationNumber++
      allocationNumberLock.Unlock()
      
-     allocationList := checkNodeList(listMsg.Addresses, username, listMsg.Image, tmpAllocationNumber)
-     heckleToAllocateChan<- iface.Listmsg{allocationList, listMsg.Image, 0}
+     heckleToAllocateChan<- iface.Listmsg{listMsg.Addresses, listMsg.Image, 0}
      
      currentRequestsLock.Lock()
-     for _, value := range allocationList {
+     for _, value := range listMsg.Addresses {
           currentRequests[value] = &currentRequestsNode{username, listMsg.Image, "Building", tmpAllocationNumber, listMsg.ActivityTimeout, false, 0, []iface.InfoMsg{}}
      }
      currentRequestsLock.Unlock()
@@ -309,10 +317,15 @@ func allocateNumber(writer http.ResponseWriter, request *http.Request) {
      
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
+     
+     allocationList := getNumNodes(numMsg.NumNodes, username, numMsg.Image, tmpAllocationNumber)
+     if len(allocationList) == 0 {
+          allocationNumberLock.Unlock()
+          return
+     }
      allocationNumber++
      allocationNumberLock.Unlock()
      
-     allocationList := getFreeNodes(numMsg.NumNodes, username, numMsg.Image, tmpAllocationNumber)
      heckleToAllocateChan<- iface.Listmsg{allocationList, numMsg.Image, 0}
      
      currentRequestsLock.Lock()
@@ -441,7 +454,7 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
      //a number of nodes.  It then sends this node to the allocation thread and tosses it
      //on the current requests map.
      heckleDaemon.DaemonLog.Log("Finding a replacement node for a node that has failed or is already allocated.")
-     allocationList := getFreeNodes(1, owner, image, tmpAllocationNumber)
+     allocationList := getNumNodes(1, owner, image, tmpAllocationNumber)
      heckleToAllocateChan<- iface.Listmsg{allocationList, image, 0}
      
      currentRequestsLock.Lock()
