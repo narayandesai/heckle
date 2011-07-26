@@ -36,12 +36,15 @@ func NewAuthInfo(path string, daemonLog *DaemonLogger) *Authinfo {
 
 func (auth *Authinfo) Load() (err os.Error) {
      if auth.path == "" {
-	   auth.daemonLog.LogError("No auth file specified", os.NewError(" Auth file does not exsist"))
+	   auth.daemonLog.LogError("No auth file specified.", os.NewError(" Auth file does not exsist"))
 	   return 
 	}
 	authFile, err := os.Open(auth.path)
 	emsg := fmt.Sprintf("ERROR: Unable to open %s for reading.", auth.path)
 	auth.daemonLog.LogError(emsg, err)
+	if err != nil { 
+	   os.Exit(1)
+	}
 
 	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
 	if intError != 0 {

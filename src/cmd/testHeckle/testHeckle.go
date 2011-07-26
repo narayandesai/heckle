@@ -28,11 +28,10 @@ func init() {
      flag.IntVar(&timeIncrease, "t", 0, "Increase current allocation by this many hours.")
      flag.Uint64Var(&freeAlloc, "f", 0, "Free a reserved allocation number preemptively.")
      flag.StringVar(&image, "i", "ubuntu-maverick-amd64", "Image to be loaded on to the nodes.")
-     flag.StringVar(&fileDir, "F", "../../../etc/TestHeckle/", "Directory where client files can be found.")
      
      flag.Parse()
      
-     testHeckleD = daemon.New("TestHeckle", fileDir)
+     testHeckleD = daemon.New("testheckle")
      testHeckleD.DaemonLog.Log("Parsed command line arguements and set up logging.")
      
      allocationNumber = uint64(0)
@@ -43,6 +42,13 @@ func usage() {
      testHeckleD.DaemonLog.Log("Printing usage.")
      fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
      flag.PrintDefaults()
+}
+
+func allocationFail(error os.Error, allocType string) {
+     if error != nil {
+          testHeckleD.DaemonLog.LogError("Failed to post the request for " + allocType + " of nodes to heckle.", error)
+          os.Exit(1)
+     }
 }
 
 func requestNumber() (tmpAllocationNumber uint64) {
@@ -56,7 +62,8 @@ func requestNumber() (tmpAllocationNumber uint64) {
      testHeckleD.DaemonLog.Log("Creating a buffer type of the marshaled data.")
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/number", buf)
-     testHeckleD.DaemonLog.LogError("Failed to post the request for number of nodes to heckle.", error)
+     
+     allocationFail(error, "number")
      
      testHeckleD.DaemonLog.Log("Attempting to unmarshal allocation number.")
      error = json.Unmarshal(someBytes, &tmpAllocationNumber)
@@ -78,7 +85,8 @@ func requestList() (tmpAllocationNumber uint64) {
      testHeckleD.DaemonLog.Log("Creating a buffer type of the marshaled data.")
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/list", buf)
-     testHeckleD.DaemonLog.LogError("Failed to post the request for list of nodes to heckle.", error)
+     
+     allocationFail(error, "list")
      
      testHeckleD.DaemonLog.Log("Attempting to unmarshal allocation number.")
      error = json.Unmarshal(someBytes, &tmpAllocationNumber)
@@ -108,6 +116,7 @@ func requestTimeIncrease() {
 func pollForStatus() {
      testHeckleD.DaemonLog.Log("Creating map of status messages for polling.")
      statMap := make(map[string]*iface.StatusMessage)
+     pollStatus := make(map[string]string)
      for {
           testHeckleD.DaemonLog.Log("Sleeping for 10 seconds.")
           time.Sleep(10000000000)
@@ -126,16 +135,18 @@ func pollForStatus() {
           
           testHeckleD.DaemonLog.Log("Printing out any new status messages.")
           done := false
+          
           for key, value := range statMap {
                if len(value.Info) != 0 {
                     done = true
                     for i := range value.Info {
+                         pollStatus[key] = value.Status
                          testHeckleD.DaemonLog.Log(fmt.Sprintf("NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %d:%d:%d\tMESSAGE: %d:%d:%d : %s : %s\n", key, value.Status, time.SecondsToLocalTime(value.LastActivity).Hour, time.SecondsToLocalTime(value.LastActivity).Minute, time.SecondsToLocalTime(value.LastActivity).Second, time.SecondsToLocalTime(value.Info[i].Time).Hour, time.SecondsToLocalTime(value.Info[i].Time).Minute, time.SecondsToLocalTime(value.Info[i].Time).Second, value.Info[i].Message, value.Info[i].MsgType))
                     }
-                    done = done && (value.Status == "Ready")
-                    /*if value.Status == "Cancel" {
-                         statMap[key] = nil, false
-                    }*/
+                    done = done && (pollStatus[key] == "Ready")
+                    if pollStatus[key] == "Cancel" {
+                         pollStatus[key] = "", false
+                    }
                }
           }
           fmt.Fprintf(os.Stdout, "\n")
@@ -151,6 +162,7 @@ func freeAllocation() {
      testHeckleD.DaemonLog.Log("Marshaling allocation number to free.")
      someBytes, error := json.Marshal(freeAlloc)
      testHeckleD.DaemonLog.LogError("ERROR: Failed to marshal allocation number for status poll.", error)
+     fmt.Println("Somebytes", someBytes)
      testHeckleD.DaemonLog.Log("Creating buffer type and posting to free allocation.")
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/freeAllocation", buf)

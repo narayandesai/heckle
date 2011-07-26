@@ -10,7 +10,7 @@
 // BUG(Mike Guantonio): Errors currently print as ascii characters and not integers. 
 // BUG(Mike Guantonio): Http errors are not handled. 
 // BUG(Mike Guantonio): Render static and dynamic do not allow for dynamic file names
-package flunkymaster
+package main
 
 //Duties to finish
 //3. Implement go routines
@@ -39,6 +39,7 @@ import (
 	"json"
 	"time"
 	"bytes"
+	"flag"
 	"strings"
 	"github.com/ziutek/kasia.go"
 	//"runtime"
@@ -53,7 +54,6 @@ import (
 var fm Flunkym
 var m sync.Mutex
 var fmDaemon *daemon.Daemon
-var fileDir string
 var random *rand.Rand
 
 //Bvar stores the build information for a node requesting a render.
@@ -98,8 +98,8 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
-	fileDir = "../../../etc/FlunkyMaster/"
-	fmDaemon = daemon.New("FlunkyMaster", fileDir)
+        flag.Parse()
+	fmDaemon = daemon.New("flunkymaster")
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	src := rand.NewSource(time.Seconds())
 	random = rand.New(src)
@@ -174,7 +174,7 @@ func (fm *Flunkym) Load() {
 		fm.data = data
 		fmDaemon.DaemonLog.Log("No previous data exsists. Data created")
 	} else {
-		fmDaemon.DaemonLog.Log("Loading previous fm data")
+		fmDaemon.DaemonLog.LogDebug("Loading previous fm data")
 		file, err := ioutil.ReadFile(fm.path.dataFile)
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read %s", fm.path.dataFile), err)
 
@@ -185,7 +185,7 @@ func (fm *Flunkym) Load() {
 		} else {
 			err = json.Unmarshal(file, &fm.data)
 			fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not unmarshall fm.data"), err)
-			fmDaemon.DaemonLog.Log("Data Loaded")
+			fmDaemon.DaemonLog.LogDebug("Data Loaded")
 		}
 	}
 
@@ -215,14 +215,12 @@ func (fm *Flunkym) Store() {
 }
 
 func (fm *Flunkym) SetPath(root string) {
-	fmDaemon.DaemonLog.Log("Setting up path variables")
 	path := new(PathType)
 	path.root = root 
 	path.dataFile = path.root + "/" + fmDaemon.Cfg.Data["backupFile"]
 	path.staticdataPath = path.root + "/staticVars.json"
 	path.image = path.root + "/images"
 	fm.path = *path
-	fmDaemon.DaemonLog.Log("Path variables Created")
 	return
 }
 
@@ -296,9 +294,16 @@ func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
 	return v
 }
 
+/*func AuthFlunky() (username string, authed bool){
+
+}*/
+
 func DumpCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
+	add := req.RemoteAddr
+	addTmp := strings.Split(add, ":")
+	address := addTmp[0]
 	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
@@ -312,9 +317,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(w, "Cannot write to socket", 500)
 	}
-	m.Lock()
-	fmDaemon.DaemonLog.Log("Data dump processed")
-	m.Unlock()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s: Data Dump", address))
 }
 
 func StaticCall(w http.ResponseWriter, req *http.Request) {
@@ -328,7 +331,7 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
 	}*/
-	tmp := fm.RenderGetStatic(req.RawURL, address) //allow for random type names
+	tmp := fm.RenderGetStatic(req.RawURL, address)
 	w.Write(tmp)
 }
 
@@ -427,7 +430,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
 	m.Lock()
-	fmDaemon.DaemonLog.Log("Recieved error!")
+	fmDaemon.DaemonLog.Log("Recieved error")
 	m.Unlock()
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
@@ -457,12 +460,12 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	}
 	body, _ := ioutil.ReadAll(req.Body)
 	temper, err := net.LookupIP(address)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Could not find %s in host tables", address))
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Could not find %s in host tables", address))
 	iaddr := temper[0].String()
 	var msg interfaces.Ctlmsg
-	m.Lock()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Received ctrl message from %s", iaddr))
-	m.Unlock()
+	
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Received ctrl message from %s", iaddr))
+	
 	err = json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
 	if len(msg.Addresses) == 0 {
@@ -518,7 +521,6 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		}
 		cstatus[addr] = key
 	}
-	fmt.Println(cstatus)
 	ret, err := json.Marshal(cstatus)
 	fmDaemon.DaemonLog.LogError("Could not Marsal status", err)
 	w.Write(ret)
@@ -536,7 +538,7 @@ func main() {
 	//runtime.GOMAXPROCS(4)
 	fm.init()
 	fm.Store()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Server started on port %s...", fmDaemon.Cfg.Data["serverIP"]))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Server started on %s", fmDaemon.Cfg.Data["serverIP"]))
 
 	http.Handle("/dump", http.HandlerFunc(DumpCall))
 	http.Handle("/static/", http.HandlerFunc(StaticCall))

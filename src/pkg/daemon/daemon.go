@@ -1,5 +1,14 @@
 package daemon
 
+import(
+    "flag"
+)
+var FileDir string
+
+func init() {
+     flag.StringVar(&FileDir, "F", "/etc/heckle/", "Directory where daemon files can be found.")
+}
+
 type Daemon struct {
      Name      string
      DaemonLog *DaemonLogger
@@ -7,12 +16,12 @@ type Daemon struct {
      Cfg       *ConfigInfo
 }
 
-func New(name string, fileDir string) *Daemon {
+func New(name string) *Daemon {
      daemon := new(Daemon)
      daemon.Name = name
-     daemon.DaemonLog = NewDaemonLogger(fileDir, daemon.Name)
-     daemon.Cfg = NewConfigInfo(fileDir + name + ".cfg", daemon.DaemonLog)
-     daemon.AuthN = NewAuthInfo(daemon.Cfg.Data["authpath"], daemon.DaemonLog)
+     daemon.DaemonLog = NewDaemonLogger(FileDir, daemon.Name)
+     daemon.Cfg = NewConfigInfo(FileDir + name + ".conf", daemon.DaemonLog)
+     daemon.AuthN = NewAuthInfo(FileDir + "users.db", daemon.DaemonLog)
      
      return daemon
 }

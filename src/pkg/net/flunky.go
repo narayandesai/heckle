@@ -81,7 +81,12 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 	server.DebugLog(fmt.Sprintf("wrote executable to %s", runpath))
 
-	err = exec.Command(runpath).Run()
+	fcmd := exec.Command(runpath)
+     fcmd.Stdout = os.Stdout
+     fcmd.Stderr = os.Stderr
+     
+     err = fcmd.Run()
+     
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	}
