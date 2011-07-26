@@ -2,7 +2,6 @@ package daemon
 
 import (
      "log"
-     "syslog"
      "os"
      "time"
      "http"
@@ -17,8 +16,7 @@ func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
      daemonLogger := new(DaemonLogger)
      daemonLogger.stdoutLog = log.New(os.Stdout, daemonName + ": ", 0)
      logFile, _ := os.OpenFile(logFilePath + daemonName + ".log", os.O_WRONLY | os.O_CREATE, 0666)
-     daemonLogger.fileLog = log.New(logFile,  daemonName + ":"  , 0)
-     
+     daemonLogger.fileLog = log.New(logFile,  daemonName + ":"  , 0) 
      return daemonLogger
 }
 

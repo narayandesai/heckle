@@ -14,22 +14,19 @@ var Usage = func() {
 	os.Exit(0)
 }
 
-var dump bool
 var help bool
 var fileDir string
 var comStatDaemon *daemon.Daemon
 
 func init() {
-	fileDir = "../../../etc/ComStat/"
-	comStatDaemon = daemon.New("ComStat", fileDir)
 	flag.BoolVar(&help, "h", false, "Print help message")
 }
 
 func GetDump(daemonName string) {
-	
+
 	server, ok := comStatDaemon.Cfg.Data[daemonName]
 
-	if ! ok {
+	if !ok {
 		fmt.Println(fmt.Sprintf("Cannot find URL for component %s", daemonName))
 		os.Exit(1)
 	}
@@ -40,7 +37,7 @@ func GetDump(daemonName string) {
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Cannot read data from %s", daemonName), err)
 	} else {
-	        fmt.Println(string(resp))
+		fmt.Println(string(resp))
 		return
 	}
 }
