@@ -518,6 +518,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		}
 		cstatus[addr] = key
 	}
+	fmt.Println(cstatus)
 	ret, err := json.Marshal(cstatus)
 	fmDaemon.DaemonLog.LogError("Could not Marsal status", err)
 	w.Write(ret)
