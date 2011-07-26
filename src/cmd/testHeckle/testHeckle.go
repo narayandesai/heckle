@@ -154,7 +154,6 @@ func freeAllocation() {
      testHeckleD.DaemonLog.Log("Marshaling allocation number to free.")
      someBytes, error := json.Marshal(freeAlloc)
      testHeckleD.DaemonLog.LogError("ERROR: Failed to marshal allocation number for status poll.", error)
-     fmt.Println("Somebytes", someBytes)
      testHeckleD.DaemonLog.Log("Creating buffer type and posting to free allocation.")
      buf := bytes.NewBufferString(string(someBytes))
      someBytes, error = bs.Post("/freeAllocation", buf)
