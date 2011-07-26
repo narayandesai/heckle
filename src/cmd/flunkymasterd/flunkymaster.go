@@ -239,7 +239,6 @@ func (fm *Flunkym) Increment_Count(address string, path string) {
 
 
 func (fm *Flunkym) RenderGetStatic(loc string, address string) []byte {
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Rendering %s for %s", loc, address))
 	fname := fm.path.root + loc
 	_, err := os.Stat(fname)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s", fname), err)
@@ -247,12 +246,11 @@ func (fm *Flunkym) RenderGetStatic(loc string, address string) []byte {
 	fm.Increment_Count(address, loc)
 	contents, err := ioutil.ReadFile(fname)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not read %s", fname), err)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Rendered %s for %s", loc, address))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", address, loc))
 	return contents
 }
 
 func (fm *Flunkym) RenderGetDynamic(loc string, address string) []byte {
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Rendering %s for %s", loc, address))
 	var tmp []byte
 	dynamic_buf := bytes.NewBuffer(tmp)
 	bvar := build_vars(address, loc)
@@ -272,7 +270,7 @@ func (fm *Flunkym) RenderGetDynamic(loc string, address string) []byte {
 	fm.Increment_Count(address, loc)
 
 	dynamic := dynamic_buf.Bytes()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered for %s", loc, address))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", address, loc))
 	return dynamic
 }
 
@@ -362,11 +360,10 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
 	}*/
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Creating bootconfig image for %s", address))
 	tmp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
 	_, err := w.Write(tmp)
 	fmDaemon.DaemonLog.LogError("Will not write status", err)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("bootconfig image Rendered for %s", address))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered bootconfig", address))
 }
 
 func InstallCall(w http.ResponseWriter, req *http.Request) {
@@ -380,9 +377,8 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("AccessDenied"))
 		return
 	}*/
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Creating install script for %s", address))
 	tmp := fm.RenderImage("install", address)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Install rendered for %s", address))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered install", address))
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
 }
@@ -401,7 +397,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	}*/
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Received Info", time.LocalTime()))
+	fmDaemon.DaemonLog.Log("Received Info")
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
