@@ -296,6 +296,10 @@ func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
 	return v
 }
 
+func AuthFlunky() (username string, authed bool){
+
+}
+
 func DumpCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
@@ -518,7 +522,6 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		}
 		cstatus[addr] = key
 	}
-	fmt.Println(cstatus)
 	ret, err := json.Marshal(cstatus)
 	fmDaemon.DaemonLog.LogError("Could not Marsal status", err)
 	w.Write(ret)
