@@ -5,6 +5,7 @@ import (
      "os"
      "time"
      "http"
+     "flag"
 )
 
 type DaemonLogger struct {
@@ -19,7 +20,13 @@ func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
      logFile, _ := os.OpenFile(logFilePath + daemonName + ".log", os.O_WRONLY | os.O_CREATE, 0666) 
      debugFile, _ := os.OpenFile("/dev/null", os.O_WRONLY | os.O_CREATE, 0666)
      daemonLogger.fileLog = log.New(logFile,  daemonName + ":"  , 0)
-     daemonLogger.debugLog = log.New(debugFile, daemonName + ":", 0) 
+     switch flag.Args() {
+         case "do" : break
+         case "df" : break
+         case "dv" : break
+         default : daemonLogger.debugLog = log.New(debugFile, daemonName + ":", 0)
+	           break
+		   } 
      return daemonLogger
 }
 

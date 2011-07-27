@@ -56,6 +56,12 @@ var m sync.Mutex
 var fmDaemon *daemon.Daemon
 var random *rand.Rand
 
+var Usage = func() {
+	fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
+	flag.PrintDefaults()
+	os.Exit(0)
+}
+
 //Bvar stores the build information for a node requesting a render.
 type Bvar struct {
 	Data   map[string]string
