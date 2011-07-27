@@ -20,9 +20,9 @@ type ConfigInfo struct {
 func (config *ConfigInfo) load() (err os.Error) {
 	configFile, err := os.Open(config.path)
 	config.daemonLog.LogError(fmt.Sprintf("Cannot open %s for reading", config.path), err)
-        if err != nil {
-            os.Exit(1)
-        }
+	if err != nil {
+		os.Exit(1)
+	}
 	intError := syscall.Flock(configFile.Fd(), 2)
 	config.daemonLog.LogError("Error: Cannot read file for configurations", err)
 
@@ -54,7 +54,7 @@ func NewConfigInfo(path string, daemonLog *DaemonLogger) *ConfigInfo {
 	config := new(ConfigInfo)
 	config.path = path
 	config.Data = make(map[string]string)
-     config.daemonLog = daemonLog
-     config.load()
+	config.daemonLog = daemonLog
+	config.load()
 	return config
 }

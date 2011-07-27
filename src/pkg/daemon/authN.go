@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-     "http"
+	"http"
 )
 
 type UserNode struct {
@@ -18,10 +18,10 @@ type UserNode struct {
 }
 
 type Authinfo struct {
-	path    string
-	Users   map[string]UserNode
-	lock    sync.RWMutex
-	dbstamp int64
+	path      string
+	Users     map[string]UserNode
+	lock      sync.RWMutex
+	dbstamp   int64
 	daemonLog *DaemonLogger
 }
 
@@ -29,21 +29,21 @@ func NewAuthInfo(path string, daemonLog *DaemonLogger) *Authinfo {
 	auth := new(Authinfo)
 	auth.path = path
 	auth.Users = make(map[string]UserNode, 20)
-     auth.daemonLog = daemonLog
-     auth.Load()
+	auth.daemonLog = daemonLog
+	auth.Load()
 	return auth
 }
 
 func (auth *Authinfo) Load() (err os.Error) {
-     if auth.path == "" {
-	   auth.daemonLog.LogError("No auth file specified.", os.NewError(" Auth file does not exsist"))
-	   return 
+	if auth.path == "" {
+		auth.daemonLog.LogError("No auth file specified.", os.NewError(" Auth file does not exsist"))
+		return
 	}
 	authFile, err := os.Open(auth.path)
 	emsg := fmt.Sprintf("ERROR: Unable to open %s for reading.", auth.path)
 	auth.daemonLog.LogError(emsg, err)
-	if err != nil { 
-	   os.Exit(1)
+	if err != nil {
+		os.Exit(1)
 	}
 
 	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
@@ -75,12 +75,12 @@ func (auth *Authinfo) Load() (err os.Error) {
 }
 
 func (auth *Authinfo) HTTPAuthenticate(req *http.Request) (user string, valid bool, admin bool) {
-     if _, ok := req.Header["Authorization"] ; !ok {
-          auth.daemonLog.LogError("Request header did not contain Authorization information.", os.NewError("HTTP Auth Missing"))
-          return
-     }
-     
-     header := req.Header.Get("Authorization")
+	if _, ok := req.Header["Authorization"]; !ok {
+		auth.daemonLog.LogError("Request header did not contain Authorization information.", os.NewError("HTTP Auth Missing"))
+		return
+	}
+
+	header := req.Header.Get("Authorization")
 	tmpAuthArray := strings.Split(header, " ")
 
 	authValues, error := base64.URLEncoding.DecodeString(tmpAuthArray[1])
