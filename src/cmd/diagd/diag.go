@@ -62,7 +62,7 @@ func init() {
 	flag.StringVar(&server, "S", "http://localhost:8080", "Base Server Address")
 	flag.StringVar(&power, "P", "http://localhost:8085", "Power Server Address")
 
-	diagDaemon = daemon.New("diagnostic")
+	diagDaemon, _= daemon.New("diagnostic")
 }
 
 type NodeStatus struct {

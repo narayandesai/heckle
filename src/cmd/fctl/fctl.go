@@ -7,7 +7,8 @@ import (
 	"json"
 	"os"
 	"time"
-    fnet "flunky/net"
+	fnet "flunky/net"
+	fclient "flunky/client"
 )
 
 var Usage = func() {
@@ -28,10 +29,7 @@ var username, password string
 func init() {
 	flag.BoolVar(&help, "h", false, "print usage")
 	flag.BoolVar(&verbose, "v", false, "print debug information")
-	flag.StringVar(&server, "S", "http://localhost:8080", "server base URL")
 	flag.StringVar(&image, "i", "", "image")
-	flag.StringVar(&username, "u", "", "username")
-	flag.StringVar(&password, "p", "", "password")
 	flag.BoolVar(&wait, "w", false, "Wait for build completion")
 	flag.StringVar(&extra, "e", "", "Extradata for allocation")
 	flag.Int64Var(&minutesTimeout, "t", 45, "Allocation timeout in minutes")
@@ -134,14 +132,17 @@ func main() {
 		os.Exit(0)
 	}
 
+	comm, err := fclient.NewClient()
+	if err != nil {
+		fmt.Println("Failed to setup communcation")
+		os.Exit(1)
+	}
+
 	secondsTimeout := minutesTimeout * 60
 	cancelTime := time.Seconds() + secondsTimeout
 	addresses := flag.Args()
 
-
-	bs := fnet.NewBuildServer("http://" + username + ":" + password + "@" + server, verbose)
-
-	bs.DebugLog(fmt.Sprintf("Server is %s", server))
+	bs, err := comm.SetupClient("flunky")
 
 	bs.DebugLog(fmt.Sprintf("Allocating hosts: %s", flag.Args()))
 
@@ -157,7 +158,7 @@ func main() {
 	// FIXME: need to add in extradata
 	js, _ := json.Marshal(cm)
 	buf := bytes.NewBufferString(string(js))
-	_, err := bs.Post("/ctl", buf)
+	_, err = bs.Post("/ctl", buf)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to allocate node\n")

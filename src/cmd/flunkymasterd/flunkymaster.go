@@ -111,17 +111,16 @@ func (fm *Flunkym) init() {
 	    Usage()
         }
         if len(os.Args) <=1 {
-	    fmt.Println(fmt.Sprintf("No arguemnts given. %s shut down", os.Args[0]))
+	    fmt.Println(fmt.Sprintf("No arguments given. %s shut down", os.Args[0]))
 	    Usage()
 	    os.Exit(1)
         }
-	fmDaemon = daemon.New("flunkymaster")
+	fmDaemon, _ = daemon.New("flunky")
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	src := rand.NewSource(time.Seconds())
 	random = rand.New(src)
 	random.Seed(time.Seconds())
 	fm.Load()
-	fm.Assert_setup("ubuntu-maverick-amd64", "127.0.0.1")
 	return
 }
 
