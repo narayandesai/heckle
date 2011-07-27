@@ -6,7 +6,9 @@ import (
 	"http"
 	"io"
 	"io/ioutil"
+	"json"
 	"os"
+	"strings"
 )
 
 type BuildServer struct {
@@ -108,5 +110,36 @@ func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err o
 	body, _ = ioutil.ReadAll(response.Body)
 	response.Body.Close()
 
+	return
+}
+
+type Communication struct {
+	Locations map[string]string
+	User string
+	Password string
+}
+
+func NewCommunication(path string, user string, password string) (comm Communication, err os.Error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return 
+	}
+	comm.User = user
+	comm.Password = password
+	comm.Locations = make(map[string]string, 10)
+	json.Unmarshal(data, &comm.Locations)
+	return 
+}
+
+func (comm *Communication) SetupClient(component string) (hclient *BuildServer, err os.Error){
+	location, ok := comm.Locations[component]
+	if !ok {
+		err = os.NewError("Component Lookup Failure")
+		return
+	}
+
+	parts := strings.Split(location, "://")
+	url := fmt.Sprintf("%s://%s:%s@%s", parts[0], comm.User, comm.Password, parts[1])
+	hclient = NewBuildServer(url, false)
 	return
 }

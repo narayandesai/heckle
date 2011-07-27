@@ -4,13 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"json"
-	"io/ioutil"
-	inet "flunky/net"
+	fclient "flunky/client"
 )
 
 var Usage = func() {
-        fmt.Println("Command syntax -- ./comStat daemon1 daemon2 ...daemonN")
+    fmt.Println("Command syntax -- ./comStat daemon1 daemon2 ...daemonN")
 	fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
 	flag.PrintDefaults()
 	os.Exit(0)
@@ -20,54 +18,9 @@ var help bool
 var fileDir string
 
 func init() {
-	fileDir = "../../../etc/heckle/"
 	flag.BoolVar(&help, "h", false, "Print help message")
 }
 
-func ReadConfig(daemonName string) (comData map[string]string) {
-	var contents []byte
-	fname := fileDir +"comstat.conf"
-	_, err := os.Stat(fname)
-	if err != nil {
-		fmt.Println(fname + " does not exsist")
-	} else {
-		contents, err = ioutil.ReadFile(fname)
-		if err != nil {
-			fmt.Println("Cannot read file")
-		}
-	}
-
-	if len(contents) > 0 {
-		err := json.Unmarshal(contents, &comData)
-		if err != nil {
-			fmt.Println("Unable to unmarshal data")
-		}
-	} else {
-		fmt.Println("Invalid json. Could not read data")
-	}
-	return
-
-}
-
-func GetDump(daemonName string) {
-	config := ReadConfig(daemonName)
-	server, ok := config[daemonName]
-
-	if !ok {
-		fmt.Println(fmt.Sprintf("Cannot find URL for component %s", daemonName))
-		os.Exit(1)
-	}
-
-	query := inet.NewBuildServer("http://"+server, true)
-
-	resp, err := query.Get("dump")
-	if err != nil {
-		fmt.Println(fmt.Sprintf("Cannot read data from %s", daemonName), err)
-	} else {
-		fmt.Println(string(resp))
-		return
-	}
-}
 
 func main() {
 	flag.Parse()
@@ -78,12 +31,27 @@ func main() {
 	}
 
 	if len(os.Args) <= 1 {
-		fmt.Println("No arguements provided")
+		fmt.Println("No arguments provided")
 		Usage()
 		os.Exit(1)
 	} else {
+		comm, err := fclient.NewClient()
+		if err != nil {
+			fmt.Println("Failed to setup communication")
+			os.Exit(1)
+		}
+
 		for _, name := range flag.Args() {
-			GetDump(name)
+			client, err := comm.SetupClient(name)
+			if err != nil {
+				fmt.Println(fmt.Sprintf("Failed to lookup component %s", name))
+			}
+			resp, err := client.Get("dump")
+			if err != nil {
+				fmt.Println(fmt.Sprintf("Failed to contact component %s", name))
+				fmt.Println(err)
+			}
+			fmt.Println(string(resp))
 		}
 	}
 }
