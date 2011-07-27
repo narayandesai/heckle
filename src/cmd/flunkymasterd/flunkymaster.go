@@ -55,6 +55,7 @@ var fm Flunkym
 var m sync.Mutex
 var fmDaemon *daemon.Daemon
 var random *rand.Rand
+var help bool
 
 var Usage = func() {
 	fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
@@ -104,7 +105,16 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
+        flag.BoolVar(&help, "h", false, "Print usage message")
         flag.Parse()
+        if help {
+	    Usage()
+        }
+        if len(os.Args) <=1 {
+	    fmt.Println(fmt.Sprintf("No arguemnts given. %s shut down", os.Args[0]))
+	    Usage()
+	    os.Exit(1)
+        }
 	fmDaemon = daemon.New("flunkymaster")
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	src := rand.NewSource(time.Seconds())
