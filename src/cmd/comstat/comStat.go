@@ -8,7 +8,7 @@ import (
 )
 
 var Usage = func() {
-    fmt.Println("Command syntax -- ./comStat daemon1 daemon2 ...daemonN")
+    fmt.Println(fmt.Sprintf("Command syntax -- %s daemon1 daemon2 ...daemonN", os.Args[0]))
 	fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
 	flag.PrintDefaults()
 	os.Exit(0)
