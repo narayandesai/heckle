@@ -14,19 +14,25 @@ type DaemonLogger struct {
      debugLog  *log.Logger
 }
 
+var debug bool
+
+func init(){
+     flag.BoolVar(&debug, "d", false, "Log debug information")
+}
+
 func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
      daemonLogger := new(DaemonLogger)
      daemonLogger.stdoutLog = log.New(os.Stdout, daemonName + ": ", 0)
      logFile, _ := os.OpenFile(logFilePath + daemonName + ".log", os.O_WRONLY | os.O_CREATE, 0666) 
-     debugFile, _ := os.OpenFile("/dev/null", os.O_WRONLY | os.O_CREATE, 0666)
      daemonLogger.fileLog = log.New(logFile,  daemonName + ":"  , 0)
-     switch flag.Args() {
-         case "do" : break
-         case "df" : break
-         case "dv" : break
-         default : daemonLogger.debugLog = log.New(debugFile, daemonName + ":", 0)
-	           break
-		   } 
+     if debug {
+        fname := daemonName + "debug.log"
+        debugFile, _ := os.OpenFile(fname, os.O_WRONLY | os.O_CREATE, 0666)
+        daemonLogger.debugLog = log.New(debugFile, daemonName + ":", 0)
+     }else{
+         debugFile, _ := os.OpenFile("/dev/null", os.O_WRONLY | os.O_CREATE, 0666)
+         daemonLogger.debugLog = log.New(debugFile, daemonName + ":", 0)
+     }
      return daemonLogger
 }
 

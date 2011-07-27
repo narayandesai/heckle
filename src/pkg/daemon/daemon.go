@@ -3,6 +3,7 @@ package daemon
 import(
     "flag"
 )
+
 var FileDir string
 
 func init() {

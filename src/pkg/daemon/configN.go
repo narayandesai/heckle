@@ -1,5 +1,3 @@
-//Shouldn't have to care about authentication
-//
 package daemon
 
 import (
@@ -21,7 +19,7 @@ type ConfigInfo struct {
 
 func (config *ConfigInfo) load() (err os.Error) {
 	configFile, err := os.Open(config.path)
-	config.daemonLog.LogError(fmt.Sprintf("ERROR: Cannot open %s for reading", config.path), err)
+	config.daemonLog.LogError(fmt.Sprintf("Cannot open %s for reading", config.path), err)
         if err != nil {
             os.Exit(1)
         }
@@ -29,7 +27,7 @@ func (config *ConfigInfo) load() (err os.Error) {
 	config.daemonLog.LogError("Error: Cannot read file for configurations", err)
 
 	configContents, err := ioutil.ReadAll(configFile)
-	config.daemonLog.LogError(fmt.Sprintf("ERROR: Cannot read data from %s", config.path), err)
+	config.daemonLog.LogError(fmt.Sprintf("Cannot read data from %s", config.path), err)
 
 	intError = syscall.Flock(configFile.Fd(), 8)
 	if intError != 0 {
@@ -37,7 +35,7 @@ func (config *ConfigInfo) load() (err os.Error) {
 	}
 
 	fi, err := configFile.Stat()
-	config.daemonLog.LogError(fmt.Sprintf("ERROR: Stat of %s failed", err), err)
+	config.daemonLog.LogError(fmt.Sprintf("Stat of %s failed", err), err)
 	err = configFile.Close()
 	config.daemonLog.LogError("Cannot close file", err)
 
