@@ -40,7 +40,7 @@ func (auth *Authinfo) Load() (err os.Error) {
 		return
 	}
 	authFile, err := os.Open(auth.path)
-	emsg := fmt.Sprintf("ERROR: Unable to open %s for reading.", auth.path)
+	emsg := fmt.Sprintf("Unable to open %s for reading.", auth.path)
 	auth.daemonLog.LogError(emsg, err)
 	if err != nil {
 		os.Exit(1)
@@ -48,20 +48,20 @@ func (auth *Authinfo) Load() (err os.Error) {
 
 	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
 	if intError != 0 {
-		emsg = fmt.Sprintf("ERROR: Unable to lock %s for reading.", auth.path)
+		emsg = fmt.Sprintf("Unable to lock %s for reading.", auth.path)
 		auth.daemonLog.LogError(emsg, os.NewError("Flock Syscall Failed"))
 	}
 
 	someBytes, err := ioutil.ReadAll(authFile)
-	auth.daemonLog.LogError("ERROR: Unable to read from file UserDatabase.", err)
+	auth.daemonLog.LogError("Unable to read from file UserDatabase.", err)
 
 	intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
 	if intError != 0 {
-		auth.daemonLog.LogError("ERROR: Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
+		auth.daemonLog.LogError("Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
 	}
 	fi, err := authFile.Stat()
 
-	auth.daemonLog.LogError("ERROR: Failed to stat file", err)
+	auth.daemonLog.LogError("Failed to stat file", err)
 
 	err = authFile.Close()
 
@@ -84,7 +84,7 @@ func (auth *Authinfo) HTTPAuthenticate(req *http.Request) (user string, valid bo
 	tmpAuthArray := strings.Split(header, " ")
 
 	authValues, error := base64.URLEncoding.DecodeString(tmpAuthArray[1])
-	auth.daemonLog.LogError("ERROR: Failed to decode encoded auth settings in http request.", error)
+	auth.daemonLog.LogError("Failed to decode encoded auth settings in http request.", error)
 
 	authValuesArray := strings.Split(string(authValues), ":")
 	user = authValuesArray[0]
@@ -122,11 +122,11 @@ func (auth *Authinfo) DelUser(user string) (err os.Error) {
 func (auth *Authinfo) Store() (err os.Error) {
 
 	authFile, err := os.Open(auth.path)
-	auth.daemonLog.LogError(fmt.Sprintf("ERROR: Unable to open %s for reading.", auth.path), err)
+	auth.daemonLog.LogError(fmt.Sprintf("Unable to open %s for reading.", auth.path), err)
 
 	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
 	if intError != 0 {
-		auth.daemonLog.LogError(fmt.Sprintf("ERROR: Unable to lock %s for writing.", auth.path), os.NewError("Flock Syscall Failed"))
+		auth.daemonLog.LogError(fmt.Sprintf("Unable to lock %s for writing.", auth.path), os.NewError("Flock Syscall Failed"))
 	}
 
 	auth.lock.RLock()
@@ -134,11 +134,11 @@ func (auth *Authinfo) Store() (err os.Error) {
 	data, err := json.Marshal(auth.Users)
 
 	_, err = authFile.Write(data)
-	auth.daemonLog.LogError("ERROR: Unable to write to file .", err)
+	auth.daemonLog.LogError("Unable to write to file .", err)
 
 	intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
 	if intError != 0 {
-		auth.daemonLog.LogError("ERROR: Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
+		auth.daemonLog.LogError("Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
 	}
 
 	fi, err := authFile.Stat()
