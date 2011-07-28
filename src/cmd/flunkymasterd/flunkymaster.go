@@ -98,22 +98,18 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
+        var err os.Error
         flag.BoolVar(&help, "h", false, "Print usage message")
         flag.Parse()
         if help {
 	    Usage()
         }
-        if len(os.Args) <=1 {
-	    fmt.Println(fmt.Sprintf("No arguments given. %s shut down", os.Args[0]))
-	    Usage()
-	    os.Exit(1)
+	fmDaemon, err = daemon.New("flunkymaster")
+	if err != nil {
+	  fmt.Println("Could not create daemon")
+          os.Exit(1)
         }
-	fmDaemon, err := daemon.New("flunkymaster")
-        if err != nil { 
-	    fmt.Println("Cannot create new daemon", err)
-	    os.Exit(1)
-        }
-	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
+	fm.SetPath(fmDaemon)
 	src := rand.NewSource(time.Seconds())
 	random = rand.New(src)
 	random.Seed(time.Seconds())
@@ -200,13 +196,11 @@ func (fm *Flunkym) Load() {
 			fmDaemon.DaemonLog.LogDebug("Data Loaded")
 		}
 	}
-
 	file, err := ioutil.ReadFile(fm.path.staticdataPath)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not read %s", fm.path.staticdataPath), err)
 
 	err = json.Unmarshal(file, &fm.static)
 	fmDaemon.DaemonLog.LogError("Could not staticBuildVars.Json", err)
-
 	return
 }
 
@@ -226,8 +220,9 @@ func (fm *Flunkym) Store() {
 	return
 }
 
-func (fm *Flunkym) SetPath(root string) {
+func (fm *Flunkym) SetPath(fmDaemon *daemon.Daemon) {
 	path := new(PathType)
+	root := fmDaemon.Cfg.Data["repoPath"]
 	path.root = root 
 	path.dataFile = path.root + "/" + fmDaemon.Cfg.Data["backupFile"]
 	path.staticdataPath = path.root + "/staticVars.json"
@@ -550,7 +545,7 @@ func main() {
 	//runtime.GOMAXPROCS(4)
 	fm.init()
 	fm.Store()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%smaster started on %s", fmDaemon.Name, fmDaemon.URL))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", fmDaemon.Name, fmDaemon.URL))
 
 	http.Handle("/dump", http.HandlerFunc(DumpCall))
 	http.Handle("/static/", http.HandlerFunc(StaticCall))
