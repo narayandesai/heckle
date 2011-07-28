@@ -84,11 +84,11 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	server.DebugLog(fmt.Sprintf("wrote executable to %s", runpath))
 
 	fcmd := exec.Command(runpath)
-     fcmd.Stdout = os.Stdout
-     fcmd.Stderr = os.Stderr
-     
-     err = fcmd.Run()
-     
+	fcmd.Stdout = os.Stdout
+	fcmd.Stderr = os.Stderr
+
+	err = fcmd.Run()
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	}
@@ -115,23 +115,24 @@ func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err o
 
 type Communication struct {
 	Locations map[string]string
-	User string
-	Password string
+	User      string
+	Password  string
 }
 
 func NewCommunication(path string, user string, password string) (comm Communication, err os.Error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return 
+		return
 	}
 	comm.User = user
 	comm.Password = password
 	comm.Locations = make(map[string]string, 10)
 	json.Unmarshal(data, &comm.Locations)
-	return 
+	fmt.Println(com.Locations)
+	return
 }
 
-func (comm *Communication) SetupClient(component string) (hclient *BuildServer, err os.Error){
+func (comm *Communication) SetupClient(component string) (hclient *BuildServer, err os.Error) {
 	location, ok := comm.Locations[component]
 	if !ok {
 		err = os.NewError("Component Lookup Failure")

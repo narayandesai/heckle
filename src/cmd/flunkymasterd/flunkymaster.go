@@ -103,17 +103,13 @@ func (fm *Flunkym) init() {
         if help {
 	    Usage()
         }
-        if len(os.Args) <=1 {
-	    fmt.Println(fmt.Sprintf("No arguments given. %s shut down", os.Args[0]))
-	    Usage()
-	    os.Exit(1)
-        }
 	fmDaemon, err := daemon.New("flunkymaster")
         if err != nil { 
 	    fmt.Println("Cannot create new daemon", err)
 	    os.Exit(1)
         }
-	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
+	fmt.Println(fmDaemon)
+	fm.SetPath(fmDaemon)
 	src := rand.NewSource(time.Seconds())
 	random = rand.New(src)
 	random.Seed(time.Seconds())
@@ -226,8 +222,10 @@ func (fm *Flunkym) Store() {
 	return
 }
 
-func (fm *Flunkym) SetPath(root string) {
+func (fm *Flunkym) SetPath(fmDaemon *daemon.Daemon) {
 	path := new(PathType)
+	root := fmDaemon.Cfg.Data["repoPath"]
+	fmt.Println(fmDaemon)
 	path.root = root 
 	path.dataFile = path.root + "/" + fmDaemon.Cfg.Data["backupFile"]
 	path.staticdataPath = path.root + "/staticVars.json"
