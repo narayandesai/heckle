@@ -76,15 +76,32 @@ var heckleDaemon              *daemon.Daemon
 var currentRequestsLock       sync.Mutex
 var resourcesLock             sync.Mutex
 var allocationNumberLock      sync.Mutex
+var fmComm, pComm             fnet.Communication
+var fs, ps                    *fnet.BuildServer
 
 func init() {
      //new comments here
+     var err os.Error
      flag.Parse()
      
-     heckleDaemon, _ = daemon.New("heckle")
+     heckleDaemon, err = daemon.New("heckle")
+     heckleDaemon.DaemonLog.LogError("Failed to create new heckle daemon.", err)
 
      heckleDaemon.DaemonLog.Log("Initializing variables and setting up daemon.")
 
+          
+     fmComm, err = fnet.NewCommunication(daemon.FileDir, heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
+     heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for flunkymaster.", err)
+
+     pComm, err = fnet.NewCommunication(daemon.FileDir, heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
+     heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for power.", err)
+
+     fs, err = fmComm.SetupClient("flunky")
+     heckleDaemon.DaemonLog.LogError("Failed to setup heckle to flunkymaster communication.", err)
+
+     ps, err = pComm.SetupClient("power")
+     heckleDaemon.DaemonLog.LogError("Failed to setup heckle to power communication.", err)
+     
      heckleToAllocateChan = make(chan iface.Listmsg)
      allocateToPollingChan = make(chan []string)
      pollingToHeckleChan = make (chan map[string]*iface.StatusMessage)
@@ -345,11 +362,20 @@ func allocate() {
      //flunky master.  On each iteration it grabs new nodes from heckle to be
      //allocated and send them off to flunkymaster.
      heckleDaemon.DaemonLog.Log("Starting allocation go routine.")
-     fs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["allocationServer"], false)
-     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
+     
+     /*fmComm, error := fnet.NewCommunication(heckleDaemon.FileDir, heckleheckleDaemon.Cfg.Data["username"], Daemon.Cfg.Data["password"])
+     heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for flunkymaster.", error)
+
+     pComm, error := fnet.NewCommunication(heckleDaemon.FileDir, heckleheckleDaemon.Cfg.Data["username"], Daemon.Cfg.Data["password"])
+     heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for power.", error)
+
+     fs, error := fmComm.SetupClient("flunky")
+     heckleDaemon.DaemonLog.LogError("Failed to setup heckle to flunkymaster communication.", error)
+
+     ps, error := pComm.SetupClient("power")
+     heckleDaemon.DaemonLog.LogError("Failed to setup heckle to power communication.", error)*/
      
      for i := range heckleToAllocateChan {
-          heckleDaemon.DaemonLog.Log("Sending nodes to flunky master for allocation.")
           cm := new(iface.Ctlmsg)
           cm.Image = i.Image
           cm.Addresses = i.Addresses
@@ -360,12 +386,11 @@ func allocate() {
           heckleDaemon.DaemonLog.LogError("Failed to post for allocation of nodes.", err)
           
           if err == nil {
-               heckleDaemon.DaemonLog.Log("Sending nodes to polling routine.")
                allocateToPollingChan<-i.Addresses
                
                js, _ = json.Marshal(i.Addresses)
                buf = bytes.NewBufferString(string(js))
-               _, err = rs.Post("/reboot", buf)
+               _, err = ps.Post("/reboot", buf)
                heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in allocation go routine.", err)
           }
      }
@@ -405,8 +430,8 @@ func polling() {
      pollAddresses := []string{}
      pollingOutletStatus := make(map[string]string)
      var pollAddressesLock sync.Mutex
-     bs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["allocationServer"], false)
-     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
+     //bs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["allocationServer"], false)
+     //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      pollTime := time.Seconds()
      
      go addToPollList(&pollAddressesLock, &pollAddresses)
@@ -424,14 +449,14 @@ func polling() {
                var statmap map[string]*iface.StatusMessage     
                sRjs, _ := json.Marshal(statRequest)
                reqbuf := bytes.NewBufferString(string(sRjs))
-               ret, _ := bs.Post("/status", reqbuf)
+               ret, _ := fs.Post("/status", reqbuf)
                pollTime = time.Seconds()
                json.Unmarshal(ret, &statmap)
                
                outletStatus := make(map[string]string)
                sRjs, _ = json.Marshal(pollAddresses)
                reqbuf = bytes.NewBufferString(string(sRjs))
-               ret, _ = rs.Post("/status", reqbuf)
+               ret, _ = ps.Post("/status", reqbuf)
                json.Unmarshal(ret, &outletStatus)
 
                for key, value := range statmap {
@@ -537,7 +562,7 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      //number and all associated nodes.  It resets the resource map and current
      //requests map.
      heckleDaemon.DaemonLog.Log("Freeing allocation number given by client.")
-     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
+     //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      allocationNumber := uint64(0)
      request.ProtoMinor = 0
      
@@ -589,7 +614,7 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      
      js, _ := json.Marshal(powerDown)
      buf := bytes.NewBufferString(string(js))
-     _, err := rs.Post("/off", buf)
+     _, err := ps.Post("/off", buf)
      heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free allocation number.", err)
      
      updateDatabase(false)
@@ -654,11 +679,11 @@ func allocationTimeouts() {
      
      if found {
           heckleDaemon.DaemonLog.Log("Found allocation time outs, deallocating them.")
-          rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
+          //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
           
           js, _ := json.Marshal(powerDown)
           buf := bytes.NewBufferString(string(js))
-          _, err := rs.Post("/off", buf)
+          _, err := ps.Post("/off", buf)
           heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in allocation time outs.", err)
           
           updateDatabase(false)
@@ -669,7 +694,7 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
      heckleDaemon.DaemonLog.Log("Freeing a specific node given by client.")
-     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
+     //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      var node string
      request.ProtoMinor = 0
      
@@ -707,7 +732,7 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
      
      js, _ := json.Marshal([]string{node})
      buf := bytes.NewBufferString(string(js))
-     _, err := rs.Post("/off", buf)
+     _, err := ps.Post("/off", buf)
      heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free node.", err)
      
      updateDatabase(false)
@@ -740,11 +765,11 @@ func dealWithBrokenNode(node string) {
      resources[node].Broken()
      resourcesLock.Unlock()
      
-     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
+     //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      
      js, _ := json.Marshal([]string{node})
      buf := bytes.NewBufferString(string(js))
-     _, err := rs.Post("/off", buf)
+     _, err := ps.Post("/off", buf)
      heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free node.", err)
      
      //pass node off to diagnosing process
@@ -784,7 +809,7 @@ func interpretPollMessages() {
 
 func outletStatus(writer http.ResponseWriter, request *http.Request) {
      heckleDaemon.DaemonLog.Log("Executing power command.")
-     rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
+     //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      request.ProtoMinor = 0
      
      _, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request)
@@ -806,7 +831,7 @@ func outletStatus(writer http.ResponseWriter, request *http.Request) {
      heckleDaemon.DaemonLog.LogError("Failed to close outlet status request body.", error)
 
      buf := bytes.NewBufferString(string(someBytes))
-     someBytes, error = rs.Post("/status", buf)
+     someBytes, error = ps.Post("/status", buf)
      heckleDaemon.DaemonLog.LogError("Failed to post for status of outlets to radixPower.go.", error)
 
      _, error = writer.Write(someBytes)
