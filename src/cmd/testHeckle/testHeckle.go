@@ -31,7 +31,7 @@ func init() {
      
      flag.Parse()
      
-     testHeckleD = daemon.New("testheckle")
+     testHeckleD, _ = daemon.New("testheckle")
      testHeckleD.DaemonLog.Log("Parsed command line arguements and set up logging.")
      
      allocationNumber = uint64(0)

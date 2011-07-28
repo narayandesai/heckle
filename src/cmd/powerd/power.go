@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
      "http"
      "json"
      "flag"
@@ -22,26 +23,6 @@ var resources       map[string]outletNode
 var powerDaemon     *daemon.Daemon
 var fileDir         string
 //var resourcesLock   sync.Mutex   shouldn't need a lock, never changing data.
-
-func init() {
-     flag.Parse()
-     
-     powerDaemon = daemon.New("power")
-     
-     powerDaemon.DaemonLog.Log("Initializting data for daemon setup.")
-     
-     powerDBFile, error := os.Open(daemon.FileDir + "power.db")
-     powerDaemon.DaemonLog.LogError("Unable to open power.db for reading.", error)
-     
-     someBytes, error := ioutil.ReadAll(powerDBFile)
-     powerDaemon.DaemonLog.LogError("Unable to read from file power.db.", error)
-     
-     error = powerDBFile.Close()
-     powerDaemon.DaemonLog.LogError("Failed to close power.db.", error)
-     
-     error = json.Unmarshal(someBytes, &resources)
-     powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", error)
-}
 
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
@@ -197,11 +178,35 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
 }
 
 func main() {
-     http.HandleFunc("/dump", DumpCall)
-     http.HandleFunc("/reboot", rebootList)
-     http.HandleFunc("/off", offList)
-     http.HandleFunc("/status", statusList)
+    flag.Parse()
      
-     error := http.ListenAndServe(":" + powerDaemon.Cfg.Data["powerPort"], nil)
-     powerDaemon.DaemonLog.LogError("Failed to listen on http socket.", error)
+	powerDaemon, err := daemon.New("power")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+     
+    powerDaemon.DaemonLog.Log("Initializting data for daemon setup.")
+     
+    powerDBFile, error := os.Open(daemon.FileDir + "power.db")
+    powerDaemon.DaemonLog.LogError("Unable to open power.db for reading.", error)
+    
+    someBytes, error := ioutil.ReadAll(powerDBFile)
+    powerDaemon.DaemonLog.LogError("Unable to read from file power.db.", error)
+     
+    error = powerDBFile.Close()
+    powerDaemon.DaemonLog.LogError("Failed to close power.db.", error)
+     
+    error = json.Unmarshal(someBytes, &resources)
+    powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", error)
+
+    http.HandleFunc("/dump", DumpCall)
+    http.HandleFunc("/reboot", rebootList)
+    http.HandleFunc("/off", offList)
+    http.HandleFunc("/status", statusList)
+    
+	err = powerDaemon.ListenAndServe()
+	if err != nil {
+		os.Exit(1)
+	}
 }

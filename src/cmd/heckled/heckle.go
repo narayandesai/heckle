@@ -81,7 +81,7 @@ func init() {
      //new comments here
      flag.Parse()
      
-     heckleDaemon = daemon.New("heckle")
+     heckleDaemon, _ = daemon.New("heckle")
 
      heckleDaemon.DaemonLog.Log("Initializing variables and setting up daemon.")
 
