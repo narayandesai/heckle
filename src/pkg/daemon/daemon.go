@@ -29,7 +29,8 @@ type Daemon struct {
 func (daemon *Daemon) GetPort() (port string, err os.Error) {
 	parts := strings.Split(daemon.URL, ":")
 	if len(parts) > 0 {
-		port = parts[len(parts)]
+		port = parts[len(parts)-1]
+		fmt.Println(port)
 		return
 	}
 	err = os.NewError("Failed to parse URL")
