@@ -308,9 +308,6 @@ func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
 func DumpCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
-	add := req.RemoteAddr
-	addTmp := strings.Split(add, ":")
-	address := addTmp[0]
 	/*username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
@@ -324,7 +321,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(w, "Cannot write to socket", 500)
 	}
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s: Data Dump", address))
+	fmDaemon.DaemonLog.Log("Data Dump")
 }
 
 func StaticCall(w http.ResponseWriter, req *http.Request) {
@@ -545,8 +542,7 @@ func main() {
 	//runtime.GOMAXPROCS(4)
 	fm.init()
 	fm.Store()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", fmDaemon.Name, fmDaemon.URL))
-
+	
 	http.Handle("/dump", http.HandlerFunc(DumpCall))
 	http.Handle("/static/", http.HandlerFunc(StaticCall))
 	http.Handle("/dynamic", http.HandlerFunc(DynamicCall))
@@ -557,7 +553,8 @@ func main() {
 	http.Handle("/ctl", http.HandlerFunc(CtrlCall))
 	http.Handle("/status", http.HandlerFunc(StatusCall))
 
-	err := fmDaemon.ListenAndServe()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", fmDaemon.Name, fmDaemon.URL))
+        err := fmDaemon.ListenAndServe()
 	if err != nil {
 	   fmDaemon.DaemonLog.Log("Server exited gracefully. Cannot Listen on port")
         }

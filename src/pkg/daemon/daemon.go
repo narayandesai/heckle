@@ -42,10 +42,10 @@ func (daemon *Daemon) ListenAndServe() (err os.Error) {
         fmt.Println("Port configuration error")
         os.Exit(1)
     }
-    go func (err os.Error) {
-          err = http.ListenAndServe(port, nil)
+   //go func (err os.Error) {
+          err = http.ListenAndServe(":" + port, nil)
           daemon.DaemonLog.LogError("Failed to listen on http socket.", err)
-    }(err)
+    //}(err)
     return
 }
 
