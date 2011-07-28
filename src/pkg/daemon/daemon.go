@@ -7,7 +7,7 @@ import (
 var FileDir string
 
 func init() {
-	flag.StringVar(&FileDir, "F", "../../etc/heckle/", "Directory where daemon files can be found.")
+	flag.StringVar(&FileDir, "F", "~/flunky/etc/heckle/", "Directory where daemon files can be found.")
 }
 
 type Daemon struct {
