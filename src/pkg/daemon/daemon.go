@@ -37,14 +37,16 @@ func (daemon *Daemon) GetPort() (port string, err os.Error) {
 }
 
 func (daemon *Daemon) ListenAndServe() (err os.Error) {
-	port, err := daemon.GetPort()
-	if err != nil {
-		fmt.Println("Port configuration error")
-		os.Exit(1)
-	}
-    err = http.ListenAndServe(port, nil)
-    daemon.DaemonLog.LogError("Failed to listen on http socket.", err)
-	return
+    port, err := daemon.GetPort()
+    if err != nil {
+        fmt.Println("Port configuration error")
+        os.Exit(1)
+    }
+    go func (err *os.Error) {
+          err := http.ListenAndServe(port, nil)
+          daemon.DaemonLog.LogError("Failed to listen on http socket.", err)
+    }(&err)
+    return
 }
 
 func New(name string) (daemon *Daemon, err os.Error) {
