@@ -48,7 +48,9 @@ func (daemon *Daemon) ListenAndServe() (err os.Error) {
 }
 
 func New(name string) (daemon *Daemon, err os.Error) {
+        daemon = new(Daemon)
 	daemon.Name = name
+        
 	daemon.DaemonLog = NewDaemonLogger(FileDir, daemon.Name)
 	daemon.Cfg = NewConfigInfo(FileDir+name+".conf", daemon.DaemonLog)
 	daemon.AuthN = NewAuthInfo("/etc/heckle/users.db", daemon.DaemonLog)

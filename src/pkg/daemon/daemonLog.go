@@ -21,14 +21,9 @@ func init() {
 
 func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
 	daemonLogger := new(DaemonLogger)
-	daemonLogger.stdoutLog = log.New(os.Stdout, daemonName+": ", 0)
+	daemonLogger.stdoutLog = log.New(os.Stdout, daemonName + ": ", 0)
 	logFile, _ := os.OpenFile(logFilePath+daemonName+".log", os.O_WRONLY|os.O_CREATE, 0666)
 	daemonLogger.fileLog = log.New(logFile, daemonName+":", 0)
-	/*if debug {
-	   debugFile, _ := os.OpenFile(logFilePath + daemonName + ".log", os.O_WRONLY | os.O_CREATE, 0666)
-	   daemonLogger.debug.file = log.New(debugFile, daemonName + ":", 0)
-	   daemonLogger.debug.stdout = log.New(os.Stdout, daemonName + ": ", 0)
-	}*/
 	return daemonLogger
 }
 

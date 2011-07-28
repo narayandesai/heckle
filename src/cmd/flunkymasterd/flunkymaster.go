@@ -4,6 +4,7 @@
 // of information of the build environment status. Flunky Master
 // will also propogate different information back to requesting
 // clients.
+
 // BUG(Mike Guantonio): ipaddress resolution may be out of range and raises a painc if sent
 // to the system. There needs to be painc error handling in order to fix this. 
 // BUG(Mike Guantonio): There is not reporting to std out for the HTTTP status of a message.
@@ -14,23 +15,15 @@ package main
 
 //Duties to finish
 //3. Implement go routines
-//4. Clean code up.
-//4b. Use the defer
 //7. Comment the code
-//8. Conform to the golang style doc
-//9. Interfaces for each class
 //11. Add error returns to all functions
 //12. Implement select statuments
-//13. Find a way to make fm not a global var.
 //15. Write documentation for new system. 
 //21. Overload the http handler func in order to to make fm not local. 
 //22. Find out if GET and POST are really important.
-//23. Change the data.errors to and itoa function.
-//24. Write exception if a file becomes damaged for reading in data.json. 
+//23. Change the data.errors to and itoa function. 
 //26. Add information to handle a heclke allocation (#) which can conatin information about 
 // all nodes for that build request. 
-// 27. Future: add information for the build number that is internal to the system for log messages. 
-// 28. Provide Error handling for mismatched types when loading configuration files
 
 import (
 	"http"
@@ -115,7 +108,11 @@ func (fm *Flunkym) init() {
 	    Usage()
 	    os.Exit(1)
         }
-	fmDaemon, _ = daemon.New("flunky")
+	fmDaemon, err := daemon.New("flunkymaster")
+        if err != nil { 
+	    fmt.Println("Cannot create new daemon", err)
+	    os.Exit(1)
+        }
 	fm.SetPath(fmDaemon.Cfg.Data["repoPath"])
 	src := rand.NewSource(time.Seconds())
 	random = rand.New(src)
@@ -553,7 +550,7 @@ func main() {
 	//runtime.GOMAXPROCS(4)
 	fm.init()
 	fm.Store()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Server started on %s", fmDaemon.Cfg.Data["serverIP"]))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%smaster started on %s", fmDaemon.Name, fmDaemon.URL))
 
 	http.Handle("/dump", http.HandlerFunc(DumpCall))
 	http.Handle("/static/", http.HandlerFunc(StaticCall))
@@ -565,8 +562,8 @@ func main() {
 	http.Handle("/ctl", http.HandlerFunc(CtrlCall))
 	http.Handle("/status", http.HandlerFunc(StatusCall))
 
-	err := http.ListenAndServe(fmDaemon.Cfg.Data["serverIP"], nil)
-	fmDaemon.DaemonLog.LogError(("ListenandServe error : " + err.String()), err)
-	fmDaemon.DaemonLog.Log("Server exited gracefully")
-
+	err := fmDaemon.ListenAndServe()
+	if err != nil {
+	   fmDaemon.DaemonLog.Log("Server exited gracefully. Cannot Listen on port")
+        }
 }
