@@ -1,6 +1,6 @@
 include $(GOROOT)/src/Make.inc
 
-TARG=testHeckle
+TARG=halloc
 GOFILES=\
-	testHeckle.go
+	halloc.go
 include $(GOROOT)/src/Make.cmd
