@@ -128,7 +128,6 @@ func NewCommunication(path string, user string, password string) (comm Communica
 	comm.Password = password
 	comm.Locations = make(map[string]string, 10)
 	json.Unmarshal(data, &comm.Locations)
-	fmt.Println(com.Locations)
 	return
 }
 
