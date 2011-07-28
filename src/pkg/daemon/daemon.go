@@ -43,10 +43,10 @@ func (daemon *Daemon) ListenAndServe() (err os.Error) {
         os.Exit(1)
     }
 
-    go func (err *os.Error) {
-          *err = http.ListenAndServe(port, nil)
-          daemon.DaemonLog.LogError("Failed to listen on http socket.", *err)
-    }(&err)
+    //go func (err *os.Error) {
+          err = http.ListenAndServe(":" + port, nil)
+          daemon.DaemonLog.LogError("Failed to listen on http socket.", err)
+    //}(&err)
     return
 }
 
