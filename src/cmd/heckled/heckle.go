@@ -88,15 +88,14 @@ func init() {
      heckleDaemon.DaemonLog.LogError("Failed to create new heckle daemon.", err)
 
      heckleDaemon.DaemonLog.Log("Initializing variables and setting up daemon.")
-
-          
-     fmComm, err = fnet.NewCommunication(daemon.FileDir, heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
+    
+     fmComm, err = fnet.NewCommunication(daemon.FileDir + "components.conf", heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
      heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for flunkymaster.", err)
 
-     pComm, err = fnet.NewCommunication(daemon.FileDir, heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
+     pComm, err = fnet.NewCommunication(daemon.FileDir + "components.conf", heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
      heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for power.", err)
 
-     fs, err = fmComm.SetupClient("flunky")
+     fs, err = fmComm.SetupClient("flunkymaster")
      heckleDaemon.DaemonLog.LogError("Failed to setup heckle to flunkymaster communication.", err)
 
      ps, err = pComm.SetupClient("power")

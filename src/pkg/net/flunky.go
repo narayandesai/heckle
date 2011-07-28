@@ -132,9 +132,9 @@ func NewCommunication(path string, user string, password string) (comm Communica
 }
 
 func (comm *Communication) SetupClient(component string) (hclient *BuildServer, err os.Error) {
-	location, ok := comm.Locations[component]
+        location, ok := comm.Locations[component]
 	if !ok {
-		err = os.NewError("Component Lookup Failure")
+		err = os.NewError("Compomnent Lookup Failure")
 		return
 	}
 
