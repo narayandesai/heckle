@@ -53,7 +53,7 @@ func New(name string) (daemon *Daemon, err os.Error) {
         
 	daemon.DaemonLog = NewDaemonLogger(FileDir, daemon.Name)
 	daemon.Cfg = NewConfigInfo(FileDir+name+".conf", daemon.DaemonLog)
-	daemon.AuthN = NewAuthInfo("/etc/heckle/users.db", daemon.DaemonLog)
+	daemon.AuthN = NewAuthInfo(FileDir + "users.db", daemon.DaemonLog)
 	if user, ok := daemon.Cfg.Data["user"]; ok {
 		daemon.User = user
 	}
