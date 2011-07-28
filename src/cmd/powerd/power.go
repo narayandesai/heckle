@@ -22,8 +22,6 @@ type outletNode struct{
 var resources       map[string]outletNode
 var powerDaemon     *daemon.Daemon
 var fileDir         string
-//var resourcesLock   sync.Mutex   shouldn't need a lock, never changing data.
-
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
         powerDaemon.DaemonLog.LogHttp(req)
@@ -47,7 +45,6 @@ func rebootList(writer http.ResponseWriter, request *http.Request) {
      powerDaemon.DaemonLog.Log("Rebooting list given by client.")
      var nodes []string
      request.ProtoMinor = 0
-     
      _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
@@ -103,7 +100,6 @@ func offList(writer http.ResponseWriter, request *http.Request) {
      
      error = request.Body.Close()
      powerDaemon.DaemonLog.LogError("Failed to close off request body.", error)
-     
      error = json.Unmarshal(someBytes, &nodes)
      powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be turned off.", error)
      
@@ -120,11 +116,13 @@ func offList(writer http.ResponseWriter, request *http.Request) {
 func statusList(writer http.ResponseWriter, request *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
+
      powerDaemon.DaemonLog.Log("Retreiving status for list given by client.")
      var nodes []string
      outletStatus := make(map[string]string)
      request.ProtoMinor = 0
      
+     fmt.Println(powerDaemon.DaemonLog)
      _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
@@ -179,8 +177,9 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
 
 func main() {
     flag.Parse()
-     
-	powerDaemon, err := daemon.New("power")
+        var err os.Error
+
+	powerDaemon, err = daemon.New("power")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -199,10 +198,12 @@ func main() {
      
     error = json.Unmarshal(someBytes, &resources)
     powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", error)
+    fmt.Println(resources)
 
     http.HandleFunc("/dump", DumpCall)
     http.HandleFunc("/reboot", rebootList)
     http.HandleFunc("/off", offList)
+    
     http.HandleFunc("/status", statusList)
     
 	err = powerDaemon.ListenAndServe()
