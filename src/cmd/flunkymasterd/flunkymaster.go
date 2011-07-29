@@ -11,6 +11,7 @@
 // BUG(Mike Guantonio): Errors currently print as ascii characters and not integers. 
 // BUG(Mike Guantonio): Http errors are not handled. 
 // BUG(Mike Guantonio): Render static and dynamic do not allow for dynamic file names
+// BUG(Miek Guantonio): Authorization information is not pulled from flunky.
 package main
 
 //Duties to finish
@@ -354,11 +355,11 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fm.DecodeRequest(req, address)
+	/*username, authed, _ := fm.DecodeRequest(req, address)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	tmp := fm.RenderGetStatic(req.RawURL, address)
 	w.Write(tmp)
 }
@@ -386,11 +387,11 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fm.DecodeRequest(req, address)
+	/*username, authed, _ := fm.DecodeRequest(req, address)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	tmp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
 	_, err := w.Write(tmp)
 	fmDaemon.DaemonLog.LogError("Will not write status", err)
@@ -403,11 +404,11 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fm.DecodeRequest(req, address)
+	/*username, authed, _ := fm.DecodeRequest(req, address)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("AccessDenied"))
 		return
-	}
+	}*/
 	tmp := fm.RenderImage("install", address)
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered install", address))
 	status := strings.TrimSpace(string(tmp))
@@ -421,11 +422,11 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fm.DecodeRequest(req, address)
+	/*username, authed, _ := fm.DecodeRequest(req, address)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
 	fmDaemon.DaemonLog.Log("Received Info")
@@ -450,11 +451,11 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fm.DecodeRequest(req, address)
+	/*username, authed, _ := fm.DecodeRequest(req, address)
 	if !authed {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
-	}
+	}*/
 	var tmp DataStore
 	body, _ := ioutil.ReadAll(req.Body)
 	m.Lock()

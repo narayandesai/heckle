@@ -122,7 +122,6 @@ func statusList(writer http.ResponseWriter, request *http.Request) {
      outletStatus := make(map[string]string)
      request.ProtoMinor = 0
      
-     fmt.Println(powerDaemon.DaemonLog)
      _, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(request)
      
      if !authed {
@@ -198,7 +197,7 @@ func main() {
      
     error = json.Unmarshal(someBytes, &resources)
     powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", error)
-    fmt.Println(resources)
+    
 
     http.HandleFunc("/dump", DumpCall)
     http.HandleFunc("/reboot", rebootList)
