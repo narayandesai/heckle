@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"http"
 	"os"
+	"io/ioutil"
 	"strings"
 	fnet "flunky/net"
 )
@@ -26,6 +27,15 @@ type Daemon struct {
 	Comm      fnet.Communication
 }
 
+func (daemon *Daemon) ReadRequest(req *http.Request) (body []byte, err os.Error){
+     body, err = ioutil.ReadAll(req.Body)
+     fmt.Println(err)
+     
+     err = req.Body.Close()
+     fmt.Println(err)
+     return 
+}
+
 func (daemon *Daemon) GetPort() (port string, err os.Error) {
 	parts := strings.Split(daemon.URL, ":")
 	if len(parts) > 0 {
@@ -42,11 +52,8 @@ func (daemon *Daemon) ListenAndServe() (err os.Error) {
         fmt.Println("Port configuration error")
         os.Exit(1)
     }
-
-    //go func (err *os.Error) {
           err = http.ListenAndServe(":" + port, nil)
           daemon.DaemonLog.LogError("Failed to listen on http socket.", err)
-    //}(&err)
     return
 }
 

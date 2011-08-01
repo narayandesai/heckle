@@ -428,7 +428,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 		return
 	}*/
 	var tmp DataStore
-	body, _ := ioutil.ReadAll(req.Body)
+	body, _ := fmDaemon.ReadRequest(req)
 	fmDaemon.DaemonLog.Log("Received Info")
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
@@ -457,7 +457,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 		return
 	}*/
 	var tmp DataStore
-	body, _ := ioutil.ReadAll(req.Body)
+	body, _ := fmDaemon.ReadRequest(req)
 	m.Lock()
 	fmDaemon.DaemonLog.Log("Recieved error")
 	m.Unlock()
@@ -487,7 +487,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
 	}
-	body, _ := ioutil.ReadAll(req.Body)
+	body, _ := fmDaemon.ReadRequest(req)
 	temper, err := net.LookupIP(address)
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Could not find %s in host tables", address))
 	iaddr := temper[0].String()
@@ -526,7 +526,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
 		return
 	}
-	body, _ := ioutil.ReadAll(req.Body)
+	body, _ := fmDaemon.ReadRequest(req)
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
        

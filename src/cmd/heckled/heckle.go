@@ -257,29 +257,26 @@ func checkNodeList(nodeList []string, owner string, image string, allocationNum 
      return
 }
 
-func allocateList(writer http.ResponseWriter, request *http.Request) {
+func allocateList(writer http.ResponseWriter, req *http.Request) {
      //This is an http handler function to deal with allocation list requests.
      //It grabs the list from the message, makes a new lsit of all available
      //nodes within that original list.  Gets an allocation number, and adds
      //them to the current requests map.
+     heckleDaemon.DaemonLog.LogHttp(req)
      heckleDaemon.DaemonLog.Log("Allocating a list of nodes.")
      listMsg := new(iface.Listmsg)
-     request.ProtoMinor = 0
+     req.ProtoMinor = 0
 
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
+     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     someBytes, error := ioutil.ReadAll(request.Body)
-     heckleDaemon.DaemonLog.LogError("Unable to read all from allocate list POST.", error)
+     body, error := heckleDaemon.ReadRequest(req)
      
-     error = request.Body.Close()
-     heckleDaemon.DaemonLog.LogError("Failed to close allocation list request body.", error)
-     
-     error = json.Unmarshal(someBytes, &listMsg)
+     error = json.Unmarshal(body, &listMsg)
      heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation list.", error)
      
      allocationNumberLock.Lock()
@@ -307,29 +304,26 @@ func allocateList(writer http.ResponseWriter, request *http.Request) {
      updateDatabase(false)
 }
 
-func allocateNumber(writer http.ResponseWriter, request *http.Request) {
+func allocateNumber(writer http.ResponseWriter, req *http.Request) {
      //This is just an http function that deals with allocation number requests.
      //It grabs the number, gets a list of that number or less of nodes, gets
      //an allocation number, and adds them to the current requests map.
      heckleDaemon.DaemonLog.Log("Allocating a number of nodes.")
+     heckleDaemon.DaemonLog.LogHttp(req)
      numMsg := new(iface.Nummsg)
-     request.ProtoMinor = 0
+     req.ProtoMinor = 0
      
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
+     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     someBytes, error := ioutil.ReadAll(request.Body)
-     heckleDaemon.DaemonLog.LogError("Unable to read all from allocate list POST.", error)
+     body, err := heckleDaemon.ReadRequest(req)
      
-     error = request.Body.Close()
-     heckleDaemon.DaemonLog.LogError("Failed to close allocation number request body.", error)
-     
-     error = json.Unmarshal(someBytes, &numMsg)
-     heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation list.", error)
+     err = json.Unmarshal(body, &numMsg)
+     heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation list.", err)
      
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
@@ -508,30 +502,28 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
         }
 }
 
-func status(writer http.ResponseWriter, request *http.Request) {
+func status(writer http.ResponseWriter, req *http.Request) {
      //This is an http handler function to deal with allocation status requests.
      //if the host has ownership of the allocation number we send back a map
      //of node names and a status message type.
+     heckleDaemon.DaemonLog.LogHttp(req)
      heckleDaemon.DaemonLog.Log("Sending allocation status to client.")
      allocationStatus := make(map[string]*iface.StatusMessage)
      allocationNumber := uint64(0)
-     request.ProtoMinor = 0
+     req.ProtoMinor = 0
      
-     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request)
+     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(req)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     someBytes, error := ioutil.ReadAll(request.Body)
-     heckleDaemon.DaemonLog.LogError("Unable to read all from allocation status POST.", error)
+     body, err := heckleDaemon.ReadRequest(req)
+     heckleDaemon.DaemonLog.LogError("Unable to read all from allocation status ", err)
      
-     error = request.Body.Close()
-     heckleDaemon.DaemonLog.LogError("Failed to close allocation status request body.", error)
-     
-     error = json.Unmarshal(someBytes, &allocationNumber)
-     heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation number for status request.", error)
+     err = json.Unmarshal(body, &allocationNumber)
+     heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation number for status request.", err)
      
      currentRequestsLock.Lock()
      for key, value := range currentRequests {
@@ -549,37 +541,34 @@ func status(writer http.ResponseWriter, request *http.Request) {
      }
      currentRequestsLock.Unlock()
      
-     jsonStat, error := json.Marshal(allocationStatus)
-     heckleDaemon.DaemonLog.LogError("Unable to marshal allocation status response.", error)
+     jsonStat, err := json.Marshal(allocationStatus)
+     heckleDaemon.DaemonLog.LogError("Unable to marshal allocation status response.", err)
      
-     _, error = writer.Write(jsonStat)
-     heckleDaemon.DaemonLog.LogError("Unable to write allocation status response.", error)
+     _, err = writer.Write(jsonStat)
+     heckleDaemon.DaemonLog.LogError("Unable to write allocation status response.", err)
 }
 
-func freeAllocation(writer http.ResponseWriter, request *http.Request) {
+func freeAllocation(writer http.ResponseWriter, req *http.Request) {
      //This function allows a user, if it owns the allocation, to free an allocation
      //number and all associated nodes.  It resets the resource map and current
      //requests map.
+     heckleDaemon.DaemonLog.LogHttp(req)
      heckleDaemon.DaemonLog.Log("Freeing allocation number given by client.")
      //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      allocationNumber := uint64(0)
-     request.ProtoMinor = 0
+     req.ProtoMinor = 0
      
-     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request)
+     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(req)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     someBytes, error := ioutil.ReadAll(request.Body)
-     heckleDaemon.DaemonLog.LogError("Unable to read all from allocation status POST.", error)
+     body, err := heckleDaemon.ReadRequest(req)
      
-     error = request.Body.Close()
-     heckleDaemon.DaemonLog.LogError("Failed to close free allocation request body.", error)
-     
-     error = json.Unmarshal(someBytes, &allocationNumber)
-     heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation number for freeing.", error)
+     err = json.Unmarshal(body, &allocationNumber)
+     heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation number for freeing.", err)
      
      powerDown := []string{}
      
@@ -613,35 +602,32 @@ func freeAllocation(writer http.ResponseWriter, request *http.Request) {
      
      js, _ := json.Marshal(powerDown)
      buf := bytes.NewBufferString(string(js))
-     _, err := ps.Post("/off", buf)
+     _, err = ps.Post("/off", buf)
      heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free allocation number.", err)
      
      updateDatabase(false)
 }
 
-func increaseTime(writer http.ResponseWriter, request *http.Request) {
+func increaseTime(writer http.ResponseWriter, req *http.Request) {
      //This function allows a user, if it owns the allocation, to free an allocation
      //number and all associated nodes.  It resets the resource map and current
      //requests map.
+     heckleDaemon.DaemonLog.LogHttp(req)
      heckleDaemon.DaemonLog.Log("Increasing allocation time on an allocation number.")
      timeIncrease := int64(0)
-     request.ProtoMinor = 0
+     req.ProtoMinor = 0
      
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
+     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     someBytes, error := ioutil.ReadAll(request.Body)
-     heckleDaemon.DaemonLog.LogError("Unable to read all from increase time POST.", error)
+     body, _ := heckleDaemon.ReadRequest(req)
      
-     error = request.Body.Close()
-     heckleDaemon.DaemonLog.LogError("Failed to close free increase time request body.", error)
-     
-     error = json.Unmarshal(someBytes, &timeIncrease)
-     heckleDaemon.DaemonLog.LogError("Unable to unmarshal time increase in related handler func.", error)
+     err := json.Unmarshal(body, &timeIncrease)
+     heckleDaemon.DaemonLog.LogError("Unable to unmarshal time increase in related handler func.", err)
      
      resourcesLock.Lock()
      for _, value := range resources {
@@ -689,29 +675,26 @@ func allocationTimeouts() {
      }
 }
 
-func freeNode(writer http.ResponseWriter, request *http.Request) {
+func freeNode(writer http.ResponseWriter, req *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
      heckleDaemon.DaemonLog.Log("Freeing a specific node given by client.")
      //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      var node string
-     request.ProtoMinor = 0
+     req.ProtoMinor = 0
+     heckleDaemon.DaemonLog.LogHttp(req)
      
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
+     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
           return
      }
      
-     someBytes, error := ioutil.ReadAll(request.Body)
-     heckleDaemon.DaemonLog.LogError("Unable to read all from allocation status POST.", error)
+     body, _ := heckleDaemon.ReadRequest(req)
      
-     error = request.Body.Close()
-     heckleDaemon.DaemonLog.LogError("Failed to close free node request body.", error)
-     
-     error = json.Unmarshal(someBytes, &node)
-     heckleDaemon.DaemonLog.LogError("Unable to unmarshal node to be unallocated.", error)
+     err := json.Unmarshal(body, &node)
+     heckleDaemon.DaemonLog.LogError("Unable to unmarshal node to be unallocated.", err)
      
      currentRequestsLock.Lock()
      resourcesLock.Lock()
@@ -731,7 +714,7 @@ func freeNode(writer http.ResponseWriter, request *http.Request) {
      
      js, _ := json.Marshal([]string{node})
      buf := bytes.NewBufferString(string(js))
-     _, err := ps.Post("/off", buf)
+     _, err = ps.Post("/off", buf)
      heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free node.", err)
      
      updateDatabase(false)
@@ -806,12 +789,13 @@ func interpretPollMessages() {
      }    
 }
 
-func outletStatus(writer http.ResponseWriter, request *http.Request) {
+func outletStatus(writer http.ResponseWriter, req *http.Request) {
      heckleDaemon.DaemonLog.Log("Executing power command.")
      //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
-     request.ProtoMinor = 0
+     req.ProtoMinor = 0
+     heckleDaemon.DaemonLog.LogHttp(req)
      
-     _, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(request)
+     _, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(req)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
@@ -823,26 +807,23 @@ func outletStatus(writer http.ResponseWriter, request *http.Request) {
           return
      }
      
-     someBytes, error := ioutil.ReadAll(request.Body)
-     heckleDaemon.DaemonLog.LogError("Unable to read all from outlet status POST.", error)
-     
-     error = request.Body.Close()
-     heckleDaemon.DaemonLog.LogError("Failed to close outlet status request body.", error)
+     body, _ := heckleDaemon.ReadRequest(req)
 
-     buf := bytes.NewBufferString(string(someBytes))
-     someBytes, error = ps.Post("/status", buf)
-     heckleDaemon.DaemonLog.LogError("Failed to post for status of outlets to radixPower.go.", error)
+     buf := bytes.NewBufferString(string(body))
+     someBytes, err := ps.Post("/status", buf)
+     heckleDaemon.DaemonLog.LogError("Failed to post for status of outlets to Power.go.", err)
 
-     _, error = writer.Write(someBytes)
-     heckleDaemon.DaemonLog.LogError("Unable to write outlet status response in heckle.", error)
+     _, err = writer.Write(someBytes)
+     heckleDaemon.DaemonLog.LogError("Unable to write outlet status response in heckle.", err)
 }
 
-func nodeStatus(writer http.ResponseWriter, request *http.Request) {
+func nodeStatus(writer http.ResponseWriter, req *http.Request) {
      heckleDaemon.DaemonLog.Log("Sending back node status.")
      response := ""
-     request.ProtoMinor = 0
-     
-     _, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(request)
+     req.ProtoMinor = 0
+     heckleDaemon.DaemonLog.LogHttp(req)
+
+     _, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
      
      if !authed {
           heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
