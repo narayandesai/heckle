@@ -173,7 +173,7 @@ func (fm *Flunkym) Assert_setup(image string, ip string) {
 	//newsetup[ip].AllocateNum = msg.AllocateNum)
 	fm.data[ip] = newsetup[ip]
 	fm.Store()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocated %s as %s", ip, image))
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Allocated %s as %s", ip, image))
 	return
 }
 
@@ -299,7 +299,7 @@ func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
 
 	fm.Increment_Count(address, toRender)
 	v := l.Bytes()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s: Rendered %s", address, toRender))
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("%s: Rendered %s", address, toRender))
 	return v
 }
 
@@ -346,7 +346,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(w, "Cannot write to socket", 500)
 	}
-	fmDaemon.DaemonLog.Log("Data Dump")
+	fmDaemon.DaemonLog.LogDebug("Data Dump")
 }
 
 func StaticCall(w http.ResponseWriter, req *http.Request) {
@@ -383,7 +383,7 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	tmp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
 	_, err := w.Write(tmp)
 	fmDaemon.DaemonLog.LogError("Will not write status", err)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered bootconfig", address))
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("%s Rendered bootconfig", address))
 }
 
 func InstallCall(w http.ResponseWriter, req *http.Request) {
@@ -394,7 +394,7 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	address := addTmp[0]
 	//Flunky auth needed
 	tmp := fm.RenderImage("install", address)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered install", address))
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("%s Rendered install", address))
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
 }
@@ -409,7 +409,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	//Flunky auth needed
 	var tmp DataStore
 	body, _ := fmDaemon.ReadRequest(req)
-	fmDaemon.DaemonLog.Log("Received Info")
+	fmDaemon.DaemonLog.LogDebug("Received Info")
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
@@ -435,7 +435,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	var tmp DataStore
 	body, _ := fmDaemon.ReadRequest(req)
 	m.Lock()
-	fmDaemon.DaemonLog.Log("Recieved error")
+	fmDaemon.DaemonLog.LogDebug("Recieved error")
 	m.Unlock()
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
@@ -485,7 +485,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 			fm.Assert_setup(msg.Image, iaddr)
 		}
 
-		fmDaemon.DaemonLog.Log(fmt.Sprintf("Added %s to flunkyMaster", msg.Addresses))
+		fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Added %s to flunkyMaster", msg.Addresses))
 	}
 }
 
@@ -507,7 +507,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
        
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved request for status from %s", address))
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Recieved request for status from %s", address))
 	for _, addr := range msg.Addresses {
 		temper, err := net.LookupIP(addr)
 		iaddr := temper[0].String()

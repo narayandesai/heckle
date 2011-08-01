@@ -41,7 +41,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 
 func rebootList(writer http.ResponseWriter, req *http.Request) {
 	powerDaemon.DaemonLog.LogHttp(req)
-	powerDaemon.DaemonLog.Log("Rebooting list given by client.")
+	powerDaemon.DaemonLog.LogDebug("Rebooting list given by client.")
 	var nodes []string
 	req.ProtoMinor = 0
         err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
@@ -67,7 +67,7 @@ func rebootList(writer http.ResponseWriter, req *http.Request) {
 
 func offList(writer http.ResponseWriter, req *http.Request) {
 	powerDaemon.DaemonLog.LogHttp(req)
-	powerDaemon.DaemonLog.Log(fmt.Sprintf("Proceeding to %s nodes given by client.", req.RawURL))
+	powerDaemon.DaemonLog.LogDebug(fmt.Sprintf("Proceeding to %s nodes given by client.", req.RawURL))
 	var nodes []string
 	req.ProtoMinor = 0
 
@@ -94,7 +94,7 @@ func offList(writer http.ResponseWriter, req *http.Request) {
 
 func statusList(writer http.ResponseWriter, req *http.Request) {
 	powerDaemon.DaemonLog.LogHttp(req)
-	powerDaemon.DaemonLog.Log("Retreiving status for list given by client.")
+	powerDaemon.DaemonLog.LogDebug("Retreiving status for list given by client.")
 	var nodes []string
 	outletStatus := make(map[string]string)
 	req.ProtoMinor = 0

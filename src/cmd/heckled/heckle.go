@@ -1,6 +1,7 @@
 package main
 
 import (
+     "fmt"
      "json"
      "flag"
      "os"
@@ -87,7 +88,7 @@ func init() {
      heckleDaemon, err = daemon.New("heckle")
      heckleDaemon.DaemonLog.LogError("Failed to create new heckle daemon.", err)
 
-     heckleDaemon.DaemonLog.Log("Initializing variables and setting up daemon.")
+     heckleDaemon.DaemonLog.LogDebug("Initializing variables and setting up daemon.")
     
      fmComm, err = fnet.NewCommunication(daemon.FileDir + "components.conf", heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
      heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for flunkymaster.", err)
@@ -128,7 +129,7 @@ func resetResources(resourceNames []string) {
 func updateDatabase(term bool) {
      //This updates the json database file with the information in the
      //resource map.
-     heckleDaemon.DaemonLog.Log("Updating persistant json resource database file.")
+     heckleDaemon.DaemonLog.LogDebug("Updating persistant json resource database file.")
      databaseFile, error := os.OpenFile(daemon.FileDir + "resources.db", os.O_RDWR, 0777)
      //databaseFile, error := os.Create(daemon.FileDir + "ResourceDatabase")
      heckleDaemon.DaemonLog.LogError("Unable to open resource database file for reading and writing.", error)
@@ -150,7 +151,7 @@ func updateDatabase(term bool) {
      heckleDaemon.DaemonLog.LogError("Failed to write resources to resources database file.", error)
      
      if term {
-          heckleDaemon.DaemonLog.Log("Exiting gracefully, bye bye.")
+          heckleDaemon.DaemonLog.LogDebug("Exiting gracefully, bye bye.")
           os.Exit(0)
      }
      
@@ -183,7 +184,7 @@ func updateDatabase(term bool) {
 
 func getResources() {
      //This function populated the resources map from the json database file.
-     heckleDaemon.DaemonLog.Log("Initializing resource data from resource database file.")
+     heckleDaemon.DaemonLog.LogDebug("Initializing resource data from resource database file.")
      
      databaseFile, error := os.Open(daemon.FileDir + "resources.db")
      heckleDaemon.DaemonLog.LogError("Failed to open resource database file for reading.", error)
@@ -237,7 +238,7 @@ func checkNodeList(nodeList []string, owner string, image string, allocationNum 
      //that are in that list.  It updates the resource map accordingly,
      //and returns the new list.
      listOk = true
-     heckleDaemon.DaemonLog.Log("Checking node list to see if all can be allocated.")
+     heckleDaemon.DaemonLog.LogDebug(fmt.Sprintf("Checking to see if %s can be allocated.", nodeList))
 
      resourcesLock.Lock()
      defer resourcesLock.Unlock()
@@ -263,7 +264,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
      //nodes within that original list.  Gets an allocation number, and adds
      //them to the current requests map.
      heckleDaemon.DaemonLog.LogHttp(req)
-     heckleDaemon.DaemonLog.Log("Allocating a list of nodes.")
+     heckleDaemon.DaemonLog.LogDebug("Allocating a list of nodes.")
      listMsg := new(iface.Listmsg)
      req.ProtoMinor = 0
      err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
@@ -351,7 +352,7 @@ func allocate() {
      //This is the allocate thread.  It set up a client for ctl messages to
      //flunky master.  On each iteration it grabs new nodes from heckle to be
      //allocated and send them off to flunkymaster.
-     heckleDaemon.DaemonLog.Log("Starting allocation go routine.")
+     heckleDaemon.DaemonLog.LogDebug("Starting allocation go routine.")
      
      /*fmComm, error := fnet.NewCommunication(heckleDaemon.FileDir, heckleheckleDaemon.Cfg.Data["username"], Daemon.Cfg.Data["password"])
      heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for flunkymaster.", error)
@@ -389,7 +390,7 @@ func allocate() {
 
 func addToPollList (pollAddressesLock *sync.Mutex, pollAddresses *[]string) {
      for i := range allocateToPollingChan {
-          heckleDaemon.DaemonLog.Log("Adding nodes to polling list.")
+          heckleDaemon.DaemonLog.LogDebug("Adding nodes to polling list.")
           pollAddressesLock.Lock()
           *pollAddresses = append(*pollAddresses, i...)
           pollAddressesLock.Unlock()
@@ -398,7 +399,7 @@ func addToPollList (pollAddressesLock *sync.Mutex, pollAddresses *[]string) {
 
 func deleteFromPollList (pollAddressesLock *sync.Mutex, pollAddresses *[]string) {
      for i := range pollingCancelChan {
-          heckleDaemon.DaemonLog.Log("Removing nodes from polling list.")
+          heckleDaemon.DaemonLog.LogDebug("Removing nodes from polling list.")
           pollAddressesLock.Lock()
           for _, value := range i {
                for pos2, value2 := range *pollAddresses {
@@ -416,7 +417,7 @@ func polling() {
      //iteration through the loop it grabs all new addresses from the allocation
      //thread, polls on all addresses in that list, send those messages to heckle,
      //grabs nodes for cancelation and removes them from the list.
-     heckleDaemon.DaemonLog.Log("Starting polling go routine.")
+     heckleDaemon.DaemonLog.LogDebug("Starting polling go routine.")
      pollAddresses := []string{}
      pollingOutletStatus := make(map[string]string)
      var pollAddressesLock sync.Mutex
@@ -428,7 +429,7 @@ func polling() {
      go deleteFromPollList(&pollAddressesLock, &pollAddresses)
      
      for ;  ; time.Sleep(10000000000){
-          heckleDaemon.DaemonLog.Log("Polling for messages from flunky master and power daemons.")
+          heckleDaemon.DaemonLog.LogDebug("Polling for messages from flunky master and power daemons.")
           statRequest := new(iface.Ctlmsg)
           pollAddressesLock.Lock()
           statRequest.Addresses = pollAddresses
@@ -458,7 +459,7 @@ func polling() {
                          pollingOutletStatus[key] = outletStatus[key]
                     }
                }
-               heckleDaemon.DaemonLog.Log("Sending status messages to main routine.")
+               heckleDaemon.DaemonLog.LogDebug("Sending status messages to main routine.")
                pollingToHeckleChan<- statmap
           }
      }
@@ -504,7 +505,7 @@ func status(writer http.ResponseWriter, req *http.Request) {
      //if the host has ownership of the allocation number we send back a map
      //of node names and a status message type.
      heckleDaemon.DaemonLog.LogHttp(req)
-     heckleDaemon.DaemonLog.Log("Sending allocation status to client.")
+     heckleDaemon.DaemonLog.LogDebug("Sending allocation status to client.")
      allocationStatus := make(map[string]*iface.StatusMessage)
      allocationNumber := uint64(0)
      req.ProtoMinor = 0
@@ -548,7 +549,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
      //number and all associated nodes.  It resets the resource map and current
      //requests map.
      heckleDaemon.DaemonLog.LogHttp(req)
-     heckleDaemon.DaemonLog.Log("Freeing allocation number given by client.")
+     heckleDaemon.DaemonLog.LogDebug("Freeing allocation number given by client.")
      //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      allocationNumber := uint64(0)
      req.ProtoMinor = 0
@@ -607,7 +608,7 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
      //number and all associated nodes.  It resets the resource map and current
      //requests map.
      heckleDaemon.DaemonLog.LogHttp(req)
-     heckleDaemon.DaemonLog.Log("Increasing allocation time on an allocation number.")
+     heckleDaemon.DaemonLog.LogDebug("Increasing allocation time on an allocation number.")
      timeIncrease := int64(0)
      req.ProtoMinor = 0
       err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
@@ -654,7 +655,7 @@ func allocationTimeouts() {
      resourcesLock.Unlock()
      
      if found {
-          heckleDaemon.DaemonLog.Log("Found allocation time outs, deallocating them.")
+          heckleDaemon.DaemonLog.LogDebug("Found allocation time outs, deallocating them.")
           //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
           
           js, _ := json.Marshal(powerDown)
@@ -669,7 +670,7 @@ func allocationTimeouts() {
 func freeNode(writer http.ResponseWriter, req *http.Request) {
      //This will free a requested node if the user is the owner of the node.  It removes
      //the node from current resources if it exists and also resets it in resources map.
-     heckleDaemon.DaemonLog.Log("Freeing a specific node given by client.")
+     heckleDaemon.DaemonLog.LogDebug("Freeing a specific node given by client.")
      //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      var node string
      req.ProtoMinor = 0
@@ -712,7 +713,8 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 
 func listenAndServeWrapper() {
      //This branches off another thread to loop through listening and serving http requests.
-     heckleDaemon.DaemonLog.Log("Starting HTTP listen go routine.")
+     heckleDaemon.DaemonLog.LogDebug("Starting HTTP listen go routine.")
+     heckleDaemon.DaemonLog.Log(fmt.Sprintf("Started %s on %s", heckleDaemon.Name, heckleDaemon.URL)) 
      error := http.ListenAndServe(":" + heckleDaemon.Cfg.Data["hecklePort"], nil)
      heckleDaemon.DaemonLog.LogError("Failed to listen on http socket.", error)
      
@@ -732,7 +734,7 @@ func freeCurrentRequests() {
 }
 
 func dealWithBrokenNode(node string) {
-     heckleDaemon.DaemonLog.Log("Sending broken node to diagnostic daemon.")
+     heckleDaemon.DaemonLog.LogDebug("Sending broken node to diagnostic daemon.")
      resourcesLock.Lock()
      resources[node].Broken()
      resourcesLock.Unlock()
@@ -749,9 +751,9 @@ func dealWithBrokenNode(node string) {
 }
 
 func interpretPollMessages() {
-     heckleDaemon.DaemonLog.Log("Starting message interpreter go routine.")
+     heckleDaemon.DaemonLog.LogDebug("Starting message interpreter go routine.")
      for i := range pollingToHeckleChan {
-          heckleDaemon.DaemonLog.Log("Interpreting poll new poll messages.")
+          heckleDaemon.DaemonLog.LogDebug("Interpreting poll new poll messages.")
           nodesToRemove := []string{}
           for key, value := range i {
                currentRequestsLock.Lock()
@@ -780,7 +782,7 @@ func interpretPollMessages() {
 }
 
 func outletStatus(writer http.ResponseWriter, req *http.Request) {
-     heckleDaemon.DaemonLog.Log("Executing power command.")
+     heckleDaemon.DaemonLog.LogDebug("Executing power command.")
      //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      req.ProtoMinor = 0
      heckleDaemon.DaemonLog.LogHttp(req)
@@ -801,7 +803,7 @@ func outletStatus(writer http.ResponseWriter, req *http.Request) {
 }
 
 func nodeStatus(writer http.ResponseWriter, req *http.Request) {
-     heckleDaemon.DaemonLog.Log("Sending back node status.")
+     heckleDaemon.DaemonLog.LogDebug("Sending back node status.")
      response := ""
      req.ProtoMinor = 0
      heckleDaemon.DaemonLog.LogHttp(req)
