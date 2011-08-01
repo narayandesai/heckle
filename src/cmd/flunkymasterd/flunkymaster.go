@@ -333,11 +333,11 @@ func (fm *Flunkym)AuthFlunky(user string, password string, address string)(valid
 func DumpCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
-		return
-	}
+        err := fmDaemon.AuthN.HTTPAuthenticate(req, false)
+	if err != nil{
+            fmDaemon.DaemonLog.LogError("Permission denied", err)
+	    return
+        }
 	m.Lock()
 	tmp, err := json.Marshal(fm.data)
 	m.Unlock()
@@ -355,11 +355,7 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*username, authed, _ := fm.DecodeRequest(req, address)
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
-		return
-	}*/
+        //Flunky auth needed
 	tmp := fm.RenderGetStatic(req.RawURL, address)
 	w.Write(tmp)
 }
@@ -370,11 +366,7 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fm.DecodeRequest(req, address)
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
-		return
-	}
+        //Flunky Auth needed
 	tmp := fm.RenderGetDynamic(req.RawURL, address)
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
@@ -387,11 +379,7 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*username, authed, _ := fm.DecodeRequest(req, address)
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
-		return
-	}*/
+	//Flunky auth needed
 	tmp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
 	_, err := w.Write(tmp)
 	fmDaemon.DaemonLog.LogError("Will not write status", err)
@@ -404,11 +392,7 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*username, authed, _ := fm.DecodeRequest(req, address)
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("AccessDenied"))
-		return
-	}*/
+	//Flunky auth needed
 	tmp := fm.RenderImage("install", address)
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered install", address))
 	status := strings.TrimSpace(string(tmp))
@@ -422,11 +406,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*username, authed, _ := fm.DecodeRequest(req, address)
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
-		return
-	}*/
+	//Flunky auth needed
 	var tmp DataStore
 	body, _ := fmDaemon.ReadRequest(req)
 	fmDaemon.DaemonLog.Log("Received Info")
@@ -451,11 +431,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	/*username, authed, _ := fm.DecodeRequest(req, address)
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
-		return
-	}*/
+	//Flunky auth needed
 	var tmp DataStore
 	body, _ := fmDaemon.ReadRequest(req)
 	m.Lock()
@@ -482,11 +458,12 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
-		return
-	}
+        err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
+        if err != nil {
+            fmDaemon.DaemonLog.LogError("Could not authenticate", err)
+	    return
+        }
+
 	body, _ := fmDaemon.ReadRequest(req)
 	temper, err := net.LookupIP(address)
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Could not find %s in host tables", address))
@@ -521,13 +498,13 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	username, authed, _ := fmDaemon.AuthN.HTTPAuthenticate(req)
-	if !authed {
-		fmDaemon.DaemonLog.LogError(fmt.Sprintf("User Authenications for %s failed", username), os.NewError("Access Denied"))
-		return
-	}
+	err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
+	if err != nil {
+	    fmDaemon.DaemonLog.LogError("No access granted", err)
+	    return
+        }
 	body, _ := fmDaemon.ReadRequest(req)
-	err := json.Unmarshal(body, &msg)
+	err = json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
        
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved request for status from %s", address))

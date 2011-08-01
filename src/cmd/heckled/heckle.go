@@ -266,18 +266,17 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
      heckleDaemon.DaemonLog.Log("Allocating a list of nodes.")
      listMsg := new(iface.Listmsg)
      req.ProtoMinor = 0
-
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
-     
-     if !authed {
-          heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-          return
+     err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
+     if err != nil {
+         heckleDaemon.DaemonLog.LogError("Permission denied", err)
+	 return
      }
+     username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
+
+     body, err := heckleDaemon.ReadRequest(req)
      
-     body, error := heckleDaemon.ReadRequest(req)
-     
-     error = json.Unmarshal(body, &listMsg)
-     heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation list.", error)
+     err = json.Unmarshal(body, &listMsg)
+     heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation list.", err)
      
      allocationNumberLock.Lock()
      tmpAllocationNumber := allocationNumber
@@ -312,16 +311,14 @@ func allocateNumber(writer http.ResponseWriter, req *http.Request) {
      heckleDaemon.DaemonLog.LogHttp(req)
      numMsg := new(iface.Nummsg)
      req.ProtoMinor = 0
-     
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
-     
-     if !authed {
-          heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-          return
+     err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
+     if err != nil {
+         heckleDaemon.DaemonLog.LogError("Permission denied", err)
+	 return
      }
-     
      body, err := heckleDaemon.ReadRequest(req)
-     
+     username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
+
      err = json.Unmarshal(body, &numMsg)
      heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation list.", err)
      
@@ -487,11 +484,11 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
 func DumpCall(w http.ResponseWriter, req *http.Request) {
         heckleDaemon.DaemonLog.LogHttp(req)
         req.ProtoMinor = 0
-        /*username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
-        if !authed {
-                heckleDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
-                return
-        }*/
+        err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
+	if err != nil {
+	    heckleDaemon.DaemonLog.LogError("Permission Denied", err)
+	    return
+        }
         resourcesLock.Lock()
         tmp, err := json.Marshal(resources)
         resourcesLock.Unlock()
@@ -511,14 +508,12 @@ func status(writer http.ResponseWriter, req *http.Request) {
      allocationStatus := make(map[string]*iface.StatusMessage)
      allocationNumber := uint64(0)
      req.ProtoMinor = 0
-     
-     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(req)
-     
-     if !authed {
-          heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-          return
+     err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
+     if err != nil {
+        heckleDaemon.DaemonLog.LogError("Permission Denied", err)
      }
-     
+     username, _, admin := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req) 
+      
      body, err := heckleDaemon.ReadRequest(req)
      heckleDaemon.DaemonLog.LogError("Unable to read all from allocation status ", err)
      
@@ -557,13 +552,12 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
      //rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
      allocationNumber := uint64(0)
      req.ProtoMinor = 0
-     
-     username, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(req)
-     
-     if !authed {
-          heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-          return
-     }
+
+     err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
+     if err != nil {
+        heckleDaemon.DaemonLog.LogError("Permission Denied", err)
+     } 
+     username, _, admin := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
      
      body, err := heckleDaemon.ReadRequest(req)
      
@@ -616,17 +610,14 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
      heckleDaemon.DaemonLog.Log("Increasing allocation time on an allocation number.")
      timeIncrease := int64(0)
      req.ProtoMinor = 0
-     
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
-     
-     if !authed {
-          heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-          return
+      err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
+     if err != nil {
+        heckleDaemon.DaemonLog.LogError("Permission Denied", err)
      }
-     
+     username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)     
      body, _ := heckleDaemon.ReadRequest(req)
      
-     err := json.Unmarshal(body, &timeIncrease)
+     err = json.Unmarshal(body, &timeIncrease)
      heckleDaemon.DaemonLog.LogError("Unable to unmarshal time increase in related handler func.", err)
      
      resourcesLock.Lock()
@@ -683,17 +674,16 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
      var node string
      req.ProtoMinor = 0
      heckleDaemon.DaemonLog.LogHttp(req)
-     
-     username, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
-     
-     if !authed {
-          heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-          return
+
+     err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
+     if err != nil {
+        heckleDaemon.DaemonLog.LogError("Permission Denied", err)
      }
-     
+     username, _ , _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
+    
      body, _ := heckleDaemon.ReadRequest(req)
      
-     err := json.Unmarshal(body, &node)
+     err = json.Unmarshal(body, &node)
      heckleDaemon.DaemonLog.LogError("Unable to unmarshal node to be unallocated.", err)
      
      currentRequestsLock.Lock()
@@ -795,18 +785,11 @@ func outletStatus(writer http.ResponseWriter, req *http.Request) {
      req.ProtoMinor = 0
      heckleDaemon.DaemonLog.LogHttp(req)
      
-     _, authed, admin := heckleDaemon.AuthN.HTTPAuthenticate(req)
-     
-     if !authed {
-          heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-          return
+     err := heckleDaemon.AuthN.HTTPAuthenticate(req, true)
+     if err != nil {
+        heckleDaemon.DaemonLog.LogError("Permission Denied", err)
      }
-     
-     if !admin {
-          heckleDaemon.DaemonLog.LogError("No access to admin command.", os.NewError("Access Denied"))
-          return
-     }
-     
+          
      body, _ := heckleDaemon.ReadRequest(req)
 
      buf := bytes.NewBufferString(string(body))
@@ -823,11 +806,9 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
      req.ProtoMinor = 0
      heckleDaemon.DaemonLog.LogHttp(req)
 
-     _, authed, _ := heckleDaemon.AuthN.HTTPAuthenticate(req)
-     
-     if !authed {
-          heckleDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-          return
+     err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
+     if err != nil {
+        heckleDaemon.DaemonLog.LogError("Permission Denied", err)
      }
      
      resourcesLock.Lock()

@@ -26,11 +26,11 @@ var fileDir string
 func DumpCall(w http.ResponseWriter, req *http.Request) {
 	powerDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
-	/* username, authed, _ := powerDaemon.AuthN.HTTPAuthenticate(req)
-	   if !authed {
-	           powerDaemon.DaemonLog.LogError(fmt.Sprintf("User Authentications for %s failed", username), os.NewError("Access Denied"))
-	           return
-	   }*/
+	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+        if err != nil{
+           powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
+	   return
+        }
 	tmp, err := json.Marshal(resources)
 	powerDaemon.DaemonLog.LogError("Cannot Marshal power resources", err)
 	_, err = w.Write(tmp)
@@ -44,18 +44,11 @@ func rebootList(writer http.ResponseWriter, req *http.Request) {
 	powerDaemon.DaemonLog.Log("Rebooting list given by client.")
 	var nodes []string
 	req.ProtoMinor = 0
-	_, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(req)
-
-	if !authed {
-		powerDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-		return
-	}
-
-	if !admin {
-		powerDaemon.DaemonLog.LogError("No access to admin command.", os.NewError("Access Denied"))
-		return
-	}
-
+        err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+        if err != nil{
+           powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
+           return
+        }
 	body, err := powerDaemon.ReadRequest(req)
 	powerDaemon.DaemonLog.LogError("Unable to ready request", err)
 
@@ -78,18 +71,11 @@ func offList(writer http.ResponseWriter, req *http.Request) {
 	var nodes []string
 	req.ProtoMinor = 0
 
-	_, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(req)
-
-	if !authed {
-		powerDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-		return
-	}
-
-	if !admin {
-		powerDaemon.DaemonLog.LogError("No access to admin command.", os.NewError("Access Denied"))
-		return
-	}
-
+	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+        if err != nil{
+           powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
+           return
+        }
 	body, err := powerDaemon.ReadRequest(req)
 	powerDaemon.DaemonLog.LogError("Unable to ready request", err)
 
@@ -112,19 +98,11 @@ func statusList(writer http.ResponseWriter, req *http.Request) {
 	var nodes []string
 	outletStatus := make(map[string]string)
 	req.ProtoMinor = 0
-
-	_, authed, admin := powerDaemon.AuthN.HTTPAuthenticate(req)
-
-	if !authed {
-		powerDaemon.DaemonLog.LogError("Username password combo invalid.", os.NewError("Access Denied"))
-		return
-	}
-
-	if !admin {
-		powerDaemon.DaemonLog.LogError("No access to admin command.", os.NewError("Access Denied"))
-		return
-	}
-
+        err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+        if err != nil{
+           powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
+           return
+        }
 	body, err := powerDaemon.ReadRequest(req)
 	powerDaemon.DaemonLog.LogError("Could not ready request", err)
 

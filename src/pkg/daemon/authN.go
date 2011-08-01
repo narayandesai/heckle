@@ -74,7 +74,7 @@ func (auth *Authinfo) Load() (err os.Error) {
 	return
 }
 
-func (auth *Authinfo) HTTPAuthenticate(req *http.Request) (user string, valid bool, admin bool) {
+func (auth *Authinfo) GetHTTPAuthenticateInfo(req *http.Request) (user string, valid bool, admin bool) {
 	if _, ok := req.Header["Authorization"]; !ok {
 		auth.daemonLog.LogError("Request header did not contain Authorization information.", os.NewError("HTTP Auth Missing"))
 		return
@@ -105,6 +105,28 @@ func (auth *Authinfo) Authenticate(user string, password string) (valid bool, ad
 	valid = (password == auth.Users[user].Password)
 	admin = auth.Users[user].Admin
 	return
+}
+
+func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool)(err os.Error){
+        header := req.Header.Get("Authorization")
+	tmpAuthArray := strings.Split(header, " ")
+
+	authValues, error := base64.URLEncoding.DecodeString(tmpAuthArray[1])
+	auth.daemonLog.LogError("Failed to decode encoded auth settings in http request.", error)
+
+	authValuesArray := strings.Split(string(authValues), ":")
+	user := authValuesArray[0]
+	password := authValuesArray[1]
+	valid, admin := auth.Authenticate(user, password)
+        if !valid {
+            auth.daemonLog.LogError("Cannot find user", os.NewError("Unknown user"))
+        }
+        if isAdmin{
+        if !admin {
+	    auth.daemonLog.LogError("Cannot perform function. Not an administrator", os.NewError("Not admin"))
+       }
+       }
+       return
 }
 
 func (auth *Authinfo) NewUser(user string, password string, admin bool) {
