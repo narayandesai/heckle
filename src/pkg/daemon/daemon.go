@@ -29,10 +29,7 @@ type Daemon struct {
 
 func (daemon *Daemon) ReadRequest(req *http.Request) (body []byte, err os.Error){
      body, err = ioutil.ReadAll(req.Body)
-     fmt.Println(err)
-     
      err = req.Body.Close()
-     fmt.Println(err)
      return 
 }
 
