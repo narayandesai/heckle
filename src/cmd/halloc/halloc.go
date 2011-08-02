@@ -55,10 +55,10 @@ func usage() {
 func allocationFail(allocType string) {
      switch (allocType) {
           case "number":
-               fmt.Fprintf(os.Stderr, "Not enough nodes to satisfy request number.")
+               fmt.Fprintf(os.Stderr, "Not enough nodes to satisfy request number.\n")
                os.Exit(1)
           case "list":
-               fmt.Fprintf(os.Stderr, "Some of the nodes in the list provided don't exist are are allocated.")
+               fmt.Fprintf(os.Stderr, "Some of the nodes in the list provided don't exist are are allocated.\n")
                os.Exit(1)
      }
      
@@ -143,7 +143,7 @@ func pollForStatus() {
                     done = true
                     for i := range value.Info {
                          pollStatus[key] = value.Status
-                         fmt.Fprintf(os.Stdout, "NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %d:%d:%d\tMESSAGE: %d:%d:%d : %s : %s\n", key, value.Status, time.SecondsToLocalTime(value.LastActivity).Hour, time.SecondsToLocalTime(value.LastActivity).Minute, time.SecondsToLocalTime(value.LastActivity).Second, time.SecondsToLocalTime(value.Info[i].Time).Hour, time.SecondsToLocalTime(value.Info[i].Time).Minute, time.SecondsToLocalTime(value.Info[i].Time).Second, value.Info[i].Message, value.Info[i].MsgType)
+                         fmt.Fprintf(os.Stdout, "NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %d:%d:%d\tMESSAGE: %d:%d:%d : %s\n", key, value.Status, time.SecondsToLocalTime(value.LastActivity).Hour, time.SecondsToLocalTime(value.LastActivity).Minute, time.SecondsToLocalTime(value.LastActivity).Second, time.SecondsToLocalTime(value.Info[i].Time).Hour, time.SecondsToLocalTime(value.Info[i].Time).Minute, time.SecondsToLocalTime(value.Info[i].Time).Second, value.Info[i].Message)
                     }
                     done = done && (pollStatus[key] == "Ready")
                     if pollStatus[key] == "Cancel" {

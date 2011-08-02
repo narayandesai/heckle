@@ -253,7 +253,7 @@ func (fm *Flunkym) RenderGetStatic(loc string, address string) []byte {
 	fm.Increment_Count(address, loc)
 	contents, err := ioutil.ReadFile(fname)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not read %s", fname), err)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", address, loc))
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("%s Rendered %s", address, loc))
 	return contents
 }
 
@@ -515,7 +515,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 
 		tmp := fm.data[iaddr]
 		key := cstatus[addr]
-		tmpl := fm.RenderImage("status1", iaddr)
+		tmpl := fm.RenderImage("status", iaddr)
 		status := strings.TrimSpace(string(tmpl))
 		key.Status = string(status)
 		key.LastActivity = time.Seconds()
