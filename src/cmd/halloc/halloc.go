@@ -103,7 +103,7 @@ func requestList() (tmpAllocationNumber uint64) {
      error = json.Unmarshal(someBytes, &tmpAllocationNumber)
      printError("Failed to unmarshal allocation number from http response in request list.", error)
      
-     fmt.Fprintf(os.Stdout, "Allocation number is %s.", strconv.Uitoa64(tmpAllocationNumber))
+     fmt.Fprintf(os.Stdout, "Allocation number is %s.\n", strconv.Uitoa64(tmpAllocationNumber))
      
      return
 }
@@ -137,23 +137,23 @@ func pollForStatus() {
           printError("Failed to unmarshal status info from http response in status polling.", error)
           
           done := false
-          
           for key, value := range statMap {
-               if len(value.Info) != 0 {
-                    done = true
+	       pollStatus[key] = value.Status
+               done = true
                     for i := range value.Info {
-                         pollStatus[key] = value.Status
+	               if len(value.Info) != 0{
                          fmt.Fprintf(os.Stdout, "NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %d:%d:%d\tMESSAGE: %d:%d:%d : %s\n", key, value.Status, time.SecondsToLocalTime(value.LastActivity).Hour, time.SecondsToLocalTime(value.LastActivity).Minute, time.SecondsToLocalTime(value.LastActivity).Second, time.SecondsToLocalTime(value.Info[i].Time).Hour, time.SecondsToLocalTime(value.Info[i].Time).Minute, time.SecondsToLocalTime(value.Info[i].Time).Second, value.Info[i].Message)
                     }
+	            }
                     done = done && (pollStatus[key] == "Ready")
                     if pollStatus[key] == "Cancel" {
                          pollStatus[key] = "", false
                     }
-               }
+               
           }
           
           if done {
-               fmt.Fprintf(os.Stdout, "Done allocating nodes.  Your allocation number is %d.  Please report failures to system admin.", allocationNumber)
+               fmt.Fprintf(os.Stdout, "Done allocating nodes.  Your allocation number is %d.  Please report failures to your system administrator.\n", allocationNumber)
                os.Exit(0)
           }
      }
