@@ -597,8 +597,12 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 
 	if !found {
 		heckleDaemon.DaemonLog.LogError("Allocation number does not exist.", os.NewError("Wrong Number"))
+		resp := "not present"
+		writer.Write([]byte(resp))
 		return
 	}
+	resp := "present"
+	writer.Write([]byte(resp))
 
 	pollingCancelChan <- powerDown //Needed because polling will continue to poll if allocation is freed during allocation. 
 
