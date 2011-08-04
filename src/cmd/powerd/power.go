@@ -24,7 +24,7 @@ var powerDaemon *daemon.Daemon
 var fileDir string
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
-	powerDaemon.DaemonLog.LogHttp(req)
+        powerDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
         if err != nil{
@@ -33,67 +33,49 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
         }
 	tmp, err := json.Marshal(resources)
 	powerDaemon.DaemonLog.LogError("Cannot Marshal power resources", err)
+	w.WriteHeader(200)
 	_, err = w.Write(tmp)
 	if err != nil {
 		http.Error(w, "Cannot write to socket", 500)
 	}
 }
 
-func rebootList(writer http.ResponseWriter, req *http.Request) {
-	powerDaemon.DaemonLog.LogHttp(req)
-	powerDaemon.DaemonLog.LogDebug("Rebooting list given by client.")
-	var nodes []string
-	req.ProtoMinor = 0
-        err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
-        if err != nil{
-           powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
-           return
-        }
-	body, err := powerDaemon.ReadRequest(req)
-	powerDaemon.DaemonLog.LogError("Unable to ready request", err)
+func command(w http.ResponseWriter, req *http.Request){
+    var nodes []string
+    req.ProtoMinor = 0
+    powerDaemon.DaemonLog.LogHttp(req)
+    dex := strings.Split(req.RawURL, "/")
+    cmd := dex[2]
+    switch(cmd){
+       case "on", "off", "reboot" : break
+       default: powerDaemon.DaemonLog.LogError(fmt.Sprintf("%s command not supported", cmd), os.NewError("unsupported")) 
+                return
+		break
+     }
+    /*err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+    if err != nil{
+       powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
+       return
+    }*/
+    body, err := powerDaemon.ReadRequest(req)
+    powerDaemon.DaemonLog.LogError("Unable to ready request", err)
 
-	err = json.Unmarshal(body, &nodes)
-	powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be rebooted.", err)
+    err = json.Unmarshal(body, &nodes)
+    powerDaemon.DaemonLog.LogError(fmt.Sprintf("Unable to unmarshal nodes for %s command.",cmd), err)
 
-	for _, value := range nodes {
-		if _, ok := resources[value]; ok {
-			go func(value string) {
-				err = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "reboot", resources[value].Outlet).Run()
-				powerDaemon.DaemonLog.LogError("Failed to run powerCont.sh in rebootList.", err)
-			}(value)
-		}
+    for _, value := range nodes {
+        if _, ok := resources[value]; ok {
+            go func(value string) {
+            err = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", cmd, resources[value].Outlet).Run()
+            powerDaemon.DaemonLog.LogError("Failed to run powerCont.sh in rebootList.", err)
+	    }(value)
 	}
+    }
 }
 
-func offList(writer http.ResponseWriter, req *http.Request) {
-	powerDaemon.DaemonLog.LogHttp(req)
-	powerDaemon.DaemonLog.LogDebug(fmt.Sprintf("Proceeding to %s nodes given by client.", req.RawURL))
-	var nodes []string
-	req.ProtoMinor = 0
 
-	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
-        if err != nil{
-           powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
-           return
-        }
-	body, err := powerDaemon.ReadRequest(req)
-	powerDaemon.DaemonLog.LogError("Unable to ready request", err)
-
-	err = json.Unmarshal(body, &nodes)
-	powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be turned off.", err)
-
-	for _, value := range nodes {
-		if _, ok := resources[value]; ok {
-			go func(value string) {
-				err = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "off", resources[value].Outlet).Run()
-				powerDaemon.DaemonLog.LogError("Failed to run powerCont.sh in offList.", err)
-			}(value)
-		}
-	}
-}
-
-func statusList(writer http.ResponseWriter, req *http.Request) {
-	powerDaemon.DaemonLog.LogHttp(req)
+func statusList(w http.ResponseWriter, req *http.Request) {
+        powerDaemon.DaemonLog.LogHttp(req)
 	powerDaemon.DaemonLog.LogDebug("Retreiving status for list given by client.")
 	var nodes []string
 	outletStatus := make(map[string]string)
@@ -136,8 +118,9 @@ func statusList(writer http.ResponseWriter, req *http.Request) {
 	jsonStat, err := json.Marshal(outletStatus)
 	powerDaemon.DaemonLog.LogError("Unable to marshal outlet status response.", err)
 
-	_, err = writer.Write(jsonStat)
+	_, err = w.Write(jsonStat)
 	powerDaemon.DaemonLog.LogError("Unable to write outlet status response.", err)
+	
 }
 
 func main() {
@@ -157,8 +140,7 @@ func main() {
 	powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", err)
 
 	http.HandleFunc("/dump", DumpCall)
-	http.HandleFunc("/reboot", rebootList)
-	http.HandleFunc("/off", offList)
+	http.HandleFunc("/command/", command)
 	http.HandleFunc("/status", statusList)
 	powerDaemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", powerDaemon.Name, powerDaemon.URL))
 	err = powerDaemon.ListenAndServe()
