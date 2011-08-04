@@ -571,7 +571,14 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 
 	err = json.Unmarshal(body, &allocationNumber)
 	heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation number for freeing.", err)
-
+        
+	if allocationNumber <= 0{
+	    heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation number %d does not exsist",allocationNumber), os.NewError("0 used"))
+            writer.WriteHeader(http.StatusBadRequest)
+	    resp := "not present"
+	    writer.Write([]byte(resp))
+	    return
+        }
 	powerDown := []string{}
 
 	currentRequestsLock.Lock()
