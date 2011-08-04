@@ -108,11 +108,18 @@ func (auth *Authinfo) Authenticate(user string, password string) (valid bool, ad
 }
 
 func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool)(err os.Error){
+        if _, ok := req.Header["Authorization"]; !ok {
+		auth.daemonLog.LogError("Request header did not contain Authorization information.", os.NewError("HTTP Auth Missing"))
+		return
+	}
         header := req.Header.Get("Authorization")
+	fmt.Println(header)
 	tmpAuthArray := strings.Split(header, " ")
 
 	authValues, error := base64.URLEncoding.DecodeString(tmpAuthArray[1])
-	auth.daemonLog.LogError("Failed to decode encoded auth settings in http request.", error)
+	if error != nil{
+	   auth.daemonLog.LogError("Failed to decode encoded auth settings in http request.", error)
+	}
 
 	authValuesArray := strings.Split(string(authValues), ":")
 	user := authValuesArray[0]

@@ -52,11 +52,11 @@ func command(w http.ResponseWriter, req *http.Request){
                 return
 		break
      }
-    /*err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+    err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
     if err != nil{
        powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
        return
-    }*/
+    }
     body, err := powerDaemon.ReadRequest(req)
     powerDaemon.DaemonLog.LogError("Unable to ready request", err)
 

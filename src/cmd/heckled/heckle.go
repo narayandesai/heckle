@@ -806,7 +806,6 @@ func interpretPollMessages() {
 
 func outletStatus(writer http.ResponseWriter, req *http.Request) {
 	heckleDaemon.DaemonLog.LogDebug("Executing power command.")
-	//rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
 	req.ProtoMinor = 0
 	heckleDaemon.DaemonLog.LogHttp(req)
 
@@ -814,7 +813,6 @@ func outletStatus(writer http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
 	}
-
 	body, _ := heckleDaemon.ReadRequest(req)
 
 	buf := bytes.NewBufferString(string(body))
