@@ -28,15 +28,15 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	req.ProtoMinor = 0
 	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
         if err != nil{
-           powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
+           powerDaemon.DaemonLog.LogError("Access not permitted.", err)
+	   w.WriteHeader(http.StatusUnauthorized)      
 	   return
         }
 	tmp, err := json.Marshal(resources)
 	powerDaemon.DaemonLog.LogError("Cannot Marshal power resources", err)
-	w.WriteHeader(200)
 	_, err = w.Write(tmp)
 	if err != nil {
-		http.Error(w, "Cannot write to socket", 500)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
@@ -44,21 +44,23 @@ func command(w http.ResponseWriter, req *http.Request){
     var nodes []string
     req.ProtoMinor = 0
     powerDaemon.DaemonLog.LogHttp(req)
+    err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+    if err != nil{
+       powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
+       w.WriteHeader(http.StatusUnauthorized)
+       return
+    }
     dex := strings.Split(req.RawURL, "/")
     cmd := dex[2]
     switch(cmd){
        case "on", "off", "reboot" : break
-       default: powerDaemon.DaemonLog.LogError(fmt.Sprintf("%s command not supported", cmd), os.NewError("unsupported")) 
+       default: powerDaemon.DaemonLog.LogError(fmt.Sprintf("%s command not supported", cmd), os.NewError("unsupported"))
+                w.WriteHeader(http.StatusNotFound) 
                 return
 		break
      }
-    err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
-    if err != nil{
-       powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
-       return
-    }
     body, err := powerDaemon.ReadRequest(req)
-    powerDaemon.DaemonLog.LogError("Unable to ready request", err)
+    powerDaemon.DaemonLog.LogError("Unable to read request", err)
 
     err = json.Unmarshal(body, &nodes)
     powerDaemon.DaemonLog.LogError(fmt.Sprintf("Unable to unmarshal nodes for %s command.",cmd), err)
@@ -82,11 +84,12 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 	req.ProtoMinor = 0
         err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
         if err != nil{
-           powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
+           powerDaemon.DaemonLog.LogError("Access not permitted.", err)
+	   w.WriteHeader(http.StatusUnauthorized)      
            return
         }
 	body, err := powerDaemon.ReadRequest(req)
-	powerDaemon.DaemonLog.LogError("Could not ready request", err)
+	powerDaemon.DaemonLog.LogError("Could not read request", err)
 
 	err = json.Unmarshal(body, &nodes)
 	powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be turned off.", err)

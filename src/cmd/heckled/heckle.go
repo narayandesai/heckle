@@ -425,8 +425,6 @@ func polling() {
 	pollAddresses := []string{}
 	pollingOutletStatus := make(map[string]string)
 	var pollAddressesLock sync.Mutex
-	//bs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["allocationServer"], false)
-	//rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
 	pollTime := time.Seconds()
 
 	go addToPollList(&pollAddressesLock, &pollAddresses)
