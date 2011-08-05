@@ -273,6 +273,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission denied", err)
+		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
@@ -319,6 +320,7 @@ func allocateNumber(writer http.ResponseWriter, req *http.Request) {
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission denied", err)
+		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	body, err := heckleDaemon.ReadRequest(req)
@@ -490,6 +492,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
+	        w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	resourcesLock.Lock()
@@ -498,7 +501,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	heckleDaemon.DaemonLog.LogError("Cannot Marshal heckle data", err)
 	_, err = w.Write(tmp)
 	if err != nil {
-		http.Error(w, "Cannot write to socket", 500)
+		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
@@ -514,6 +517,7 @@ func status(writer http.ResponseWriter, req *http.Request) {
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
+		writer.WriteHeader(http.StatusUnauthorized)
 	}
 	username, _, admin := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 
@@ -535,6 +539,7 @@ func status(writer http.ResponseWriter, req *http.Request) {
 				}
 			} else {
 				heckleDaemon.DaemonLog.LogError("Cannot request status of allocations that do not beling to you.", os.NewError("Access Denied"))
+				writer.WriteHeader(http.StatusUnauthorized)
 				currentRequestsLock.Unlock()
 				return
 			}
@@ -555,13 +560,13 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	//requests map.
 	heckleDaemon.DaemonLog.LogHttp(req)
 	heckleDaemon.DaemonLog.LogDebug("Freeing allocation number given by client.")
-	//rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
 	allocationNumber := uint64(0)
 	req.ProtoMinor = 0
 
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
+		writer.WriteHeader(http.StatusUnauthorized)
 	}
 	username, _, admin := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 
@@ -603,6 +608,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	if !found {
 		heckleDaemon.DaemonLog.LogError("Allocation number does not exist.", os.NewError("Wrong Number"))
 		resp := "not present"
+		writer.WriteHeader(http.StatusBadRequest)
 		writer.Write([]byte(resp))
 		return
 	}
@@ -630,6 +636,7 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
+		writer.WriteHeader(http.StatusUnauthorized)
 	}
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 	body, _ := heckleDaemon.ReadRequest(req)
@@ -695,6 +702,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
+		writer.WriteHeader(http.StatusUnauthorized)
 	}
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 
@@ -708,6 +716,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 
 	if val, ok := resources[node]; !ok || val.Owner != username {
 		heckleDaemon.DaemonLog.LogError("Access denied, cannot free nodes that do not belong to you.", os.NewError("Access Denied"))
+		writer.WriteHeader(http.StatusUnauthorized)
 		currentRequestsLock.Unlock()
 		resourcesLock.Unlock()
 		return
@@ -810,6 +819,7 @@ func outletStatus(writer http.ResponseWriter, req *http.Request) {
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, true)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
+		writer.WriteHeader(http.StatusUnauthorized)
 	}
 	body, _ := heckleDaemon.ReadRequest(req)
 
@@ -830,6 +840,7 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
+		writer.WriteHeader(http.StatusUnauthorized)
 	}
 
 	resourcesLock.Lock()
