@@ -8,8 +8,7 @@
 // BUG(Mike Guantonio): ipaddress resolution may be out of range and raises a painc if sent
 // to the system. There needs to be painc error handling in order to fix this. 
 // BUG(Mike Guantonio): There is not reporting to std out for the HTTTP status of a message.
-// BUG(Mike Guantonio): Errors currently print as ascii characters and not integers. 
-// BUG(Mike Guantonio): Http errors are not handled. 
+// BUG(Mike Guantonio): Errors currently print as ascii characters and not integers.  
 // BUG(Mike Guantonio): Render static and dynamic do not allow for dynamic file names
 // BUG(Miek Guantonio): Authorization information is not pulled from flunky.
 package main
@@ -336,6 +335,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
         err := fmDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil{
             fmDaemon.DaemonLog.LogError("Permission denied", err)
+	    w.WriteHeader(http.StatusUnauthorized)
 	    return
         }
 	m.Lock()
@@ -344,7 +344,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.LogError("Cannot Marshal fm.data", err)
 	_, err = w.Write(tmp)
 	if err != nil {
-		http.Error(w, "Cannot write to socket", 500)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 	fmDaemon.DaemonLog.LogDebug("Data Dump")
 }
@@ -412,7 +412,10 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.LogDebug("Received Info")
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
-	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
+	if err != nil{
+	   fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
+	   w.WriteHeader(http.StatusInternalServerError)
+        }else{
 	tmp = fm.data[address]
 	tmp.Activity = time.Seconds()
 	msg.Time = time.Seconds()
@@ -422,6 +425,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	fm.data[address] = tmp
 	m.Unlock()
 	fm.Store()
+	}
 }
 
 //Mutex needed
@@ -461,6 +465,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
         err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
         if err != nil {
             fmDaemon.DaemonLog.LogError("Could not authenticate", err)
+	    w.WriteHeader(http.StatusUnauthorized)
 	    return
         }
 
@@ -501,6 +506,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
 	if err != nil {
 	    fmDaemon.DaemonLog.LogError("No access granted", err)
+	    w.WriteHeader(http.StatusUnauthorized)
 	    return
         }
 	body, _ := fmDaemon.ReadRequest(req)
