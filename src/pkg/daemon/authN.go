@@ -110,7 +110,8 @@ func (auth *Authinfo) Authenticate(user string, password string) (valid bool, ad
 func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool)(err os.Error){
         if _, ok := req.Header["Authorization"]; !ok {
 		auth.daemonLog.LogError("Request header did not contain Authorization information.", os.NewError("HTTP Auth Missing"))
-		return
+		err = os.NewError("Request header did not contain Authorization information.")
+		return 
 	}
         header := req.Header.Get("Authorization")
 	fmt.Println(header)
