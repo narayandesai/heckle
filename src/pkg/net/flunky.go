@@ -35,7 +35,7 @@ func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
 	response, err := server.client.Get(fullpath)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "err is %s\n", err)
+		err = os.NewError(fmt.Sprintf("err is %s\n", err))
 		return
 	}
 
@@ -55,7 +55,7 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	data, err := server.Get(path)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "File fetch of %s failed\n", path)
+		os.NewError(fmt.Sprintf("File fetch of %s failed\n", path))
 		return
 	}
 
@@ -65,17 +65,17 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 	newbin, err := os.Create(runpath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create file %s\n", runpath)
+		err = os.NewError(fmt.Sprintf("Failed to create file %s\n", runpath))
 		return
 	}
 	_, err = newbin.Write(data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write data\n")
+		err = os.NewError(fmt.Sprintf("Failed to write data\n"))
 		return
 	}
 	err = newbin.Chmod(0777)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to chmod %s\n", runpath)
+		err = os.NewError(fmt.Sprintf("Failed to chmod %s\n", runpath))
 		return
 	}
 
@@ -90,7 +90,7 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	err = fcmd.Run()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		err = os.NewError(fmt.Sprintf("%s\n", err))
 	}
 
 	server.DebugLog(fmt.Sprintf("Exit status:%d", status))
@@ -102,7 +102,7 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err os.Error) {
 	response, err := server.client.Post(server.URL+path, "text/plain", data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Post failed: %s\n", err)
+		err = os.NewError(fmt.Sprintf("Post failed: %s\n", err))
 		return
 	}
 	if response.StatusCode != 200 {

@@ -7,10 +7,8 @@ import (
 	"flag"
 	"exec"
 	"os"
-	"io"
 	"io/ioutil"
 	"strings"
-	fnet "flunky/net"
 	daemon "flunky/daemon"
 )
 
@@ -24,15 +22,7 @@ var resources map[string]outletNode
 var powerDaemon *daemon.Daemon
 var fileDir string
 
-func CallServ(){
-   bs:= fnet.NewBuildServer("radix-pwr-11", false)
-   var data io.Reader
-   rep, _:= bs.Post(" ", data)
-   fmt.Println(string(rep))
-}
-
 func DumpCall(w http.ResponseWriter, req *http.Request) {
-        CallServ()
         powerDaemon.DaemonLog.LogHttp(req)
 	req.ProtoMinor = 0
 	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)

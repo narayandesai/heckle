@@ -12,6 +12,11 @@ import (
 	"http"
 )
 
+type Auth struct{
+     User string
+     Password string
+}
+
 type UserNode struct {
 	Password string
 	Admin    bool
@@ -36,20 +41,20 @@ func NewAuthInfo(path string, daemonLog *DaemonLogger) *Authinfo {
 
 func (auth *Authinfo) Load() (err os.Error) {
 	if auth.path == "" {
-		auth.daemonLog.LogError("No auth file specified.", os.NewError(" Auth file does not exsist"))
+                err =  os.NewError("Authorization file does not exsist")
 		return
 	}
 	authFile, err := os.Open(auth.path)
 	emsg := fmt.Sprintf("Unable to open %s for reading.", auth.path)
-	auth.daemonLog.LogError(emsg, err)
 	if err != nil {
+	        err = os.NewError(emsg)
 		os.Exit(1)
 	}
 
 	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
 	if intError != 0 {
 		emsg = fmt.Sprintf("Unable to lock %s for reading.", auth.path)
-		auth.daemonLog.LogError(emsg, os.NewError("Flock Syscall Failed"))
+		err = os.NewError(emsg)
 	}
 
 	someBytes, err := ioutil.ReadAll(authFile)
@@ -57,10 +62,9 @@ func (auth *Authinfo) Load() (err os.Error) {
 
 	intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
 	if intError != 0 {
-		auth.daemonLog.LogError("Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
+		err = os.NewError("Flock Syscall Failed")
 	}
 	fi, err := authFile.Stat()
-
 	auth.daemonLog.LogError("Failed to stat file", err)
 
 	err = authFile.Close()
@@ -69,7 +73,7 @@ func (auth *Authinfo) Load() (err os.Error) {
 	defer auth.lock.Unlock()
 
 	err = json.Unmarshal(someBytes, &auth.Users)
-	auth.daemonLog.LogError("ERROR: Failed to unmarshal data read from UserDatabase file.", err)
+	auth.daemonLog.LogError("Failed to unmarshal data read from UserDatabase file.", err)
 	auth.dbstamp = fi.Mtime_ns
 	return
 }
@@ -109,17 +113,15 @@ func (auth *Authinfo) Authenticate(user string, password string) (valid bool, ad
 
 func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool)(err os.Error){
         if _, ok := req.Header["Authorization"]; !ok {
-		auth.daemonLog.LogError("Request header did not contain Authorization information.", os.NewError("HTTP Auth Missing"))
 		err = os.NewError("Request header did not contain Authorization information.")
 		return 
 	}
         header := req.Header.Get("Authorization")
-	fmt.Println(header)
 	tmpAuthArray := strings.Split(header, " ")
 
-	authValues, error := base64.URLEncoding.DecodeString(tmpAuthArray[1])
-	if error != nil{
-	   auth.daemonLog.LogError("Failed to decode encoded auth settings in http request.", error)
+	authValues, err := base64.URLEncoding.DecodeString(tmpAuthArray[1])
+	if err != nil{
+	   auth.daemonLog.LogError("Failed to decode encoded auth settings in http request.", err)
 	}
 
 	authValuesArray := strings.Split(string(authValues), ":")
@@ -127,11 +129,11 @@ func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool)(err os.E
 	password := authValuesArray[1]
 	valid, admin := auth.Authenticate(user, password)
         if !valid {
-            auth.daemonLog.LogError("Cannot find user", os.NewError("Unknown user"))
+            err = os.NewError("Unknown user")
         }
         if isAdmin{
         if !admin {
-	    auth.daemonLog.LogError("Cannot perform function. Not an administrator", os.NewError("Not admin"))
+	    err = os.NewError("User does not have admin privilages")
        }
        }
        return
@@ -156,7 +158,7 @@ func (auth *Authinfo) Store() (err os.Error) {
 
 	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
 	if intError != 0 {
-		auth.daemonLog.LogError(fmt.Sprintf("Unable to lock %s for writing.", auth.path), os.NewError("Flock Syscall Failed"))
+		err = os.NewError(fmt.Sprintf("Failed to lock %s for reading.", auth.path))
 	}
 
 	auth.lock.RLock()
@@ -168,11 +170,26 @@ func (auth *Authinfo) Store() (err os.Error) {
 
 	intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
 	if intError != 0 {
-		auth.daemonLog.LogError("Unable to unlock UserDatabase for reading.", os.NewError("Flock Syscall Failed"))
+		err = os.NewError(fmt.Sprintf("Unable to unlock %s for reading.", auth.path))
 	}
 
 	fi, err := authFile.Stat()
 	auth.dbstamp = fi.Mtime_ns
 	authFile.Close()
 	return
+}
+
+func GetUserAuth()(user string, password string, err os.Error){
+        var authdata Auth
+        homedir := os.Getenv("HOME")
+
+	rawdata, err := ioutil.ReadFile(homedir + "/.hauth")
+	if err != nil {
+	   return
+	   }
+	   json.Unmarshal(rawdata, &authdata)
+	   user = authdata.User
+	   password = authdata.Password
+	   return
+
 }
