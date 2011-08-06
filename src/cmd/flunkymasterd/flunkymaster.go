@@ -105,8 +105,8 @@ func (fm *Flunkym) init() {
           os.Exit(1)
         }
         user, pass, _ := fmDaemon.AuthN.GetUserAuth()
-	valid, admin := fmDaemon.AuthN.Authenticate(user, pass)
-	if !valid && !admin{
+	err = fmDaemon.AuthN.Authenticate(user, pass, true)
+	if err != nil{
 	      fmt.Println(fmt.Sprintf("You do not have proper permissions to start %s daemon.", fmDaemon.Name))
 	      os.Exit(1)
         }       

@@ -93,11 +93,11 @@ func (auth *Authinfo) GetHTTPAuthenticateInfo(req *http.Request) (user string, v
 	authValuesArray := strings.Split(string(authValues), ":")
 	user = authValuesArray[0]
 	password := authValuesArray[1]
-	valid, admin = auth.Authenticate(user, password)
+	valid, admin = auth.GetAuthenticateCred(user, password)
 	return
 }
 
-func (auth *Authinfo) Authenticate(user string, password string) (valid bool, admin bool) {
+func (auth *Authinfo) GetAuthenticateCred(user string, password string) (valid bool, admin bool) {
 	auth.lock.RLock()
 	defer auth.lock.RUnlock()
 	_, ok := auth.Users[user]
@@ -108,6 +108,32 @@ func (auth *Authinfo) Authenticate(user string, password string) (valid bool, ad
 
 	valid = (password == auth.Users[user].Password)
 	admin = auth.Users[user].Admin
+	return
+}
+
+func (auth *Authinfo) Authenticate(user string, password string, isAdmin bool) (err os.Error){
+        auth.lock.RLock()
+	defer auth.lock.RUnlock()
+
+	_, ok := auth.Users[user]
+	if !ok {
+		err = os.NewError(fmt.Sprintf("User does not exsist"))
+		return
+	}
+
+	valid := (password == auth.Users[user].Password)
+	if !valid {
+	    err = os.NewError(fmt.Sprintf("Invalid Password"))
+	    return
+	}
+
+        if isAdmin{
+	   admin := auth.Users[user].Admin
+	   if !admin{
+	       err = os.NewError(fmt.Sprintf("Authorization denied, not administrator"))
+	       return
+	   }
+	}
 	return
 }
 
@@ -127,16 +153,8 @@ func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool)(err os.E
 	authValuesArray := strings.Split(string(authValues), ":")
 	user := authValuesArray[0]
 	password := authValuesArray[1]
-	valid, admin := auth.Authenticate(user, password)
-        if !valid {
-            err = os.NewError("Unknown user")
-        }
-        if isAdmin{
-        if !admin {
-	    err = os.NewError("User does not have admin privilages")
-       }
-       }
-       return
+	err = auth.Authenticate(user, password, isAdmin)
+        return
 }
 
 func (auth *Authinfo) NewUser(user string, password string, admin bool) {

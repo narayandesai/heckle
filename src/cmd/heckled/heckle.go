@@ -92,8 +92,8 @@ func init() {
 	heckleDaemon.DaemonLog.LogDebug("Initializing variables and setting up daemon.")
     
         user, pass, _ := heckleDaemon.AuthN.GetUserAuth()
-	valid, admin := heckleDaemon.AuthN.Authenticate(user, pass)
-	if !valid && !admin{
+	err = heckleDaemon.AuthN.Authenticate(user, pass, true)
+	if err != nil{
 	    fmt.Println(fmt.Sprintf("You do not have proper permissions to start %s daemon.", heckleDaemon.Name))
 	    os.Exit(1)
 	}

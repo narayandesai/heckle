@@ -135,8 +135,8 @@ func main() {
 		os.Exit(1)
 	}
 	user, pass, _ := powerDaemon.AuthN.GetUserAuth()
-	valid, admin := powerDaemon.AuthN.Authenticate(user, pass)
-	if !valid && !admin{
+	err = powerDaemon.AuthN.Authenticate(user, pass, true)
+	if err != nil{
  	   fmt.Println(fmt.Sprintf("You dont have permissions to start %s daemon.", powerDaemon.Name))
 	   os.Exit(1)
 	}
