@@ -205,9 +205,9 @@ func (fm *Flunkym) Load() {
 	}
 	file, err := ioutil.ReadFile(fm.path.staticdataPath)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not read %s", fm.path.staticdataPath), err)
-
+       
 	err = json.Unmarshal(file, &fm.static)
-	fmDaemon.DaemonLog.LogError("Could not staticBuildVars.Json", err)
+	fmDaemon.DaemonLog.LogError("Could not read staticBuildVars.Json", err)
 	return
 }
 
@@ -231,8 +231,8 @@ func (fm *Flunkym) SetPath(fmDaemon *daemon.Daemon) {
 	path := new(PathType)
 	root := fmDaemon.Cfg.Data["repoPath"]
 	path.root = root 
-	path.dataFile = path.root + "/" + fmDaemon.Cfg.Data["backupFile"]
-	path.staticdataPath = path.root + "/staticVars.json"
+	path.dataFile = daemon.FileDir + fmDaemon.Cfg.Data["backupFile"]
+	path.staticdataPath = daemon.FileDir + "staticVars.json"
 	path.image = path.root + "/images"
 	fm.path = *path
 	return
