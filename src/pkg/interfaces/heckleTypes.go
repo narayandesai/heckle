@@ -33,6 +33,7 @@ type Listmsg struct {
      Addresses           []string
      Image               string
      ActivityTimeout     int64
+     AllocNum            int
 }
 
 type Nummsg struct {

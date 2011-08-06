@@ -104,7 +104,7 @@ func init() {
 	pComm, err = fnet.NewCommunication(daemon.FileDir+"components.conf", heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
 	heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for power.", err)
 
-	fs, err = fmComm.SetupClient("flunkymaster")
+	fs, err = fmComm.SetupClient("flunky")
 	heckleDaemon.DaemonLog.LogError("Failed to setup heckle to flunkymaster communication.", err)
 
 	ps, err = pComm.SetupClient("power")
@@ -300,7 +300,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 	allocationNumber++
 	allocationNumberLock.Unlock()
 
-	heckleToAllocateChan <- iface.Listmsg{listMsg.Addresses, listMsg.Image, 0}
+	heckleToAllocateChan <- iface.Listmsg{listMsg.Addresses, listMsg.Image, 0,tmpAllocationNumber}
 
 	currentRequestsLock.Lock()
 	for _, value := range listMsg.Addresses {
@@ -346,7 +346,7 @@ func allocateNumber(writer http.ResponseWriter, req *http.Request) {
 	allocationNumber++
 	allocationNumberLock.Unlock()
 
-	heckleToAllocateChan <- iface.Listmsg{allocationList, numMsg.Image, 0}
+	heckleToAllocateChan <- iface.Listmsg{allocationList, numMsg.Image, 0, tmpAllocationNumber}
 
 	currentRequestsLock.Lock()
 	for _, value := range allocationList {
@@ -382,6 +382,7 @@ func allocate() {
 		cm := new(iface.Ctlmsg)
 		cm.Image = i.Image
 		cm.Addresses = i.Addresses
+		cm.AllocNum = i.AllocNum
 		// FIXME: need to add in extradata
 		js, _ := json.Marshal(cm)
 		buf := bytes.NewBufferString(string(js))
@@ -481,7 +482,7 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
 	//on the current requests map.
 	heckleDaemon.DaemonLog.Log("Finding a replacement node for a node that has failed or is already allocated.")
 	allocationList := getNumNodes(1, owner, image, tmpAllocationNumber)
-	heckleToAllocateChan <- iface.Listmsg{allocationList, image, 0}
+	heckleToAllocateChan <- iface.Listmsg{allocationList, image, 0, tmpAllocationNumber}
 
 	currentRequestsLock.Lock()
 	for _, value := range allocationList {

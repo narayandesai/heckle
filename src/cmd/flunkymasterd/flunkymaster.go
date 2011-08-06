@@ -37,7 +37,6 @@ import (
 	"flunky/interfaces"
 	"rand"
 	"encoding/base64"
-	"strconv"
 )
 
 var fm Flunkym
@@ -81,7 +80,7 @@ type DataStore struct {
 	Extra    map[string]string
 	Username string
 	Password string
-	//AllocNum string
+	AllocNum uint64
 }
 
 //Flunkym is the main data type that will allow the user to interface and add
@@ -144,18 +143,18 @@ func build_vars(address string, path string) map[string]Bvar {
 	orders["Count"] = "2"
 	orders["IMAGE"] = fm.data[address].Image
 	orders["Image"] = fm.data[address].Image
-	orders["Errors"] = strconv.Itoa(fm.data[address].Errors)
 	orders["Username"] = fm.data[address].Username
 	orders["Password"] = fm.data[address].Password
 	key := data[address]
 	key.Data = orders
 	key.Counts = fm.data[address].Counts
+	key.Counts["Errors"] = fm.data[address].Errors
 	data[address] = key
 	return data
 }
 
 //Mutex lock needed
-func (fm *Flunkym) Assert_setup(image string, ip string) {
+func (fm *Flunkym) Assert_setup(image string, ip string, alloc uint64) {
 	info := make([]interfaces.InfoMsg, 0)
 	image_dir := fm.path.image + "/" + image
 	_, err := os.Stat(image_dir)
@@ -164,13 +163,13 @@ func (fm *Flunkym) Assert_setup(image string, ip string) {
 	pass := CreateCredin(8)
 	newsetup := make(map[string]DataStore)
 	counts := make(map[string]int)
-	newsetup[ip] = DataStore{time.Seconds(), counts, 0, time.Seconds(), info, image, nil, "", ""}
+	newsetup[ip] = DataStore{time.Seconds(), counts, 0, time.Seconds(), info, image, nil, "", "", 0}
 	newsetup[ip].Counts["bootconfig"] = 0
 	key := newsetup[ip]
 	key.Username = usr
 	key.Password = pass
+	key.AllocNum = alloc
 	newsetup[ip] = key
-	//newsetup[ip].AllocateNum = msg.AllocateNum)
 	fm.data[ip] = newsetup[ip]
 	fm.Store()
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Allocated %s as %s", ip, image))
@@ -488,7 +487,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 			fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s in host table", addr), err)
 			iaddr := temper[0].String()
 			fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %s as %s", addr, msg.Image))
-			fm.Assert_setup(msg.Image, iaddr)
+			fm.Assert_setup(msg.Image, iaddr, msg.AllocNum)
 		}
 
 		fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Added %s to flunkyMaster", msg.Addresses))

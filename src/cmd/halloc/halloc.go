@@ -87,7 +87,7 @@ func requestNumber() (tmpAllocationNumber uint64) {
 }
 
 func requestList() (tmpAllocationNumber uint64) {
-	nm := iface.Listmsg{allocationList, image, 300}
+	nm := iface.Listmsg{allocationList, image, 300, 0}
 
 	someBytes, error := json.Marshal(nm)
 	printError("Failed to marshal nummsg in requestList function.", error)

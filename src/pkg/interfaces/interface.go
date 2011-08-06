@@ -4,6 +4,7 @@ type Ctlmsg struct {
      Addresses []string
      Time      int64
      Image     string
+     AllocNum  uint64
      Extra     map[string]string
 }
 
@@ -11,6 +12,7 @@ type Listmsg struct {
      Addresses           []string
      Image               string
      ActivityTimeout     int64
+     AllocNum            uint64
 }
 
 type Nummsg struct {
