@@ -179,7 +179,7 @@ func (auth *Authinfo) Store() (err os.Error) {
 	return
 }
 
-func GetUserAuth()(user string, password string, err os.Error){
+func (auth *Authinfo) GetUserAuth()(user string, password string, err os.Error){
         var authdata Auth
         homedir := os.Getenv("HOME")
 

@@ -89,8 +89,14 @@ func init() {
 
 	heckleDaemon, err = daemon.New("heckle")
 	heckleDaemon.DaemonLog.LogError("Failed to create new heckle daemon.", err)
-
 	heckleDaemon.DaemonLog.LogDebug("Initializing variables and setting up daemon.")
+    
+        user, pass, _ := heckleDaemon.AuthN.GetUserAuth()
+	valid, admin := heckleDaemon.AuthN.Authenticate(user, pass)
+	if !valid && !admin{
+	    fmt.Println(fmt.Sprintf("You do not have proper permissions to start %s daemon.", heckleDaemon.Name))
+	    os.Exit(1)
+	}
 
 	fmComm, err = fnet.NewCommunication(daemon.FileDir+"components.conf", heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
 	heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for flunkymaster.", err)

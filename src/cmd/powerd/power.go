@@ -134,6 +134,12 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	user, pass, _ := powerDaemon.AuthN.GetUserAuth()
+	valid, admin := powerDaemon.AuthN.Authenticate(user, pass)
+	if !valid && !admin{
+ 	   fmt.Println(fmt.Sprintf("You dont have permissions to start %s daemon.", powerDaemon.Name))
+	   os.Exit(1)
+	}
 
 	powerDB, err := ioutil.ReadFile(daemon.FileDir + "power.db")
 	powerDaemon.DaemonLog.LogError("Unable to open power.db for reading.", err)
