@@ -7,20 +7,14 @@
 
 // BUG(Mike Guantonio): ipaddress resolution may be out of range and raises a painc if sent
 // to the system. There needs to be painc error handling in order to fix this. 
-// BUG(Mike Guantonio): There is not reporting to std out for the HTTTP status of a message.
 // BUG(Mike Guantonio): Errors currently print as ascii characters and not integers.  
 // BUG(Mike Guantonio): Render static and dynamic do not allow for dynamic file names
-// BUG(Miek Guantonio): Authorization information is not pulled from flunky.
 package main
 
 //Duties to finish
-//3. Implement go routines
 //7. Comment the code
 //11. Add error returns to all functions
-//12. Implement select statuments
-//15. Write documentation for new system. 
-//21. Overload the http handler func in order to to make fm not local. 
-//22. Find out if GET and POST are really important.
+//15. Write documentation for new system.  
 //23. Change the data.errors to and itoa function. 
 //26. Add information to handle a heclke allocation (#) which can conatin information about 
 // all nodes for that build request. 
@@ -43,6 +37,7 @@ import (
 	"flunky/interfaces"
 	"rand"
 	"encoding/base64"
+	"strconv"
 )
 
 var fm Flunkym
@@ -149,7 +144,7 @@ func build_vars(address string, path string) map[string]Bvar {
 	orders["Count"] = "2"
 	orders["IMAGE"] = fm.data[address].Image
 	orders["Image"] = fm.data[address].Image
-	orders["Errors"] = string(fm.data[address].Errors) //itoa function needed
+	orders["Errors"] = strconv.Itoa(fm.data[address].Errors)
 	orders["Username"] = fm.data[address].Username
 	orders["Password"] = fm.data[address].Password
 	key := data[address]
