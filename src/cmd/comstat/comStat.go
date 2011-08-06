@@ -45,11 +45,12 @@ func main() {
 			client, err := comm.SetupClient(name)
 			if err != nil {
 				fmt.Println(fmt.Sprintf("Failed to lookup component %s", name))
+				os.Exit(1)
 			}
 			resp, err := client.Get("dump")
 			if err != nil {
 				fmt.Println(fmt.Sprintf("Failed to contact component %s", name))
-				fmt.Println(err)
+			        os.Exit(1)
 			}
 			fmt.Println(string(resp))
 		}

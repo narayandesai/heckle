@@ -27,7 +27,6 @@ func init() {
 	flag.BoolVar(&status, "s", false, "Print status of used nodes.")
 	flag.IntVar(&numNodes, "n", 0, "Request an arbitrary number of nodes.")
 	flag.IntVar(&timeIncrease, "t", 0, "Increase current allocation by this many hours.")
-	flag.Uint64Var(&freeAlloc, "f", 0, "Free a reserved allocation number preemptively.")
 	flag.StringVar(&image, "i", "ubuntu-maverick-amd64", "Image to be loaded on to the nodes.")
 
 	flag.Parse()
@@ -164,14 +163,6 @@ func pollForStatus() {
 	}
 }
 
-func freeAllocation() {
-	someBytes, error := json.Marshal(freeAlloc)
-	printError("Failed to marshal allocation number for status poll.", error)
-	buf := bytes.NewBufferString(string(someBytes))
-	someBytes, error = bs.Post("/freeAllocation", buf)
-	printError("Failed to post for status of nodes to heckle.", error)
-}
-
 func nodeStatus() {
 	buf := bytes.NewBufferString("")
 	someBytes, error := bs.Post("/nodeStatus", buf)
@@ -204,10 +195,6 @@ func main() {
 
 	if timeIncrease != 0 {
 		requestTimeIncrease()
-	}
-
-	if freeAlloc != 0 {
-		freeAllocation()
 	}
 
 	if numNodes != 0 {
