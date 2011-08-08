@@ -6,8 +6,7 @@
 // clients.
 
 // BUG(Mike Guantonio): ipaddress resolution may be out of range and raises a painc if sent
-// to the system. There needs to be painc error handling in order to fix this. 
-// BUG(Mike Guantonio): Errors currently print as ascii characters and not integers.  
+// to the system. There needs to be painc error handling in order to fix this.  
 // BUG(Mike Guantonio): Render static and dynamic do not allow for dynamic file names
 package main
 
@@ -172,7 +171,6 @@ func (fm *Flunkym) Assert_setup(image string, ip string, alloc uint64) {
 	newsetup[ip] = key
 	fm.data[ip] = newsetup[ip]
 	fm.Store()
-	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Allocated %s as %s", ip, image))
 	return
 }
 
@@ -232,7 +230,6 @@ func (fm *Flunkym) SetPath(fmDaemon *daemon.Daemon) {
 	return
 }
 
-//Mutex
 func (fm *Flunkym) Increment_Count(address string, path string) {
 	key := fm.data[address]
 	key.Counts[path] += 1
@@ -276,7 +273,7 @@ func (fm *Flunkym) RenderGetDynamic(loc string, address string) []byte {
 	fm.Increment_Count(address, loc)
 
 	dynamic := dynamic_buf.Bytes()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", address, loc))
+	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("%s Rendered %s", address, loc))
 	return dynamic
 }
 
@@ -330,7 +327,7 @@ func (fm *Flunkym)AuthFlunky(user string, password string, address string)(valid
 }
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
-	fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
         err := fmDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil{
@@ -346,11 +343,11 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	fmDaemon.DaemonLog.LogDebug("Data Dump")
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Processed data dump for %s", req.RemoteAddr))
 }
 
 func StaticCall(w http.ResponseWriter, req *http.Request) {
-	fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -358,10 +355,11 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
         //Flunky auth needed
 	tmp := fm.RenderGetStatic(req.RawURL, address)
 	w.Write(tmp)
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", req.RawURL, address))
 }
 
 func DynamicCall(w http.ResponseWriter, req *http.Request) {
-	fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -370,11 +368,12 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 	tmp := fm.RenderGetDynamic(req.RawURL, address)
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", req.RawURL, address))
 
 }
 
 func BootconfigCall(w http.ResponseWriter, req *http.Request) {
-	fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -383,25 +382,24 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	tmp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
 	_, err := w.Write(tmp)
 	fmDaemon.DaemonLog.LogError("Will not write status", err)
-	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("%s Rendered bootconfig", address))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s in allocation #%d has booted.", address, fm.data[address].AllocNum))
 }
 
 func InstallCall(w http.ResponseWriter, req *http.Request) {
-	fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	//Flunky auth needed
 	tmp := fm.RenderImage("install", address)
-	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("%s Rendered install", address))
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
 }
 
 //Mutex needed
 func InfoCall(w http.ResponseWriter, req *http.Request) {
-	fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -425,12 +423,13 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	fm.data[address] = tmp
 	m.Unlock()
 	fm.Store()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Info recieved from %s: %s.", address, msg.Message))
 	}
 }
 
 //Mutex needed
 func ErrorCall(w http.ResponseWriter, req *http.Request) {
-	fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -438,9 +437,6 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	//Flunky auth needed
 	var tmp DataStore
 	body, _ := fmDaemon.ReadRequest(req)
-	m.Lock()
-	fmDaemon.DaemonLog.LogDebug("Recieved error")
-	m.Unlock()
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Cannot unmarsahll data", err)
@@ -454,10 +450,11 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	fm.data[address] = tmp
 	m.Unlock()
 	fm.Store()
+        fmDaemon.DaemonLog.Log(fmt.Sprintf("Error recieved from %s: %s. Error count is %d", address, msg.Message, fm.data[address].Errors))
 }
 
 func CtrlCall(w http.ResponseWriter, req *http.Request) {
-	fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
@@ -486,19 +483,18 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 			temper, err := net.LookupIP(addr)
 			fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s in host table", addr), err)
 			iaddr := temper[0].String()
-			fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %s as %s", addr, msg.Image))
 			fm.Assert_setup(msg.Image, iaddr, msg.AllocNum)
+			fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %s as %s for allocation #%d", addr, msg.Image, msg.AllocNum))
 		}
 
 		fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Added %s to flunkyMaster", msg.Addresses))
 	}
 }
 
-//Mutex needed
 func StatusCall(w http.ResponseWriter, req *http.Request) {
 	var msg interfaces.Ctlmsg
 	cstatus := make(map[string]interfaces.StatusMessage)
-	fmDaemon.DaemonLog.LogHttp(req)
+	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")

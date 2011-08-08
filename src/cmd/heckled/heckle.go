@@ -140,7 +140,6 @@ func updateDatabase(term bool) {
 	//resource map.
 	heckleDaemon.DaemonLog.LogDebug("Updating persistant json resource database file.")
 	databaseFile, error := os.OpenFile(daemon.FileDir+"resources.db", os.O_RDWR, 0777)
-	//databaseFile, error := os.Create(daemon.FileDir + "ResourceDatabase")
 	heckleDaemon.DaemonLog.LogError("Unable to open resource database file for reading and writing.", error)
 
 	intError := syscall.Flock(databaseFile.Fd(), 2) //2 is exclusive lock
@@ -272,7 +271,8 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 	//It grabs the list from the message, makes a new lsit of all available
 	//nodes within that original list.  Gets an allocation number, and adds
 	//them to the current requests map.
-	heckleDaemon.DaemonLog.LogHttp(req)
+
+	heckleDaemon.DaemonLog.DebugHttp(req)
 	heckleDaemon.DaemonLog.LogDebug("Allocating a list of nodes.")
 	listMsg := new(iface.Listmsg)
 	req.ProtoMinor = 0
@@ -308,7 +308,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 		remove[value] = false
 	}
 	currentRequestsLock.Unlock()
-
+        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Added allocation #%d nodes: %s to Heckle", tmpAllocationNumber, listMsg.Addresses) )
 	js, _ := json.Marshal(tmpAllocationNumber)
 	writer.Write(js)
 
@@ -319,8 +319,8 @@ func allocateNumber(writer http.ResponseWriter, req *http.Request) {
 	//This is just an http function that deals with allocation number requests.
 	//It grabs the number, gets a list of that number or less of nodes, gets
 	//an allocation number, and adds them to the current requests map.
-	heckleDaemon.DaemonLog.Log("Allocating a number of nodes.")
-	heckleDaemon.DaemonLog.LogHttp(req)
+
+	heckleDaemon.DaemonLog.DebugHttp(req)
 	numMsg := new(iface.Nummsg)
 	req.ProtoMinor = 0
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
@@ -335,6 +335,7 @@ func allocateNumber(writer http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(body, &numMsg)
 	heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation list.", err)
 
+        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %d nodes.", numMsg))
 	allocationNumberLock.Lock()
 	tmpAllocationNumber := allocationNumber
 
@@ -365,18 +366,6 @@ func allocate() {
 	//flunky master.  On each iteration it grabs new nodes from heckle to be
 	//allocated and send them off to flunkymaster.
 	heckleDaemon.DaemonLog.LogDebug("Starting allocation go routine.")
-
-	/*fmComm, error := fnet.NewCommunication(heckleDaemon.FileDir, heckleheckleDaemon.Cfg.Data["username"], Daemon.Cfg.Data["password"])
-	  heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for flunkymaster.", error)
-
-	  pComm, error := fnet.NewCommunication(heckleDaemon.FileDir, heckleheckleDaemon.Cfg.Data["username"], Daemon.Cfg.Data["password"])
-	  heckleDaemon.DaemonLog.LogError("Failed to make new communication structure in heckle for power.", error)
-
-	  fs, error := fmComm.SetupClient("flunky")
-	  heckleDaemon.DaemonLog.LogError("Failed to setup heckle to flunkymaster communication.", error)
-
-	  ps, error := pComm.SetupClient("power")
-	  heckleDaemon.DaemonLog.LogError("Failed to setup heckle to power communication.", error)*/
 
 	for i := range heckleToAllocateChan {
 		cm := new(iface.Ctlmsg)
@@ -480,7 +469,8 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
 	//This function finds a single node for someone whose node got canceled and requested
 	//a number of nodes.  It then sends this node to the allocation thread and tosses it
 	//on the current requests map.
-	heckleDaemon.DaemonLog.Log("Finding a replacement node for a node that has failed or is already allocated.")
+
+	heckleDaemon.DaemonLog.Log(fmt.Sprintf("User %s, your node is either offline or allocated. Finding a replacement node for allocation #%d.", owner, tmpAllocationNumber))
 	allocationList := getNumNodes(1, owner, image, tmpAllocationNumber)
 	heckleToAllocateChan <- iface.Listmsg{allocationList, image, 0, tmpAllocationNumber}
 
@@ -494,7 +484,7 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
 }
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
-	heckleDaemon.DaemonLog.LogHttp(req)
+	heckleDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
@@ -510,13 +500,15 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 	}
+	heckleDaemon.DaemonLog.Log("Dump request processed")
 }
 
 func status(writer http.ResponseWriter, req *http.Request) {
 	//This is an http handler function to deal with allocation status requests.
 	//if the host has ownership of the allocation number we send back a map
 	//of node names and a status message type.
-	heckleDaemon.DaemonLog.LogHttp(req)
+
+	heckleDaemon.DaemonLog.DebugHttp(req)
 	heckleDaemon.DaemonLog.LogDebug("Sending allocation status to client.")
 	allocationStatus := make(map[string]*iface.StatusMessage)
 	allocationNumber := uint64(0)
@@ -565,7 +557,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	//This function allows a user, if it owns the allocation, to free an allocation
 	//number and all associated nodes.  It resets the resource map and current
 	//requests map.
-	heckleDaemon.DaemonLog.LogHttp(req)
+	heckleDaemon.DaemonLog.DebugHttp(req)
 	heckleDaemon.DaemonLog.LogDebug("Freeing allocation number given by client.")
 	allocationNumber := uint64(0)
 	req.ProtoMinor = 0
@@ -583,7 +575,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation number for freeing.", err)
         
 	if allocationNumber <= 0{
-	    heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation number %d does not exsist",allocationNumber), os.NewError("0 used"))
+	    heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exsist",allocationNumber), os.NewError("0 used"))
             writer.WriteHeader(http.StatusBadRequest)
 	    resp := "not present"
 	    writer.Write([]byte(resp))
@@ -628,7 +620,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	buf := bytes.NewBufferString(string(js))
 	_, err = ps.Post("/command/off", buf)
 	heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free allocation number.", err)
-
+        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Allocation #%d nodes %s have been freed.",allocationNumber,powerDown))
 	updateDatabase(false)
 }
 
@@ -636,7 +628,8 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	//This function allows a user, if it owns the allocation, to free an allocation
 	//number and all associated nodes.  It resets the resource map and current
 	//requests map.
-	heckleDaemon.DaemonLog.LogHttp(req)
+        var end int64
+	heckleDaemon.DaemonLog.DebugHttp(req)
 	heckleDaemon.DaemonLog.LogDebug("Increasing allocation time on an allocation number.")
 	timeIncrease := int64(0)
 	req.ProtoMinor = 0
@@ -655,10 +648,11 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	for _, value := range resources {
 		if value.Owner == username {
 			value.AllocationEndTime = value.AllocationEndTime + timeIncrease
+			end = value.AllocationEndTime
 		}
 	}
 	resourcesLock.Unlock()
-
+        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Increased timeout by %d for %s. Allocation will end at %d", timeIncrease, username, end))
 	updateDatabase(false)
 }
 
@@ -666,6 +660,7 @@ func allocationTimeouts() {
 	//This function deals with allocation timeouts.  If a node has timed out in
 	//its allocation, we reset the resource map.  Also removes it from current
 	//requests if it exists.
+
 	found := false
 	powerDown := []string{}
 
@@ -686,13 +681,10 @@ func allocationTimeouts() {
 
 	if found {
 		heckleDaemon.DaemonLog.LogDebug("Found allocation time outs, deallocating them.")
-		//rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
-
 		js, _ := json.Marshal(powerDown)
 		buf := bytes.NewBufferString(string(js))
 		_, err := ps.Post("/command/off", buf)
 		heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in allocation time outs.", err)
-
 		updateDatabase(false)
 	}
 }
@@ -700,11 +692,12 @@ func allocationTimeouts() {
 func freeNode(writer http.ResponseWriter, req *http.Request) {
 	//This will free a requested node if the user is the owner of the node.  It removes
 	//the node from current resources if it exists and also resets it in resources map.
+
 	heckleDaemon.DaemonLog.LogDebug("Freeing a specific node given by client.")
-	//rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
+	
 	var node string
 	req.ProtoMinor = 0
-	heckleDaemon.DaemonLog.LogHttp(req)
+	heckleDaemon.DaemonLog.DebugHttp(req)
 
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
@@ -739,7 +732,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 	buf := bytes.NewBufferString(string(js))
 	_, err = ps.Post("/command/off", buf)
 	heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free node.", err)
-
+        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Freed %s in allocation #%d for %s.",node, resources[node].AllocationNumber, username)) 
 	updateDatabase(false)
 }
 
@@ -756,6 +749,7 @@ func listenAndServeWrapper() {
 func freeCurrentRequests() {
 	//If a node is ready or canceled and there are no more info messages remove it from being tracked in
 	//current requests.  No need to update resources structure because this is done in other places.
+
 	currentRequestsLock.Lock()
 	for key, value := range currentRequests {
 		if (value.Status == "Cancel" || toDelete[key] == true) && (len(value.Info) == 0) {
@@ -771,8 +765,6 @@ func dealWithBrokenNode(node string) {
 	resourcesLock.Lock()
 	resources[node].Broken()
 	resourcesLock.Unlock()
-
-	//rs := fnet.NewBuildServer("http://" + heckleDaemon.Cfg.Data["username"] + ":" + heckleDaemon.Cfg.Data["password"] + "@" + heckleDaemon.Cfg.Data["powerServer"], false)
 
 	js, _ := json.Marshal([]string{node})
 	buf := bytes.NewBufferString(string(js))
@@ -821,7 +813,7 @@ func interpretPollMessages() {
 func outletStatus(writer http.ResponseWriter, req *http.Request) {
 	heckleDaemon.DaemonLog.LogDebug("Executing power command.")
 	req.ProtoMinor = 0
-	heckleDaemon.DaemonLog.LogHttp(req)
+	heckleDaemon.DaemonLog.DebugHttp(req)
 
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, true)
 	if err != nil {
@@ -842,7 +834,7 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
 	heckleDaemon.DaemonLog.LogDebug("Sending back node status.")
 	response := ""
 	req.ProtoMinor = 0
-	heckleDaemon.DaemonLog.LogHttp(req)
+	heckleDaemon.DaemonLog.DebugHttp(req)
 
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {

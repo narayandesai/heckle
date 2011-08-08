@@ -23,11 +23,11 @@ var powerDaemon *daemon.Daemon
 var fileDir string
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
-        powerDaemon.DaemonLog.LogHttp(req)
+        powerDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
         if err != nil{
-           powerDaemon.DaemonLog.LogError("Access not permitted.", err)
+           powerDaemon.DaemonLog.LogError("Unauthorized request for dump.", err)
 	   w.WriteHeader(http.StatusUnauthorized)      
 	   return
         }
@@ -37,12 +37,24 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+	powerDaemon.DaemonLog.Log("Serviced request for data dump")
 }
 
+func printCmd(nodes []string, cmd string){
+    switch(cmd){
+       case "on" : powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been turned %s", nodes, cmd))
+                   break
+       case "off": powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been turned %s", nodes, cmd))
+                   break
+       case "reboot":powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been %sed", nodes, cmd))
+                    break
+      }
+      return
+}
 func command(w http.ResponseWriter, req *http.Request){
     var nodes []string
     req.ProtoMinor = 0
-    powerDaemon.DaemonLog.LogHttp(req)
+    powerDaemon.DaemonLog.DebugHttp(req)
     err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
     if err != nil{
        powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
@@ -72,11 +84,12 @@ func command(w http.ResponseWriter, req *http.Request){
 	    }(value)
 	}
     }
+    printCmd(nodes, cmd) 
 }
 
 
 func statusList(w http.ResponseWriter, req *http.Request) {
-        powerDaemon.DaemonLog.LogHttp(req)
+        powerDaemon.DaemonLog.DebugHttp(req)
 	powerDaemon.DaemonLog.LogDebug("Retreiving status for list given by client.")
 	var nodes []string
 	outletStatus := make(map[string]string)

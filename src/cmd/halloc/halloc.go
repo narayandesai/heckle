@@ -68,7 +68,7 @@ func requestNumber() (tmpAllocationNumber uint64) {
 	error = json.Unmarshal(someBytes, &tmpAllocationNumber)
 	hclient.PrintError("Failed to unmarshal allocation number from http response in request number.", error)
 
-	fmt.Fprintf(os.Stdout, "Your allocation number is %s.", strconv.Uitoa64(tmpAllocationNumber))
+	fmt.Fprintf(os.Stdout, "Your allocation number is %d.", tmpAllocationNumber)
 
 	return
 }
@@ -112,7 +112,17 @@ func ConvertTime(tm int64) string {
 	return time.SecondsToLocalTime(tm).Format("15:04:05")
 }
 
+func printStatus(key string, value *iface.StatusMessage, i int) {
+    currentTime := time.SecondsToLocalTime(value.LastActivity).Format("Jan _2 15:04:05")
+    processName := os.Args[0]
+    pid := os.Getpid()
+    fmt.Println(fmt.Sprintf("%s %s %s[%d]: %s", currentTime, key, processName, pid, value.Info[i].Message)) 
+   /*fmt.Fprintf(os.Stdout, "NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %s\tMESSAGE: %s : %s\n", key, value.Status, ConvertTime(value.LastActivity), ConvertTime(value.Info[i].Time), value.Info[i].Message)*/
+    return
+}
+
 func pollForStatus() {
+        start := time.Seconds()
 	statMap := make(map[string]*iface.StatusMessage)
 	pollStatus := make(map[string]string)
 	for {
@@ -133,8 +143,7 @@ func pollForStatus() {
 			done = true
 			for i := range value.Info {
 				if len(value.Info) != 0 {
-
-					fmt.Fprintf(os.Stdout, "NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %s\tMESSAGE: %s : %s\n", key, value.Status, ConvertTime(value.LastActivity), ConvertTime(value.Info[i].Time), value.Info[i].Message)
+                                    printStatus(key, value, i)
 				}
 			}
 			done = done && (pollStatus[key] == "Ready")
@@ -143,9 +152,12 @@ func pollForStatus() {
 			}
 
 		}
-
+                //Get list of nodes for message
 		if done {
-			fmt.Fprintf(os.Stdout, "Done allocating nodes.  Your allocation number is %d.  Please report failures to your system administrator.\n", allocationNumber)
+		        end := time.Seconds()
+			final := end - start
+			allocTime := time.SecondsToLocalTime(final).Format("04:05")
+			fmt.Println(fmt.Sprintf("Allocation #%d complete.  The build process for allocation %d took: %s", allocationNumber,allocationNumber, allocTime))
 			os.Exit(0)
 		}
 	}
