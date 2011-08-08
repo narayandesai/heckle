@@ -18,7 +18,6 @@ func Usage() {
      flag.PrintDefaults()
 }
 
-
 func init(){
       flag.BoolVar(&help, "h", false, "Print usage of command.")
 }
@@ -27,7 +26,6 @@ func printError(err os.Error){
    if err != nil{
        fmt.Println(err)
    }
-
 }
 
 func freeAlloc(alloc int64)(ret string, err os.Error){
@@ -41,7 +39,6 @@ func freeAlloc(alloc int64)(ret string, err os.Error){
    printError(err)
    buf := bytes.NewBufferString(string(msg))
    ans, err := bs.Post("/freeAllocation", buf)
-   printError( err)
    ret = string(ans)
    return
 }
@@ -61,16 +58,13 @@ func main(){
 
     allocations := flag.Args()
     alloc, _ := strconv.Atoi64(allocations[0])
-    ret, err := freeAlloc(alloc) 
-    printError(err)
-    if err != nil{
-        os.Exit(1)
-    }
-    if ret != "not present" {
-        fmt.Println(fmt.Sprintf("Freed allocation #%d.", alloc))
-    }else{
+
+    _, err := freeAlloc(alloc) 
+    if err != nil {
         fmt.Println(fmt.Sprintf("Unable to free allocation #%d. Allocation does not exsist.", alloc))
 	os.Exit(1)
+    }else{
+        fmt.Println(fmt.Sprintf("Freed allocation #%d.", alloc))
     }    
 
 }

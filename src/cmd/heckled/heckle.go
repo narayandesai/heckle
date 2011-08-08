@@ -613,7 +613,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	resourcesLock.Unlock()
 
 	if !found {
-		heckleDaemon.DaemonLog.LogError("Allocation number does not exist.", os.NewError("Wrong Number"))
+		heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exist.",allocationNumber), os.NewError("Wrong Number"))
 		resp := "not present"
 		writer.WriteHeader(http.StatusBadRequest)
 		writer.Write([]byte(resp))
@@ -853,7 +853,7 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
 	resourcesLock.Lock()
 	for key, value := range resources {
 		if value.Allocated {
-			response = response + "NODE: " + key + "\tALLOCATED: yes\tALLOCATION: " + strconv.Uitoa64(value.AllocationNumber) + "\tOWNER: " + value.Owner + "\tIMAGE: " + value.Image + "\tTIME ALLOCATED: " + time.SecondsToLocalTime(value.TimeAllocated).Format(time.UnixDate) + "\tALLOCATION END: " + time.SecondsToLocalTime(value.AllocationEndTime).Format(time.UnixDate) + "\tCOMMENTS: " + value.Comments + "\n\n"
+			response = response + "NODE: " + key + "\tALLOCATED: yes\tALLOCATION: " + strconv.Uitoa64(value.AllocationNumber) + "\tOWNER: " + value.Owner + "\tIMAGE: " + value.Image + "\tALLOCATION START: " + time.SecondsToLocalTime(value.TimeAllocated).Format(time.UnixDate) + "\tALLOCATION END: " + time.SecondsToLocalTime(value.AllocationEndTime).Format(time.UnixDate) + "\tCOMMENTS: " + value.Comments + "\n\n"
 
 		}
 	}
