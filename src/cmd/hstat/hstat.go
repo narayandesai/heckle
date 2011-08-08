@@ -28,7 +28,7 @@ func init() {
 	}
 
 	if bs, err = hstat.SetupClient("heckle"); err != nil {
-		printError("Failed to setup client in halloc.", os.NewError("Client Setup Failed"))
+		cli.PrintError("Failed to setup client in halloc.", os.NewError("Client Setup Failed"))
 		os.Exit(1)
 	}
 
@@ -39,22 +39,10 @@ func init() {
 	flag.StringVar(&image, "i", " ", "Find image")
 }
 
-func printError(message string, err os.Error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", message)
-	}
-}
-
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	flag.PrintDefaults()
-}
-
 func FindDuration(end string) string {
 	endTime, _ := time.Parse(time.UnixDate, end)
 	ret := endTime.Format("01-02-2006 15:04")
 	return ret
-
 }
 
 func printStatus(info string) {
@@ -123,18 +111,18 @@ func main() {
 	flag.Parse()
 
 	if help {
-		usage()
+		cli.Usage()
 		os.Exit(0)
 	}
 
 	someBytes, err := getStatus()
 	if err != nil {
-		fmt.Println("Cannot find the status of nodes in heckle.")
+		cli.PrintError("Cannot find the status of nodes in heckle.", err)
 		os.Exit(1)
 	}
 
 	if len(someBytes) <= 0 {
-		fmt.Println("Empty update")
+		cli.PrintError("Empty update", os.NewError("no data"))
 		os.Exit(1)
 	}
 
@@ -143,7 +131,7 @@ func main() {
 		if len(validList) > 0 {
 		     printStatus(validList)
 		 }else{
-		     fmt.Println("User does not exist in the system")
+		     cli.PrintError("User does not exist in the system", os.NewError("Unknown user"))
 		     os.Exit(1)
                  }
 
@@ -154,7 +142,7 @@ func main() {
 		if len(validList) > 0 {
 			printStatus(validList)
                 }else{
-		    fmt.Println("Node is not allocated or does not exsist")
+		    cli.PrintError("Node is not allocated or does not exsist", os.NewError("Missing"))
 		    os.Exit(1)
 		}
 	}
@@ -164,7 +152,7 @@ func main() {
 		if len(validList) > 0 {
 		    printStatus(validList)
 		}else{
-		    fmt.Println("Allocation number does not exsist")
+		    cli.PrintError("Allocation number does not exsist", os.NewError("Allocation does not exsist"))
 		    os.Exit(1)
 		}
 	}
@@ -174,7 +162,7 @@ func main() {
 		 if len(validList) > 0 {
 		     printStatus(validList)
 		 }else{
-		     fmt.Println("Image does not exist.")
+		     cli.PrintError("Image does not exist.", os.NewError("No image"))
 		     os.Exit(1)
 		 }
         }

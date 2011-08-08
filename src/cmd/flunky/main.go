@@ -10,12 +10,8 @@ import (
 	"io/ioutil"
 	"time"
 	fnet "flunky/net"
+	fclient "flunky/client"
 )
-
-var Usage = func() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	flag.PrintDefaults()
-}
 
 var server string
 var verbose bool
@@ -39,21 +35,15 @@ func init() {
 	flag.StringVar(&exec, "x", "", "fetch rendered template and run it.")
 }
 
-func printError(errorMsg string, error os.Error) {
-	if error != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", errorMsg)
-	}
-}
-
 func parseCmdLine() {
 	cmdLineFile, error := os.Open("/proc/cmdline")
-	printError("ERROR:  Failed to open /proc/cmdline for reading.", error)
+	fclient.PrintError("ERROR:  Failed to open /proc/cmdline for reading.", error)
 
 	cmdLineBytes, error := ioutil.ReadAll(cmdLineFile)
-	printError("ERROR:  Failed to read all from /proc/cmdline.", error)
+	fclient.PrintError("ERROR:  Failed to read all from /proc/cmdline.", error)
 
 	error = cmdLineFile.Close()
-	printError("ERROR:  Failed to close /proc/cmdline.", error)
+	fclient.PrintError("ERROR:  Failed to close /proc/cmdline.", error)
 
 	cmdLineOptions := strings.Split(string(cmdLineBytes), " ")
 
@@ -70,7 +60,7 @@ func parseCmdLine() {
 func main() {
 	flag.Parse()
 	if help {
-		Usage()
+		fclient.Usage()
 		os.Exit(0)
 	}
 

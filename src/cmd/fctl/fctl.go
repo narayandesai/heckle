@@ -11,12 +11,6 @@ import (
 	fclient "flunky/client"
 )
 
-var Usage = func() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	flag.PrintDefaults()
-	os.Exit(0)
-}
-
 var server          string
 var verbose         bool
 var help            bool
@@ -128,13 +122,13 @@ func printStatusMessage(node string, readyBail readyBailNode, tmpStatusMessage s
 func main() {
 	flag.Parse()
 	if help || minutesTimeout < 1 {
-		Usage()
+		fclient.Usage()
 		os.Exit(0)
 	}
 
 	comm, err := fclient.NewClient()
 	if err != nil {
-		fmt.Println("Failed to setup communcation")
+		fclient.PrintError("Failed to setup communcation", err)
 		os.Exit(1)
 	}
 
@@ -147,8 +141,8 @@ func main() {
 	bs.DebugLog(fmt.Sprintf("Allocating hosts: %s", flag.Args()))
 
 	if image == "" {
-		fmt.Fprintf(os.Stderr, "-i option is required\n")
-		Usage()
+		fclient.PrintError("-i option is required\n", os.NewError("wrong arg"))
+		fclient.Usage()
 		os.Exit(1)
 	}
 
@@ -159,9 +153,8 @@ func main() {
 	js, _ := json.Marshal(cm)
 	buf := bytes.NewBufferString(string(js))
 	_, err = bs.Post("/ctl", buf)
-
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to allocate node\n")
+		fclient.PrintError("Failed to allocate node", err)
 		os.Exit(1)
 	}
 

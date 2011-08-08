@@ -7,13 +7,6 @@ import (
 	fclient "flunky/client"
 )
 
-var Usage = func() {
-    fmt.Println(fmt.Sprintf("Command syntax -- %s daemon1 daemon2 ...daemonN", os.Args[0]))
-	fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
-	flag.PrintDefaults()
-	os.Exit(0)
-}
-
 var help bool
 var fileDir string
 
@@ -26,30 +19,32 @@ func main() {
 	flag.Parse()
 
 	if help {
-		Usage()
+	        fmt.Println(fmt.Sprintf("Command syntax -- %s daemon1 daemon2 ...daemonN", os.Args[0]))
+		fclient.Usage()
 		os.Exit(0)
 	}
 
 	if len(os.Args) <= 1 {
-		fmt.Println("No arguments provided")
-		Usage()
+		fclient.PrintError("No arguments provided", os.NewError("no args"))
+		fmt.Println(fmt.Sprintf("Command syntax -- %s daemon1 daemon2 ...daemonN", os.Args[0]))
+		fclient.Usage()
 		os.Exit(1)
 	} else {
 		comm, err := fclient.NewClient()
 		if err != nil {
-			fmt.Println("Failed to setup communication")
+			fclient.PrintError("Failed to setup communication", err)
 			os.Exit(1)
 		}
 
 		for _, name := range flag.Args() {
 			client, err := comm.SetupClient(name)
 			if err != nil {
-				fmt.Println(fmt.Sprintf("Failed to lookup component %s", name))
+				fclient.PrintError(fmt.Sprintf("Failed to lookup component %s", name), err)
 				os.Exit(1)
 			}
 			resp, err := client.Get("dump")
 			if err != nil {
-				fmt.Println(fmt.Sprintf("Failed to contact component %s", name))
+				fclient.PrintError(fmt.Sprintf("Failed to contact component %s", name), err)
 			        os.Exit(1)
 			}
 			fmt.Println(string(resp))
