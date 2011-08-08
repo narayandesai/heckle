@@ -1,3 +1,4 @@
+//BUG: (Mike Guantonio): Cannot find the proper pid of the logging daemon
 package daemon
 
 import (
@@ -11,6 +12,7 @@ import (
 type DaemonLogger struct {
 	stdoutLog *log.Logger
 	fileLog   *log.Logger
+	name      string
 }
 
 var debug bool
@@ -21,32 +23,47 @@ func init() {
 
 func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
 	daemonLogger := new(DaemonLogger)
-	daemonLogger.stdoutLog = log.New(os.Stdout, daemonName+": ", 0)
+	daemonLogger.name = daemonName
+	daemonLogger.stdoutLog = log.New(os.Stdout, "", 0)
 	logFile, _ := os.OpenFile(logFilePath+daemonName+".log", os.O_WRONLY|os.O_CREATE, 0666)
-	daemonLogger.fileLog = log.New(logFile, daemonName+":", 0)
+	daemonLogger.fileLog = log.New(logFile, "", 0)
 	return daemonLogger
 }
 
 func (daemonLogger *DaemonLogger) Log(message string) {
-	daemonLogger.stdoutLog.Printf("%s - INFO: %s", time.LocalTime(), message)
-	daemonLogger.fileLog.Printf("%s - INFO: %s", time.LocalTime(), message)
+        currentTime := time.LocalTime()
+        formatTime := currentTime.Format("Jan _2 15:04:05")
+	name, _ := os.Hostname()
+	pid := os.Getpid()
+	daemonLogger.stdoutLog.Printf("%s %s %s[%d]: INFO %s",formatTime, name, daemonLogger.name, pid, message)
+	daemonLogger.fileLog.Printf("%s %s %s[%d]: INFO %s",formatTime, name, daemonLogger.name, pid, message)
 }
 
 func (daemonLogger *DaemonLogger) LogError(message string, error os.Error) {
+        currentTime := time.LocalTime()
+        formatTime := currentTime.Format("Jan _2 15:04:05")
+	name, _ := os.Hostname()
+	pid := os.Getpid()
 	if error != nil {
-		daemonLogger.stdoutLog.Printf("%s - ERROR: %s", time.LocalTime(), message)
-		daemonLogger.fileLog.Printf("%s - ERROR: %s", time.LocalTime(), message)
+ 		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: ERROR %s",formatTime, name, daemonLogger.name, pid, message)
+		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s",formatTime, name, daemonLogger.name, pid, message)
 	}
 }
 
 func (daemonLogger *DaemonLogger) LogHttp(request *http.Request) {
-	daemonLogger.stdoutLog.Printf("%s - %s: %s %s Bytes Recieved: %d", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
-	daemonLogger.fileLog.Printf("%s - %s: %s %s Bytes Recieved: %d", time.LocalTime(), request.Method, request.RawURL, request.Proto, request.ContentLength)
+        currentTime := time.LocalTime()
+        formatTime := currentTime.Format("Jan _2 15:04:05")
+	daemonLogger.stdoutLog.Printf("%s - %s: %s %s Bytes Recieved: %d",formatTime , request.Method, request.RawURL, request.Proto, request.ContentLength)
+	daemonLogger.fileLog.Printf("%s - %s: %s %s Bytes Recieved: %d", formatTime, request.Method, request.RawURL, request.Proto, request.ContentLength)
 }
 
 func (daemonLogger *DaemonLogger) LogDebug(message string) {
+        currentTime := time.LocalTime()
+        formatTime := currentTime.Format("Jan _2 15:04:05")
+	name, _ := os.Hostname()
+	pid := os.Getpid()
 	if debug {
-		daemonLogger.stdoutLog.Printf("%s - DEBUG: %s", time.LocalTime(), message)
-		daemonLogger.fileLog.Printf("%s - DEBUG: %s", time.LocalTime(), message)
+		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: DEBUG %s",formatTime, name, daemonLogger.name, pid, message)
+		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s",formatTime, name, daemonLogger.name, pid, message)
 	}
 }
