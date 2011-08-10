@@ -6,7 +6,6 @@ import (
 	"http"
 	"json"
 	"flag"
-	"exec"
 	"os"
 	"io/ioutil"
 	"strings"
@@ -50,12 +49,13 @@ func returnStatus(status string, nodes []string) (outletStatus map[string]string
 	return
 }
 
-
 //Add in error call back
 func dialServer(cmd string) string {
 	byt := make([]byte, 82920)
-	buf := bytes.NewBufferString("admn\n")
+	//buf := bytes.NewBufferString("admn\n")
 	finalBuf := bytes.NewBuffer(make([]byte, 82920))
+        
+        cmdList := []string{"admn", "admn", cmd}
 
 	//Set up negoations to the telnet server. Default is accept everything.
 	k, _ := net.Dial("tcp", "radix-pwr11:23")
@@ -66,31 +66,16 @@ func dialServer(cmd string) string {
 	}
 
 	//All three for loops just send commands to the terminal
-	for {
-		n, _ := k.Read(byt)
-		m := strings.Index(string(byt[:n]), ":")
-		if m > 0 {
-			k.Write(buf.Bytes())
-			break
-		}
-	}
-
-	for {
-		n, _ := k.Read(byt)
-		m := strings.Index(string(byt[:n]), ":")
-		if m > 0 {
-			k.Write(buf.Bytes())
-			break
-		}
-	}
-
-	for {
-		n, _ := k.Read(byt)
-		m := strings.Index(string(byt[:n]), ":")
-		if m > 0 {
-			k.Write([]byte(cmd + "\n"))
-			break
-		}
+        for _, cmd := range(cmdList){
+	    for {
+			n, _ := k.Read(byt)
+			m := strings.Index(string(byt[:n]), ":")
+			if m > 0 {
+			   k.Write([]byte(cmd + "\n"))
+			   break
+			   }
+	       }
+	       if cmd == "status"{break}
 	}
 
 	//See if the command is successful and then read the rest of the output.
@@ -176,15 +161,12 @@ func command(w http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(body, &nodes)
 	powerDaemon.DaemonLog.LogError(fmt.Sprintf("Unable to unmarshal nodes for %s command.", cmd), err)
 
-	for _, value := range nodes {
-		if _, ok := resources[value]; ok {
-			go func(value string) {
-				err = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", cmd, resources[value].Outlet).Run()
-				powerDaemon.DaemonLog.LogError("Failed to run powerCont.sh in rebootList.", err)
-			}(value)
-		}
+	for _, node := range(nodes){
+             dialServer(cmd + " " + resources[node].Outlet +"\n")
+	     //Read ret from dial server to get a better idea of what is happening.
 	}
 	printCmd(nodes, cmd)
+	//Return an outlet status to the caller?
 }
 
 
@@ -192,14 +174,15 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 	powerDaemon.DaemonLog.DebugHttp(req)
 	powerDaemon.DaemonLog.LogDebug("Retreiving status for list given by client.")
 	var nodes []string
-	outletStatus := make(map[string]string)
 	req.ProtoMinor = 0
+
 	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
 	if err != nil {
 		powerDaemon.DaemonLog.LogError("Access not permitted.", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+
 	dex := strings.Split(req.RawURL, "/")
 	cmd := dex[1]
 	body, err := powerDaemon.ReadRequest(req)
@@ -208,33 +191,8 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(body, &nodes)
 	powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be turned off.", err)
 
-	ret := dialServer(cmd)
-	out := returnStatus(ret, nodes)
-	fmt.Println(out)
-
-	for _, value := range nodes {
-		_, ok := outletStatus[value]
-		_, ok2 := resources[value]
-
-		if !ok && ok2 {
-			someBytes, err := exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", "status").Output()
-			powerDaemon.DaemonLog.LogError("Failed to execute powerCont.sh and get out put in power status request.", err)
-
-			tmpStatusLines := strings.Split(string(someBytes), "\n")
-
-			for i := 18; i < 42; i++ {
-				tmpStatusFields := strings.Split(tmpStatusLines[i], " ")
-
-				for _, value2 := range nodes {
-					if _, ok3 := resources[value2]; ok3 && ok2 {
-						if resources[value2].Address == resources[value].Address && resources[value2].Outlet == tmpStatusFields[3] {
-							outletStatus[value2] = tmpStatusFields[13]
-						}
-					}
-				}
-			}
-		}
-	}
+	status := dialServer(cmd)
+	outletStatus := returnStatus(status, nodes)
 
 	jsonStat, err := json.Marshal(outletStatus)
 	powerDaemon.DaemonLog.LogError("Unable to marshal outlet status response.", err)
@@ -266,8 +224,6 @@ func main() {
 
 	err = json.Unmarshal(powerDB, &resources)
 	powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", err)
-
-	dialServer("status")
 
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/command/", command)
