@@ -353,9 +353,10 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
         //Flunky auth needed
+	cmd := strings.Split(req.RawURL, "/")
 	tmp := fm.RenderGetStatic(req.RawURL, address)
 	w.Write(tmp)
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", req.RawURL, address))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", cmd[1:], address))
 }
 
 func DynamicCall(w http.ResponseWriter, req *http.Request) {
