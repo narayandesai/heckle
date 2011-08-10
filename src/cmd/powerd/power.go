@@ -19,13 +19,18 @@ type outletNode struct {
 	Outlet  string
 }
 
+type States struct{
+     State bool
+     Reboot bool
+}
+
 var resources map[string]outletNode
 var powerDaemon *daemon.Daemon
 var fileDir string
 
 //Add in error handling for the function
-func returnStatus(status string, nodes []string) (outletStatus map[string]string) {
-	outletStatus = make(map[string]string)
+func returnStatus(status string, nodes []string) (outletStatus map[string]States) {
+	outletStatus = make(map[string]States)
 
 	for _, node := range nodes {
 		dex := strings.Index(status, resources[node].Outlet)
@@ -44,8 +49,23 @@ func returnStatus(status string, nodes []string) (outletStatus map[string]string
 		}
 		third := second[dex:]
 		dex = strings.Index(third, " ")
-		outletStatus[node] = strings.TrimSpace(third[:dex])
+
+		state := strings.TrimSpace((third[:dex]))
+		if state == "On"{
+		    key := outletStatus[node]
+		    key.State = true
+		    outletStatus[node] = key
+                }
+		
+		reboot := strings.TrimSpace((third[dex:]))
+		if reboot == "Reboot" {
+		    key := outletStatus[node]
+		    key.Reboot = true
+		    outletStatus[node] = key
+                }
+
 	}
+	fmt.Println(outletStatus)
 	return
 }
 
@@ -163,10 +183,17 @@ func command(w http.ResponseWriter, req *http.Request) {
 
 	for _, node := range(nodes){
              dialServer(cmd + " " + resources[node].Outlet +"\n")
-	     //Read ret from dial server to get a better idea of what is happening.
 	}
 	printCmd(nodes, cmd)
-	//Return an outlet status to the caller?
+
+        ret := dialServer("status") //not optimal
+	outletStatus := returnStatus(ret, nodes)
+	buf, err := json.Marshal(outletStatus)
+	if err != nil{
+	   fmt.Println(err)
+	}
+        _, err = w.Write(buf)
+	if err != nil {fmt.Println(err)}
 }
 
 
@@ -224,6 +251,10 @@ func main() {
 
 	err = json.Unmarshal(powerDB, &resources)
 	powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", err)
+
+	ret := dialServer("status")
+	outLet := returnStatus(ret, []string{"bb03"})
+	fmt.Println(outLet)
 
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/command/", command)
