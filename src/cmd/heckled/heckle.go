@@ -19,6 +19,11 @@ import (
 	daemon "flunky/daemon"
 )
 
+type States struct{
+     State bool
+     Reboot bool
+}
+
 type resourceInfo struct {
 	Allocated                        bool
 	TimeAllocated, AllocationEndTime int64
@@ -444,19 +449,22 @@ func polling() {
 			pollTime = time.Seconds()
 			json.Unmarshal(ret, &statmap)
 
-			outletStatus := make(map[string]string)
+			outletStatus := make(map[string]States)
 			sRjs, _ = json.Marshal(pollAddresses)
 			reqbuf = bytes.NewBufferString(string(sRjs))
 			ret, _ = ps.Post("/status", reqbuf)
 			json.Unmarshal(ret, &outletStatus)
 
+			var pstat string
+			//This garbage needs to change!
 			for key, value := range statmap {
+			        if outletStatus[key].State {pstat = "On"} else{pstat = "Off"}
 				if _, ok := pollingOutletStatus[key]; !ok {
-					value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
-					pollingOutletStatus[key] = outletStatus[key]
-				} else if pollingOutletStatus[key] != outletStatus[key] {
-					value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for this node is " + outletStatus[key] + ".", "Info"})
-					pollingOutletStatus[key] = outletStatus[key]
+					value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
+					pollingOutletStatus[key] = pstat
+				} else if pollingOutletStatus[key] != pstat {
+					value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
+					pollingOutletStatus[key] = pstat
 				}
 			}
 			heckleDaemon.DaemonLog.LogDebug("Sending status messages to main routine.")
@@ -577,8 +585,6 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	if allocationNumber <= 0{
 	    heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exsist",allocationNumber), os.NewError("0 used"))
             writer.WriteHeader(http.StatusBadRequest)
-	    resp := "not present"
-	    writer.Write([]byte(resp))
 	    return
         }
 	powerDown := []string{}
@@ -606,13 +612,9 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 
 	if !found {
 		heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exist.",allocationNumber), os.NewError("Wrong Number"))
-		resp := "not present"
 		writer.WriteHeader(http.StatusBadRequest)
-		writer.Write([]byte(resp))
 		return
 	}
-	resp := "present"
-	writer.Write([]byte(resp))
 
 	pollingCancelChan <- powerDown //Needed because polling will continue to poll if allocation is freed during allocation. 
 
@@ -843,6 +845,7 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	resourcesLock.Lock()
+	//This need to go away as well. Why are we writing out the response...?
 	for key, value := range resources {
 		if value.Allocated {
 			response = response + "NODE: " + key + "\tALLOCATED: yes\tALLOCATION: " + strconv.Uitoa64(value.AllocationNumber) + "\tOWNER: " + value.Owner + "\tIMAGE: " + value.Image + "\tALLOCATION START: " + time.SecondsToLocalTime(value.TimeAllocated).Format(time.UnixDate) + "\tALLOCATION END: " + time.SecondsToLocalTime(value.AllocationEndTime).Format(time.UnixDate) + "\tCOMMENTS: " + value.Comments + "\n\n"

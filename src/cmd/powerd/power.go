@@ -65,7 +65,6 @@ func returnStatus(status string, nodes []string) (outletStatus map[string]States
                 }
 
 	}
-	fmt.Println(outletStatus)
 	return
 }
 
@@ -142,13 +141,13 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 func printCmd(nodes []string, cmd string) {
 	switch cmd {
 	case "on":
-		powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been turned %s", nodes, cmd))
+		powerDaemon.DaemonLog.Log(fmt.Sprintf("Power outlet for %s is %s", nodes, cmd))
 		break
 	case "off":
-		powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been turned %s", nodes, cmd))
+		powerDaemon.DaemonLog.Log(fmt.Sprintf("Power outlet for %s is %s", nodes, cmd))
 		break
 	case "reboot":
-		powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been %sed", nodes, cmd))
+		powerDaemon.DaemonLog.Log(fmt.Sprintf("Power outlet for %s is %sing", nodes, cmd))
 		break
 	}
 	return
@@ -251,10 +250,6 @@ func main() {
 
 	err = json.Unmarshal(powerDB, &resources)
 	powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", err)
-
-	ret := dialServer("status")
-	outLet := returnStatus(ret, []string{"bb03"})
-	fmt.Println(outLet)
 
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/command/", command)

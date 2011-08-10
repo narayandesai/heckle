@@ -17,7 +17,7 @@ func init(){
       flag.BoolVar(&help, "h", false, "Print usage of command.")
 }
 
-func freeAlloc(alloc int64)(ret string, err os.Error){
+func freeAlloc(alloc int64)(err os.Error){
    bs := new(fnet.BuildServer)
    allocfree, err := cli.NewClient()
    cli.PrintError("Failed to create a new client", err)
@@ -27,8 +27,8 @@ func freeAlloc(alloc int64)(ret string, err os.Error){
    msg, err := json.Marshal(alloc)
    cli.PrintError("Unable to marshal allocation number", err)
    buf := bytes.NewBufferString(string(msg))
-   ans, err := bs.Post("/freeAllocation", buf)
-   ret = string(ans)
+   _, err = bs.Post("/freeAllocation", buf)
+   
    return
 }
 
@@ -48,7 +48,7 @@ func main(){
     allocations := flag.Args()
     alloc, _ := strconv.Atoi64(allocations[0])
 
-    _, err := freeAlloc(alloc) 
+    err := freeAlloc(alloc) 
     if err != nil {
         cli.PrintError(fmt.Sprintf("Unable to free allocation #%d. Allocation does not exsist.", alloc), err)
 	os.Exit(1)
