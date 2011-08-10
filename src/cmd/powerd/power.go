@@ -24,7 +24,35 @@ var resources map[string]outletNode
 var powerDaemon *daemon.Daemon
 var fileDir string
 
-func dialServer() {
+//Add in error handling for the function
+func returnStatus(status string, nodes []string) (outletStatus map[string]string) {
+    outletStatus = make(map[string]string)
+
+    for _, node := range(nodes){
+    	dex := strings.Index(status, resources[node].Outlet)
+    	first := status[dex:]
+
+	dex = strings.Index(first, "\n")
+	second := first[:dex]
+
+    	dex = strings.Index(second, "On")
+	if dex < 0 {
+	    dex = strings.Index(second, "Off")
+	    if dex < 0 {
+	        fmt.Println("Node has no status")
+		return
+            }
+	}
+    	third := second[dex:]
+    	dex = strings.Index(third, " ")
+	outletStatus[node] = strings.TrimSpace(third[:dex])
+  }
+  return
+}
+
+
+//Add in error call back
+func dialServer(cmd string) string {
 	byt := make([]byte, 82920)
 	buf := bytes.NewBufferString("admn\n")
 	finalBuf := bytes.NewBuffer(make([]byte, 82920))
@@ -37,6 +65,7 @@ func dialServer() {
 		 k.Read(byt)
 	}
 
+	//All three for loops just send commands to the terminal
 	for ;;{
 	    n, _:= k.Read(byt)
 	    m := strings.Index(string(byt[:n]), ":")
@@ -59,11 +88,12 @@ func dialServer() {
            n, _ := k.Read(byt)
 	   m := strings.Index(string(byt[:n]), ":")
 	   if m > 0{
-	      k.Write([]byte("status\n"))
+	      k.Write([]byte(cmd + "\n"))
 	      break
 	   }
 	}
        
+       //See if the command is successful and then read the rest of the output.
 	for ;; {
 	    n, _  := k.Read(byt)
 	       m := strings.Index(string(byt[:n]), "successful")
@@ -73,13 +103,16 @@ func dialServer() {
 	       finalBuf.Write(byt[:n])
 
 	}
+
+	//Strip off the headers
 	final := finalBuf.String()
 	dex := strings.Index(final, "State")
 	newFinal := final[dex:]
 	dex = strings.Index(newFinal, "\n")
-	fmt.Println(strings.TrimSpace(newFinal[dex:]))
-
+	
+	//close connection and return
 	k.Close()
+	return strings.TrimSpace(newFinal[dex:])
 }
 
 
@@ -115,6 +148,7 @@ func printCmd(nodes []string, cmd string) {
 	}
 	return
 }
+
 func command(w http.ResponseWriter, req *http.Request) {
 	var nodes []string
 	req.ProtoMinor = 0
@@ -172,6 +206,10 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(body, &nodes)
 	powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be turned off.", err)
 
+	ret := dialServer("status")
+	out := returnStatus(ret, nodes)
+	fmt.Println(out)
+
 	for _, value := range nodes {
 		_, ok := outletStatus[value]
 		_, ok2 := resources[value]
@@ -205,7 +243,7 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	dialServer()
+	
 	flag.Parse()
 	var err os.Error
 
@@ -226,6 +264,10 @@ func main() {
 
 	err = json.Unmarshal(powerDB, &resources)
 	powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", err)
+
+
+	dialServer("status")
+	
 
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/command/", command)
