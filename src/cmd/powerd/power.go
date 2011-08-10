@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"bytes"
 	"http"
 	"json"
 	"flag"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"io/ioutil"
 	"strings"
+	"net"
 	daemon "flunky/daemon"
 )
 
@@ -22,15 +24,74 @@ var resources map[string]outletNode
 var powerDaemon *daemon.Daemon
 var fileDir string
 
+func dialServer() {
+	byt := make([]byte, 82920)
+	buf := bytes.NewBufferString("admn\n")
+	finalBuf := bytes.NewBuffer(make([]byte, 82920))
+
+	//Set up negoations to the telnet server. Default is accept everything.
+	k, _ := net.Dial("tcp", "radix-pwr11:23")
+	ret := []byte{255, 251, 253}
+	for i := 0; i < 5; i++ {
+		 k.Write(ret)
+		 k.Read(byt)
+	}
+
+	for ;;{
+	    n, _:= k.Read(byt)
+	    m := strings.Index(string(byt[:n]), ":")
+	    if m > 0{
+	       k.Write(buf.Bytes())
+	       break
+	       }
+	}
+	
+	for ;; {
+            n, _ := k.Read(byt)
+	    m := strings.Index(string(byt[:n]), ":")
+	    if m > 0{
+	       k.Write(buf.Bytes())
+	       break
+	   }
+	}
+
+	for ;; {
+           n, _ := k.Read(byt)
+	   m := strings.Index(string(byt[:n]), ":")
+	   if m > 0{
+	      k.Write([]byte("status\n"))
+	      break
+	   }
+	}
+       
+	for ;; {
+	    n, _  := k.Read(byt)
+	       m := strings.Index(string(byt[:n]), "successful")
+	       if m > 0{
+	          break
+                }
+	       finalBuf.Write(byt[:n])
+
+	}
+	final := finalBuf.String()
+	dex := strings.Index(final, "State")
+	newFinal := final[dex:]
+	dex = strings.Index(newFinal, "\n")
+	fmt.Println(strings.TrimSpace(newFinal[dex:]))
+
+	k.Close()
+}
+
+
 func DumpCall(w http.ResponseWriter, req *http.Request) {
-        powerDaemon.DaemonLog.DebugHttp(req)
+	powerDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
-        if err != nil{
-           powerDaemon.DaemonLog.LogError("Unauthorized request for dump.", err)
-	   w.WriteHeader(http.StatusUnauthorized)      
-	   return
-        }
+	if err != nil {
+		powerDaemon.DaemonLog.LogError("Unauthorized request for dump.", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	tmp, err := json.Marshal(resources)
 	powerDaemon.DaemonLog.LogError("Cannot Marshal power resources", err)
 	_, err = w.Write(tmp)
@@ -40,66 +101,71 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	powerDaemon.DaemonLog.Log("Serviced request for data dump")
 }
 
-func printCmd(nodes []string, cmd string){
-    switch(cmd){
-       case "on" : powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been turned %s", nodes, cmd))
-                   break
-       case "off": powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been turned %s", nodes, cmd))
-                   break
-       case "reboot":powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been %sed", nodes, cmd))
-                    break
-      }
-      return
-}
-func command(w http.ResponseWriter, req *http.Request){
-    var nodes []string
-    req.ProtoMinor = 0
-    powerDaemon.DaemonLog.DebugHttp(req)
-    err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
-    if err != nil{
-       powerDaemon.DaemonLog.LogError("Access not permitted.", err)      
-       w.WriteHeader(http.StatusUnauthorized)
-       return
-    }
-    dex := strings.Split(req.RawURL, "/")
-    cmd := dex[2]
-    switch(cmd){
-       case "on", "off", "reboot" : break
-       default: powerDaemon.DaemonLog.LogError(fmt.Sprintf("%s command not supported", cmd), os.NewError("unsupported"))
-                w.WriteHeader(http.StatusNotFound) 
-                return
+func printCmd(nodes []string, cmd string) {
+	switch cmd {
+	case "on":
+		powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been turned %s", nodes, cmd))
 		break
-     }
-    body, err := powerDaemon.ReadRequest(req)
-    powerDaemon.DaemonLog.LogError("Unable to read request", err)
-
-    err = json.Unmarshal(body, &nodes)
-    powerDaemon.DaemonLog.LogError(fmt.Sprintf("Unable to unmarshal nodes for %s command.",cmd), err)
-
-    for _, value := range nodes {
-        if _, ok := resources[value]; ok {
-            go func(value string) {
-            err = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", cmd, resources[value].Outlet).Run()
-            powerDaemon.DaemonLog.LogError("Failed to run powerCont.sh in rebootList.", err)
-	    }(value)
+	case "off":
+		powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been turned %s", nodes, cmd))
+		break
+	case "reboot":
+		powerDaemon.DaemonLog.Log(fmt.Sprintf("%s have been %sed", nodes, cmd))
+		break
 	}
-    }
-    printCmd(nodes, cmd) 
+	return
+}
+func command(w http.ResponseWriter, req *http.Request) {
+	var nodes []string
+	req.ProtoMinor = 0
+	powerDaemon.DaemonLog.DebugHttp(req)
+	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+	if err != nil {
+		powerDaemon.DaemonLog.LogError("Access not permitted.", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	dex := strings.Split(req.RawURL, "/")
+	cmd := dex[2]
+	switch cmd {
+	case "on", "off", "reboot":
+		break
+	default:
+		powerDaemon.DaemonLog.LogError(fmt.Sprintf("%s command not supported", cmd), os.NewError("unsupported"))
+		w.WriteHeader(http.StatusNotFound)
+		return
+		break
+	}
+	body, err := powerDaemon.ReadRequest(req)
+	powerDaemon.DaemonLog.LogError("Unable to read request", err)
+
+	err = json.Unmarshal(body, &nodes)
+	powerDaemon.DaemonLog.LogError(fmt.Sprintf("Unable to unmarshal nodes for %s command.", cmd), err)
+
+	for _, value := range nodes {
+		if _, ok := resources[value]; ok {
+			go func(value string) {
+				err = exec.Command("./powerCont.sh", resources[value].Address, "admn", "admn", cmd, resources[value].Outlet).Run()
+				powerDaemon.DaemonLog.LogError("Failed to run powerCont.sh in rebootList.", err)
+			}(value)
+		}
+	}
+	printCmd(nodes, cmd)
 }
 
 
 func statusList(w http.ResponseWriter, req *http.Request) {
-        powerDaemon.DaemonLog.DebugHttp(req)
+	powerDaemon.DaemonLog.DebugHttp(req)
 	powerDaemon.DaemonLog.LogDebug("Retreiving status for list given by client.")
 	var nodes []string
 	outletStatus := make(map[string]string)
 	req.ProtoMinor = 0
-        err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
-        if err != nil{
-           powerDaemon.DaemonLog.LogError("Access not permitted.", err)
-	   w.WriteHeader(http.StatusUnauthorized)      
-           return
-        }
+	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+	if err != nil {
+		powerDaemon.DaemonLog.LogError("Access not permitted.", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	body, err := powerDaemon.ReadRequest(req)
 	powerDaemon.DaemonLog.LogError("Could not read request", err)
 
@@ -135,10 +201,11 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 
 	_, err = w.Write(jsonStat)
 	powerDaemon.DaemonLog.LogError("Unable to write outlet status response.", err)
-	
+
 }
 
 func main() {
+	dialServer()
 	flag.Parse()
 	var err os.Error
 
@@ -149,9 +216,9 @@ func main() {
 	}
 	user, pass, _ := powerDaemon.AuthN.GetUserAuth()
 	err = powerDaemon.AuthN.Authenticate(user, pass, true)
-	if err != nil{
- 	   fmt.Println(fmt.Sprintf("You dont have permissions to start %s daemon.", powerDaemon.Name))
-	   os.Exit(1)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("You dont have permissions to start %s daemon.", powerDaemon.Name))
+		os.Exit(1)
 	}
 
 	powerDB, err := ioutil.ReadFile(daemon.FileDir + "power.db")
