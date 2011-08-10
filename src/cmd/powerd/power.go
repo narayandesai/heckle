@@ -26,28 +26,28 @@ var fileDir string
 
 //Add in error handling for the function
 func returnStatus(status string, nodes []string) (outletStatus map[string]string) {
-    outletStatus = make(map[string]string)
+	outletStatus = make(map[string]string)
 
-    for _, node := range(nodes){
-    	dex := strings.Index(status, resources[node].Outlet)
-    	first := status[dex:]
+	for _, node := range nodes {
+		dex := strings.Index(status, resources[node].Outlet)
+		first := status[dex:]
 
-	dex = strings.Index(first, "\n")
-	second := first[:dex]
+		dex = strings.Index(first, "\n")
+		second := first[:dex]
 
-    	dex = strings.Index(second, "On")
-	if dex < 0 {
-	    dex = strings.Index(second, "Off")
-	    if dex < 0 {
-	        fmt.Println("Node has no status")
-		return
-            }
+		dex = strings.Index(second, "On")
+		if dex < 0 {
+			dex = strings.Index(second, "Off")
+			if dex < 0 {
+				fmt.Println("Node has no status")
+				return
+			}
+		}
+		third := second[dex:]
+		dex = strings.Index(third, " ")
+		outletStatus[node] = strings.TrimSpace(third[:dex])
 	}
-    	third := second[dex:]
-    	dex = strings.Index(third, " ")
-	outletStatus[node] = strings.TrimSpace(third[:dex])
-  }
-  return
+	return
 }
 
 
@@ -61,46 +61,46 @@ func dialServer(cmd string) string {
 	k, _ := net.Dial("tcp", "radix-pwr11:23")
 	ret := []byte{255, 251, 253}
 	for i := 0; i < 5; i++ {
-		 k.Write(ret)
-		 k.Read(byt)
+		k.Write(ret)
+		k.Read(byt)
 	}
 
 	//All three for loops just send commands to the terminal
-	for ;;{
-	    n, _:= k.Read(byt)
-	    m := strings.Index(string(byt[:n]), ":")
-	    if m > 0{
-	       k.Write(buf.Bytes())
-	       break
-	       }
-	}
-	
-	for ;; {
-            n, _ := k.Read(byt)
-	    m := strings.Index(string(byt[:n]), ":")
-	    if m > 0{
-	       k.Write(buf.Bytes())
-	       break
-	   }
+	for {
+		n, _ := k.Read(byt)
+		m := strings.Index(string(byt[:n]), ":")
+		if m > 0 {
+			k.Write(buf.Bytes())
+			break
+		}
 	}
 
-	for ;; {
-           n, _ := k.Read(byt)
-	   m := strings.Index(string(byt[:n]), ":")
-	   if m > 0{
-	      k.Write([]byte(cmd + "\n"))
-	      break
-	   }
+	for {
+		n, _ := k.Read(byt)
+		m := strings.Index(string(byt[:n]), ":")
+		if m > 0 {
+			k.Write(buf.Bytes())
+			break
+		}
 	}
-       
-       //See if the command is successful and then read the rest of the output.
-	for ;; {
-	    n, _  := k.Read(byt)
-	       m := strings.Index(string(byt[:n]), "successful")
-	       if m > 0{
-	          break
-                }
-	       finalBuf.Write(byt[:n])
+
+	for {
+		n, _ := k.Read(byt)
+		m := strings.Index(string(byt[:n]), ":")
+		if m > 0 {
+			k.Write([]byte(cmd + "\n"))
+			break
+		}
+	}
+
+	//See if the command is successful and then read the rest of the output.
+	for {
+		n, _ := k.Read(byt)
+		m := strings.Index(string(byt[:n]), "successful")
+		if m > 0 {
+			break
+		}
+		finalBuf.Write(byt[:n])
 
 	}
 
@@ -109,7 +109,7 @@ func dialServer(cmd string) string {
 	dex := strings.Index(final, "State")
 	newFinal := final[dex:]
 	dex = strings.Index(newFinal, "\n")
-	
+
 	//close connection and return
 	k.Close()
 	return strings.TrimSpace(newFinal[dex:])
@@ -200,13 +200,15 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	dex := strings.Split(req.RawURL, "/")
+	cmd := dex[1]
 	body, err := powerDaemon.ReadRequest(req)
 	powerDaemon.DaemonLog.LogError("Could not read request", err)
 
 	err = json.Unmarshal(body, &nodes)
 	powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be turned off.", err)
 
-	ret := dialServer("status")
+	ret := dialServer(cmd)
 	out := returnStatus(ret, nodes)
 	fmt.Println(out)
 
@@ -243,7 +245,7 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	
+
 	flag.Parse()
 	var err os.Error
 
@@ -265,9 +267,7 @@ func main() {
 	err = json.Unmarshal(powerDB, &resources)
 	powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", err)
 
-
 	dialServer("status")
-	
 
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/command/", command)
