@@ -24,10 +24,14 @@ type States struct{
      Reboot bool
 }
 
+type outletDB struct {
+     outlets map[string]States
+}
+
 var resources map[string]outletNode
 var powerDaemon *daemon.Daemon
 var fileDir string
-var outletStatus map[string]States
+var outletStatus *outletDB
 
 func returnState(info bool)(ret string){
      if info{
@@ -38,8 +42,28 @@ func returnState(info bool)(ret string){
      return
 }
 
+func (outletStatus *outletDB) checkValid(node string, op string) bool{
+     if op == "on" && outletStatus.outlets[node].State{
+         return false
+     }
+     if op == "off" && !outletStatus.outlets[node].State{
+         return false
+     }
+     if op == "reboot" && outletStatus.outlets[node].Reboot{
+         return false
+     }
+     return false
+}
+
 //Add in error handling for the function
-func returnStatus(status string, nodes []string){
+func (outletStatus *outletDB) returnStatus(status string, nodes []string){
+
+        if nodes[0] == "*"{
+	    nodes = nodes[1:]
+	    for key, _ := range(resources){
+	    	nodes = append(nodes, key)
+            }
+        }
 
 	for _, node := range nodes {
 		dex := strings.Index(status, resources[node].Outlet)
@@ -60,13 +84,13 @@ func returnStatus(status string, nodes []string){
 		dex = strings.Index(third, " ")
 
 		state := strings.TrimSpace((third[:dex]))
-		key := outletStatus[node]
+		key := outletStatus.outlets[node]
 		if state == "On"{
 		    key.State = true
                 }else{
 		    key.State = false
  		}
-		outletStatus[node] = key
+		outletStatus.outlets[node] = key
 		
 		reboot := strings.TrimSpace((third[dex:]))
 		if reboot == "Reboot" {
@@ -78,7 +102,7 @@ func returnStatus(status string, nodes []string){
 	            }
 		        key.Reboot = false
 		}
-		 outletStatus[node] = key
+		 outletStatus.outlets[node] = key
 		   
 
 	}
@@ -86,7 +110,7 @@ func returnStatus(status string, nodes []string){
 }
 
 //Add in error call back
-func dialServer(cmd string) string {
+func (outletStatus outletDB) dialServer(cmd string) string {
 	byt := make([]byte, 82920)
 	//buf := bytes.NewBufferString("admn\n")
 	finalBuf := bytes.NewBuffer(make([]byte, 82920))
@@ -136,25 +160,6 @@ func dialServer(cmd string) string {
 	return strings.TrimSpace(newFinal[dex:])
 }
 
-
-func DumpCall(w http.ResponseWriter, req *http.Request) {
-	powerDaemon.DaemonLog.DebugHttp(req)
-	req.ProtoMinor = 0
-	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
-	if err != nil {
-		powerDaemon.DaemonLog.LogError("Unauthorized request for dump.", err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-	tmp, err := json.Marshal(resources)
-	powerDaemon.DaemonLog.LogError("Cannot Marshal power resources", err)
-	_, err = w.Write(tmp)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	powerDaemon.DaemonLog.Log("Serviced request for data dump")
-}
-
 func printCmd(nodes []string, cmd string) {
 	switch cmd {
 	case "on":
@@ -170,6 +175,25 @@ func printCmd(nodes []string, cmd string) {
 	return
 }
 
+func DumpCall(w http.ResponseWriter, req *http.Request) {
+	powerDaemon.DaemonLog.DebugHttp(req)
+	req.ProtoMinor = 0
+	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+	if err != nil {
+		powerDaemon.DaemonLog.LogError("Unauthorized request for dump.", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	tmp, err := json.Marshal(outletStatus)
+	powerDaemon.DaemonLog.LogError("Cannot Marshal power resources", err)
+	_, err = w.Write(tmp)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	powerDaemon.DaemonLog.Log("Serviced request for data dump")
+}
+
+
 func command(w http.ResponseWriter, req *http.Request) {
 	var nodes []string
 	req.ProtoMinor = 0
@@ -183,7 +207,7 @@ func command(w http.ResponseWriter, req *http.Request) {
 	dex := strings.Split(req.RawURL, "/")
 	cmd := dex[2]
 	switch cmd {
-	case "on", "off", "reboot":
+	case "on" , "off", "reboot":
 		break
 	default:
 		powerDaemon.DaemonLog.LogError(fmt.Sprintf("%s command not supported", cmd), os.NewError("unsupported"))
@@ -196,14 +220,18 @@ func command(w http.ResponseWriter, req *http.Request) {
 
 	err = json.Unmarshal(body, &nodes)
 	powerDaemon.DaemonLog.LogError(fmt.Sprintf("Unable to unmarshal nodes for %s command.", cmd), err)
-
+	fmt.Println(nodes)
 	for _, node := range(nodes){
-             dialServer(cmd + " " + resources[node].Outlet +"\n")
+	    if outletStatus.checkValid(node, cmd){
+               outletStatus.dialServer(cmd + " " + resources[node].Outlet +"\n")
+	    }else{
+	       powerDaemon.DaemonLog.LogError(fmt.Sprintf("%s is already %s", node, cmd), os.NewError("Pre-exsisting state"))
+	    }
 	}
 	printCmd(nodes, cmd)
 
-        ret := dialServer("status") //not optimal
-	returnStatus(ret, nodes)
+        ret := outletStatus.dialServer("status") //not optimal
+	outletStatus.returnStatus(ret, nodes)
 	buf, err := json.Marshal(outletStatus)
 	if err != nil{
 	   fmt.Println(err)
@@ -234,8 +262,8 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(body, &nodes)
 	powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be turned off.", err)
 
-	status := dialServer(cmd)
-	returnStatus(status, nodes)
+	status := outletStatus.dialServer(cmd)
+	outletStatus.returnStatus(status, nodes)
 
 	jsonStat, err := json.Marshal(outletStatus)
 	powerDaemon.DaemonLog.LogError("Unable to marshal outlet status response.", err)
@@ -262,12 +290,16 @@ func main() {
 		os.Exit(1)
 	}
 
-        outletStatus = make(map[string]States)
+        outletStatus = new(outletDB)
 	powerDB, err := ioutil.ReadFile(daemon.FileDir + "power.db")
 	powerDaemon.DaemonLog.LogError("Unable to open power.db for reading.", err)
 
 	err = json.Unmarshal(powerDB, &resources)
 	powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", err)
+
+	for key, node := range(resources){
+	fmt.Println(key, node)
+	}
 
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/command/", command)
