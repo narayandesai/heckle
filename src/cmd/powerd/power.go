@@ -27,10 +27,19 @@ type States struct{
 var resources map[string]outletNode
 var powerDaemon *daemon.Daemon
 var fileDir string
+var outletStatus map[string]States
+
+func returnState(info bool)(ret string){
+     if info{
+       ret = "on"
+     }else{
+       ret = "off"
+    }
+     return
+}
 
 //Add in error handling for the function
-func returnStatus(status string, nodes []string) (outletStatus map[string]States) {
-	outletStatus = make(map[string]States)
+func returnStatus(status string, nodes []string){
 
 	for _, node := range nodes {
 		dex := strings.Index(status, resources[node].Outlet)
@@ -51,18 +60,26 @@ func returnStatus(status string, nodes []string) (outletStatus map[string]States
 		dex = strings.Index(third, " ")
 
 		state := strings.TrimSpace((third[:dex]))
+		key := outletStatus[node]
 		if state == "On"{
-		    key := outletStatus[node]
 		    key.State = true
-		    outletStatus[node] = key
-                }
+                }else{
+		    key.State = false
+ 		}
+		outletStatus[node] = key
 		
 		reboot := strings.TrimSpace((third[dex:]))
 		if reboot == "Reboot" {
-		    key := outletStatus[node]
 		    key.Reboot = true
-		    outletStatus[node] = key
-                }
+		    powerDaemon.DaemonLog.Log(fmt.Sprintf("%s has a pending reboot", node))
+                }else{
+		    if key.Reboot {
+		        powerDaemon.DaemonLog.Log(fmt.Sprintf("%s's reboot complete the node is %s", node, returnState(key.State)))
+	            }
+		        key.Reboot = false
+		}
+		 outletStatus[node] = key
+		   
 
 	}
 	return
@@ -186,7 +203,7 @@ func command(w http.ResponseWriter, req *http.Request) {
 	printCmd(nodes, cmd)
 
         ret := dialServer("status") //not optimal
-	outletStatus := returnStatus(ret, nodes)
+	returnStatus(ret, nodes)
 	buf, err := json.Marshal(outletStatus)
 	if err != nil{
 	   fmt.Println(err)
@@ -218,7 +235,7 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 	powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be turned off.", err)
 
 	status := dialServer(cmd)
-	outletStatus := returnStatus(status, nodes)
+	returnStatus(status, nodes)
 
 	jsonStat, err := json.Marshal(outletStatus)
 	powerDaemon.DaemonLog.LogError("Unable to marshal outlet status response.", err)
@@ -245,6 +262,7 @@ func main() {
 		os.Exit(1)
 	}
 
+        outletStatus = make(map[string]States)
 	powerDB, err := ioutil.ReadFile(daemon.FileDir + "power.db")
 	powerDaemon.DaemonLog.LogError("Unable to open power.db for reading.", err)
 

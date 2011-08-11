@@ -458,7 +458,7 @@ func polling() {
 			var pstat string
 			//This garbage needs to change!
 			for key, value := range statmap {
-			        if outletStatus[key].State {pstat = "On"} else{pstat = "Off"}
+			        if outletStatus[key].Reboot {pstat = "currently rebooting"} else if outletStatus[key].State {pstat = "On"} else{pstat = "Off"}
 				if _, ok := pollingOutletStatus[key]; !ok {
 					value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
 					pollingOutletStatus[key] = pstat

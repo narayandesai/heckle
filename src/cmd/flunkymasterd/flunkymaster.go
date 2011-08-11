@@ -347,6 +347,8 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func StaticCall(w http.ResponseWriter, req *http.Request) {
+        var tmp DataStore
+	var msg interfaces.InfoMsg
 	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
@@ -354,8 +356,19 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	address := addTmp[0]
         //Flunky auth needed
 	cmd := strings.Split(req.RawURL, "/")
-	tmp := fm.RenderGetStatic(req.RawURL, address)
-	w.Write(tmp)
+	staticTemp := fm.RenderGetStatic(req.RawURL, address)
+	w.Write(staticTemp)
+	host, _ := net.LookupAddr(address)
+	tmp = fm.data[address]
+	tmp.Activity = time.Seconds()
+	msg.Time = time.Seconds()
+	msg.MsgType = "Info"
+	msg.Message = fmt.Sprintf("%s is loading %s", host[:1], cmd)
+	tmp.Info = append(tmp.Info, msg)
+	m.Lock()
+	fm.data[address] = tmp
+	m.Unlock()
+	fm.Store()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", cmd[1:], address))
 }
 
@@ -374,14 +387,27 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func BootconfigCall(w http.ResponseWriter, req *http.Request) {
+        var tmp DataStore
+	var msg interfaces.InfoMsg
 	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	//Flunky auth needed
-	tmp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
-	_, err := w.Write(tmp)
+	imageTemp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
+	_, err := w.Write(imageTemp)
+	tmp = fm.data[address]
+	tmp.Activity = time.Seconds()
+	msg.Time = time.Seconds()
+	msg.MsgType = "Info"
+	host, _ := net.LookupAddr(address) 
+	msg.Message = fmt.Sprintf("%s is booting up", host[:1])
+	tmp.Info = append(tmp.Info, msg)
+	m.Lock()
+	fm.data[address] = tmp
+	m.Unlock()
+	fm.Store()
 	fmDaemon.DaemonLog.LogError("Will not write status", err)
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s in allocation #%d has booted.", address, fm.data[address].AllocNum))
 }
