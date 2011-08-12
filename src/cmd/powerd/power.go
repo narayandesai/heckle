@@ -62,7 +62,7 @@ func returnState(info bool)(ret string){
 
 //Add in error handling for the function
 func (outletStatus *outletDB) returnStatus(status string, nodes []string){
-        //powerDaemon.DaemonLog.LogDebug("Function: returnStatus")
+        powerDaemon.DaemonLog.LogDebug("Function: returnStatus")
         
 	if nodes[0] == "*"{
 	    nodes = nodes[1:]
@@ -71,7 +71,7 @@ func (outletStatus *outletDB) returnStatus(status string, nodes []string){
             }
         }
         
-	//powerDaemon.DaemonLog.LogDebug("Functon :returnStatus -- Reading status", nodes)
+	powerDaemon.DaemonLog.LogDebug(fmt.Sprintf("Functon: returnStatus -- Reading status %s", nodes))
 	for _, node := range nodes {
 		dex := strings.Index(status, resources[node].Outlet)
 		first := status[dex:]
@@ -92,7 +92,7 @@ func (outletStatus *outletDB) returnStatus(status string, nodes []string){
 		state := strings.TrimSpace((third[:dex]))
 		
 		m.Lock()
-		//powerDaemon.DaemonLog.LogDebug("Function :returnStatus -- Updating outletSatus", outletStatus)
+		powerDaemon.DaemonLog.LogDebug(fmt.Sprintf("Function :returnStatus -- Updating outletSatus %s", outletStatus))
 		key := outletStatus.outlets[node]
 		if state == "On"{
 		    key.State = true
@@ -110,7 +110,7 @@ func (outletStatus *outletDB) returnStatus(status string, nodes []string){
 		        key.Reboot = false
 		 }
 		 outletStatus.outlets[node] = key
-		 //powerDaemon.DaemonLog.LogDebug("Function: Return status -- Finished update", outletStatus)   
+		 powerDaemon.DaemonLog.LogDebug(fmt.Sprintf("Function: Return status -- Finished update %s", outletStatus))   
 		 m.Unlock()
 	}
 	return
@@ -118,7 +118,7 @@ func (outletStatus *outletDB) returnStatus(status string, nodes []string){
 
 //Add in error call back
 func (outletStatus outletDB) dialServer(cmd string) string {
-        //powerDaemon.DaemonLog.LogDebug("Function dialServer: -- command", cmd)
+        powerDaemon.DaemonLog.LogDebug(fmt.Sprintf("Function dialServer: -- command %s", cmd))
 
 	byt := make([]byte, 82920)
 	finalBuf := bytes.NewBuffer(make([]byte, 82920))
@@ -126,7 +126,7 @@ func (outletStatus outletDB) dialServer(cmd string) string {
         cmdList := []string{"admn", "admn", cmd}
         
 	//Set up negoations to the telnet server. Default is accept everything.
-	//powerDaemon.DaemonLog.LogDebug("Function dialServer: -- Set up telnet")
+	powerDaemon.DaemonLog.LogDebug("Function dialServer: -- Set up telnet")
 	k, err := net.Dial("tcp", "radix-pwr11:23")
 	if err != nil{
 	    powerDaemon.DaemonLog.LogError("Cannot contact radix-pwr11 server", err)
@@ -137,9 +137,9 @@ func (outletStatus outletDB) dialServer(cmd string) string {
 		k.Write(ret)
 		k.Read(byt)
 	}
-	//powerDaemon.DaemonLog.LogDebug("Function dialSever : -- setup complete")
+	powerDaemon.DaemonLog.LogDebug("Function dialSever : -- setup complete")
 
-	//powerDaemon.DaemonLog.LogDebug("Function dialServer: -- Sending commands to server", cmdList)
+	powerDaemon.DaemonLog.LogDebug(fmt.Sprintf("Function dialServer: -- Sending commands to server %s", cmdList))
 	//All three for loops just send commands to the terminal
         for _, cmd := range(cmdList){
 	    for {
@@ -161,7 +161,7 @@ func (outletStatus outletDB) dialServer(cmd string) string {
 		n, _ := k.Read(byt)
 		m := strings.Index(string(byt[:n]), "successful")
 		if m > 0 {
-		        //powerDaemon.DaemonLog.LogDebug("Function dialServer: -- finalbuf\n", finalBuf.String())
+		        powerDaemon.DaemonLog.LogDebug(fmt.Sprintf("Function dialServer: -- finalbuf\n %s", finalBuf.String()))
 			break
 		}
 		finalBuf.Write(byt[:n])
@@ -173,11 +173,11 @@ func (outletStatus outletDB) dialServer(cmd string) string {
 	dex := strings.Index(final, "State")
 	newFinal := final[dex:]
 	dex = strings.Index(newFinal, "\n")
-	//powerDaemon.DaemonLog.LogDebug("Function dialServer: -- ripped off headers and closing connection", newFinal[dex:])
+	powerDaemon.DaemonLog.LogDebug(fmt.Sprintf("Function dialServer: -- ripped off headers and closing connection %s", newFinal[dex:]))
 
 	//close connection and return
 	k.Close()
-	//powerDaemon.DaemonLog.LogDebug("Function dialServer : -- Returning from function")
+	powerDaemon.DaemonLog.LogDebug("Function dialServer : -- Returning from function")
 	return strings.TrimSpace(newFinal[dex:])
 }
 
@@ -303,6 +303,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
 	user, pass, _ := powerDaemon.AuthN.GetUserAuth()
 	err = powerDaemon.AuthN.Authenticate(user, pass, true)
 	if err != nil {
@@ -313,7 +314,9 @@ func main() {
 	
         outletStatus = new(outletDB)
 	outletStatus.outlets = make(map[string]States)
-	
+
+	fmt.Println(fmt.Sprintf("%s", outletStatus))
+
 	powerDB, err := ioutil.ReadFile(daemon.FileDir + "power.db")
 	powerDaemon.DaemonLog.LogError("Unable to open power.db for reading.", err)
 

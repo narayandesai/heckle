@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	fclient "flunky/client"
 )
 
@@ -14,6 +15,14 @@ func init() {
 	flag.BoolVar(&help, "h", false, "Print help message")
 }
 
+func prettyPrint(data string) {
+     prettyData := strings.Split(data, ",")
+     for _, pretty := range(prettyData){
+        fmt.Println(pretty)
+     }
+     return
+
+}
 
 func main() {
 	flag.Parse()
@@ -47,6 +56,7 @@ func main() {
 				fclient.PrintError(fmt.Sprintf("Failed to contact component %s", name), err)
 			        os.Exit(1)
 			}
+			//prettyPrint(string(resp))
 			fmt.Println(string(resp))
 		}
 	}
