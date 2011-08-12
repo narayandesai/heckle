@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"net"
+	"sync"
 	daemon "flunky/daemon"
 )
 
@@ -22,16 +23,20 @@ type outletNode struct {
 type States struct{
      State bool
      Reboot bool
+     //Node string
 }
 
 type outletDB struct {
      outlets map[string]States
+     //writeChan chan States
 }
+
 
 var resources map[string]outletNode
 var powerDaemon *daemon.Daemon
 var fileDir string
 var outletStatus *outletDB
+var m sync.Mutex
 
 func returnState(info bool)(ret string){
      if info{
@@ -42,7 +47,7 @@ func returnState(info bool)(ret string){
      return
 }
 
-func (outletStatus *outletDB) checkValid(node string, op string) bool{
+/*func (outletStatus *outletDB) checkValid(node string, op string) bool{
      if op == "on" && outletStatus.outlets[node].State{
          return false
      }
@@ -53,18 +58,20 @@ func (outletStatus *outletDB) checkValid(node string, op string) bool{
          return false
      }
      return false
-}
+}*/
 
 //Add in error handling for the function
 func (outletStatus *outletDB) returnStatus(status string, nodes []string){
-
-        if nodes[0] == "*"{
+        //powerDaemon.DaemonLog.LogDebug("Function: returnStatus")
+        
+	if nodes[0] == "*"{
 	    nodes = nodes[1:]
 	    for key, _ := range(resources){
 	    	nodes = append(nodes, key)
             }
         }
-
+        
+	//powerDaemon.DaemonLog.LogDebug("Functon :returnStatus -- Reading status", nodes)
 	for _, node := range nodes {
 		dex := strings.Index(status, resources[node].Outlet)
 		first := status[dex:]
@@ -76,22 +83,22 @@ func (outletStatus *outletDB) returnStatus(status string, nodes []string){
 		if dex < 0 {
 			dex = strings.Index(second, "Off")
 			if dex < 0 {
-				fmt.Println("Node has no status")
+				powerDaemon.DaemonLog.LogError("Node has no status", os.NewError("Empty update"))
 				return
 			}
 		}
 		third := second[dex:]
 		dex = strings.Index(third, " ")
-
 		state := strings.TrimSpace((third[:dex]))
+		
+		m.Lock()
+		//powerDaemon.DaemonLog.LogDebug("Function :returnStatus -- Updating outletSatus", outletStatus)
 		key := outletStatus.outlets[node]
 		if state == "On"{
 		    key.State = true
                 }else{
 		    key.State = false
  		}
-		outletStatus.outlets[node] = key
-		
 		reboot := strings.TrimSpace((third[dex:]))
 		if reboot == "Reboot" {
 		    key.Reboot = true
@@ -101,34 +108,45 @@ func (outletStatus *outletDB) returnStatus(status string, nodes []string){
 		        powerDaemon.DaemonLog.Log(fmt.Sprintf("%s's reboot complete the node is %s", node, returnState(key.State)))
 	            }
 		        key.Reboot = false
-		}
+		 }
 		 outletStatus.outlets[node] = key
-		   
-
+		 //powerDaemon.DaemonLog.LogDebug("Function: Return status -- Finished update", outletStatus)   
+		 m.Unlock()
 	}
 	return
 }
 
 //Add in error call back
 func (outletStatus outletDB) dialServer(cmd string) string {
+        //powerDaemon.DaemonLog.LogDebug("Function dialServer: -- command", cmd)
+
 	byt := make([]byte, 82920)
-	//buf := bytes.NewBufferString("admn\n")
 	finalBuf := bytes.NewBuffer(make([]byte, 82920))
         
         cmdList := []string{"admn", "admn", cmd}
-
+        
 	//Set up negoations to the telnet server. Default is accept everything.
-	k, _ := net.Dial("tcp", "radix-pwr11:23")
+	//powerDaemon.DaemonLog.LogDebug("Function dialServer: -- Set up telnet")
+	k, err := net.Dial("tcp", "radix-pwr11:23")
+	if err != nil{
+	    powerDaemon.DaemonLog.LogError("Cannot contact radix-pwr11 server", err)
+	    return ""
+	}
 	ret := []byte{255, 251, 253}
 	for i := 0; i < 5; i++ {
 		k.Write(ret)
 		k.Read(byt)
 	}
+	//powerDaemon.DaemonLog.LogDebug("Function dialSever : -- setup complete")
 
+	//powerDaemon.DaemonLog.LogDebug("Function dialServer: -- Sending commands to server", cmdList)
 	//All three for loops just send commands to the terminal
         for _, cmd := range(cmdList){
 	    for {
-			n, _ := k.Read(byt)
+			n, err := k.Read(byt)
+			if err != nil{
+			   fmt.Println("EoF")
+			}
 			m := strings.Index(string(byt[:n]), ":")
 			if m > 0 {
 			   k.Write([]byte(cmd + "\n"))
@@ -143,6 +161,7 @@ func (outletStatus outletDB) dialServer(cmd string) string {
 		n, _ := k.Read(byt)
 		m := strings.Index(string(byt[:n]), "successful")
 		if m > 0 {
+		        //powerDaemon.DaemonLog.LogDebug("Function dialServer: -- finalbuf\n", finalBuf.String())
 			break
 		}
 		finalBuf.Write(byt[:n])
@@ -154,9 +173,11 @@ func (outletStatus outletDB) dialServer(cmd string) string {
 	dex := strings.Index(final, "State")
 	newFinal := final[dex:]
 	dex = strings.Index(newFinal, "\n")
+	//powerDaemon.DaemonLog.LogDebug("Function dialServer: -- ripped off headers and closing connection", newFinal[dex:])
 
 	//close connection and return
 	k.Close()
+	//powerDaemon.DaemonLog.LogDebug("Function dialServer : -- Returning from function")
 	return strings.TrimSpace(newFinal[dex:])
 }
 
@@ -220,18 +241,17 @@ func command(w http.ResponseWriter, req *http.Request) {
 
 	err = json.Unmarshal(body, &nodes)
 	powerDaemon.DaemonLog.LogError(fmt.Sprintf("Unable to unmarshal nodes for %s command.", cmd), err)
-	fmt.Println(nodes)
+	
+	
 	for _, node := range(nodes){
-	    if outletStatus.checkValid(node, cmd){
-               outletStatus.dialServer(cmd + " " + resources[node].Outlet +"\n")
-	    }else{
-	       powerDaemon.DaemonLog.LogError(fmt.Sprintf("%s is already %s", node, cmd), os.NewError("Pre-exsisting state"))
-	    }
+              go  outletStatus.dialServer(strings.TrimSpace(cmd + " " + resources[node].Outlet))
 	}
+	
 	printCmd(nodes, cmd)
 
         ret := outletStatus.dialServer("status") //not optimal
 	outletStatus.returnStatus(ret, nodes)
+	
 	buf, err := json.Marshal(outletStatus)
 	if err != nil{
 	   fmt.Println(err)
@@ -290,16 +310,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	
         outletStatus = new(outletDB)
+	outletStatus.outlets = make(map[string]States)
+	
 	powerDB, err := ioutil.ReadFile(daemon.FileDir + "power.db")
 	powerDaemon.DaemonLog.LogError("Unable to open power.db for reading.", err)
 
 	err = json.Unmarshal(powerDB, &resources)
 	powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", err)
-
-	for key, node := range(resources){
-	fmt.Println(key, node)
-	}
 
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/command/", command)

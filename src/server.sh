@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$1" == "start" ]; then 
+if [ "$1" == "start" ]; then
         cd cmd/flunkymasterd/ && exec flunkymaster -F $2 &
         cd cmd/powerd/ && exec powerd -F $2 &
         cd cmd/heckled/ && exec heckled -F $2 &
