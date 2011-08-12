@@ -1,130 +1,154 @@
-//Do i speak directly to the power controller on the server
-//Or the power daemon that we wrote for heckle.
 package main
 
 import (
-       "strings"
-       "fmt"
-       "net"
-       "bytes"
-       "flag"
+	"fmt"
+	"bytes"
+	"flag"
+	"os"
+	"json"
+	"tabwriter"
+	cli "flunky/client"
 )
 
+var help bool
+var command string
+
+func init() {
+	flag.BoolVar(&help, "h", false, "Print help message")
+	flag.StringVar(&command, "c", " ", "Run command on power server")
+}
+
 type outletNode struct {
-        Address string
-        Outlet  string
+	Address string
+	Outlet  string
 }
 
-type States struct{
-     State bool
-     Reboot bool
+type States struct {
+	State  bool
+	Reboot bool
 }
 
-var outletStatus map[string]States
-
-func returnState(info bool)(ret string){
-     if info{
-       ret = "on"
-     }else{
-       ret = "off"
-    }
-     return
+func returnState(info bool, value string) (ret string) {
+	switch value {
+	case "state":
+		if info {
+			ret = "on"
+		} else {
+			ret = "off"
+		}
+		break
+	case "reboot":
+		if info {
+			ret = "is rebooting"
+		} else {
+			ret = "no pending reboot"
+		}
+		break
+	default:
+		cli.PrintError("Unsupported op", os.NewError("no op"))
+		ret = ""
+		break
+	}
+	return
 }
 
-func returnStatus(status string, nodes []string){
-
-        for _, node := range nodes {
-                dex := strings.Index(status, resources[node].Outlet)
-                first := status[dex:]
-
-                dex = strings.Index(first, "\n")
-                second := first[:dex]
-
-                dex = strings.Index(second, "On")
-                if dex < 0 {
-                        dex = strings.Index(second, "Off")
-                        if dex < 0 {
-                                fmt.Println("Node has no status")
-                                return
-                        }
-                }
-                third := second[dex:]
-                dex = strings.Index(third, " ")
-
-                state := strings.TrimSpace((third[:dex]))
-                key := outletStatus[node]
-                if state == "On"{
-                    key.State = true
-                }else{
-                    key.State = false
-                }
-                outletStatus[node] = key
-
-                reboot := strings.TrimSpace((third[dex:]))
-                if reboot == "Reboot" {
-                    key.Reboot = true
-                    fmt.Println(fmt.Sprintf("%s has a pending reboot", node))
-                }else{
-                    if key.Reboot {
-                        fmt.Println(fmt.Sprintf("%s's reboot complete the node is %s", node, returnState(key.State)))
-                    }
-  key.Reboot = false
-                }
-                 outletStatus[node] = key
-
-
-        }
-        return
+func format(outletStatus map[string]States) (stats []string) {
+	for key, node := range outletStatus {
+		status := fmt.Sprintf("%s\t %s\t %s\n", key, returnState(node.State, "state"), returnState(node.Reboot, "reboot"))
+		stats = append(stats, status)
+	}
+	return
 }
 
-func dialServer(cmd string) string {
-        byt := make([]byte, 82920)
-        //buf := bytes.NewBufferString("admn\n")
-        finalBuf := bytes.NewBuffer(make([]byte, 82920))
+func print(statusList []string) {
+	heading := "NODE ID\t OUTLET STATUS\t\t\t CONTROL STATE\n"
+	tabWrite := tabwriter.NewWriter(os.Stdout, 1, 4, 0, '\t', 0)
+	tabWrite.Write([]byte(heading))
 
-        cmdList := []string{"admn", "admn", cmd}
+	for _, stat := range statusList {
+		tabWrite.Write([]byte(stat))
+	}
+	tabWrite.Flush()
+	return
+}
 
-        //Set up negoations to the telnet server. Default is accept everything.
-        k, _ := net.Dial("tcp", "radix-pwr11:23")
-        ret := []byte{255, 251, 253}
-        for i := 0; i < 5; i++ {
-                k.Write(ret)
-                k.Read(byt)
-        }
+func printCommand(nodes []string, cmd string) {
+	fmt.Println(fmt.Sprintf("Nodes %s have been %s", nodes, cmd))
+	return
+}
 
-        //All three for loops just send commands to the terminal
-        for _, cmd := range(cmdList){
-            for {
-                        n, _ := k.Read(byt)
-                        m := strings.Index(string(byt[:n]), ":")
-                        if m > 0 {
-                           k.Write([]byte(cmd + "\n"))
-                           break
-                           }
-               }
-               if cmd == "status"{break}
-        }
- //See if the command is successful and then read the rest of the output.
-        for {
-                n, _ := k.Read(byt)
-                m := strings.Index(string(byt[:n]), "successful")
-                if m > 0 {
-                        break
-                }
-                finalBuf.Write(byt[:n])
+func commPower(nodes []string, cmd string) (outletStatus map[string]States) {
+	var powerCommand string
+	if cmd == "status" {
+		powerCommand = "/status"
+	} else {
+		powerCommand = "/command/" + cmd
+	}
 
-        }
+	powerServ, err := cli.NewClient()
+	if err != nil {
+		cli.PrintError("Unable to set up communication to power", err)
+		os.Exit(1)
+	}
 
-        //Strip off the headers
-        final := finalBuf.String()
-        dex := strings.Index(final, "State")
-        newFinal := final[dex:]
-        dex = strings.Index(newFinal, "\n")
-        //close connection and return
-        k.Close()
-        return strings.TrimSpace(newFinal[dex:])
+	client, err := powerServ.SetupClient("power")
+	if err != nil {
+		cli.PrintError("Unable to lookup power", err)
+		os.Exit(1)
+	}
+
+	buf, err := json.Marshal(nodes)
+	if err != nil {
+		cli.PrintError("Unable to marshall nodes", err)
+	}
+	req := bytes.NewBuffer(buf)
+
+	statusRet, err := client.Post(powerCommand, req)
+	if err != nil {
+		cli.PrintError(err.String(), err)
+		os.Exit(1)
+	}
+
+	switch cmd {
+	case "on", "off", "reboot":
+		outletStatus = nil
+		break
+	case "status":
+		err = json.Unmarshal(statusRet, &outletStatus)
+		if err != nil {
+			cli.PrintError("Unable to unmarsahll status", err)
+		}
+		break
+	}
+	return
+
 }
 
 func main() {
-     flag.Parse()
+	flag.Parse()
+	if help {
+		cli.Usage()
+		os.Exit(0)
+	}
+
+	node := flag.Args()
+	switch command {
+	case "on", "off", "reboot", "status":
+		break
+	default:
+		cli.PrintError("Unsupported operation.", os.NewError("Unsuppored op"))
+		os.Exit(1)
+		break
+	}
+
+	if command == "status" {
+		outlets := commPower(node, command)
+		statusList := format(outlets)
+		print(statusList)
+	} else {
+		outlet := commPower(node, command)
+		if outlet == nil {
+			printCommand(node, command)
+		}
+	}
 }
