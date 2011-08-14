@@ -1,4 +1,3 @@
-//BUG: (Mike Guantonio): Cannot find the proper pid of the logging daemon
 package daemon
 
 import (
@@ -12,6 +11,7 @@ import (
 type DaemonLogger struct {
 	stdoutLog *log.Logger
 	fileLog   *log.Logger
+        error     int
 	name      string
 }
 
@@ -27,6 +27,7 @@ func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
 	daemonLogger.stdoutLog = log.New(os.Stdout, "", 0)
 	logFile, _ := os.OpenFile(logFilePath+daemonName+".log", os.O_WRONLY|os.O_CREATE, 0666)
 	daemonLogger.fileLog = log.New(logFile, "", 0)
+	daemonLogger.error = 0
 	return daemonLogger
 }
 
@@ -47,7 +48,9 @@ func (daemonLogger *DaemonLogger) LogError(message string, error os.Error) {
 	if error != nil {
  		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: ERROR %s",formatTime, name, daemonLogger.name, pid, message)
 		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s",formatTime, name, daemonLogger.name, pid, message)
+		daemonLogger.error++
 	}
+	
 }
 
 func (daemonLogger *DaemonLogger) LogHttp(request *http.Request) {
@@ -79,4 +82,8 @@ func (daemonLogger *DaemonLogger) LogDebug(message string) {
 		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: DEBUG %s",formatTime, name, daemonLogger.name, pid, message)
 		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s",formatTime, name, daemonLogger.name, pid, message)
 	}
+}
+
+func (daemonLogger *DaemonLogger) ReturnError()int {
+     return daemonLogger.error
 }

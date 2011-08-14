@@ -287,6 +287,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	heckleDaemon.UpdateActivity()
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 
 	body, err := heckleDaemon.ReadRequest(req)
@@ -334,6 +335,7 @@ func allocateNumber(writer http.ResponseWriter, req *http.Request) {
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	heckleDaemon.UpdateActivity()
 	body, err := heckleDaemon.ReadRequest(req)
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 
@@ -500,6 +502,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	        w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	heckleDaemon.UpdateActivity()
 	resourcesLock.Lock()
 	tmp, err := json.Marshal(resources)
 	resourcesLock.Unlock()
@@ -575,6 +578,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
 		writer.WriteHeader(http.StatusUnauthorized)
 	}
+	heckleDaemon.UpdateActivity()
 	username, _, admin := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 
 	body, err := heckleDaemon.ReadRequest(req)
@@ -639,10 +643,11 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
 		writer.WriteHeader(http.StatusUnauthorized)
-	}
+	}	
+	heckleDaemon.UpdateActivity()
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 	body, _ := heckleDaemon.ReadRequest(req)
-
+        
 	err = json.Unmarshal(body, &timeIncrease)
 	heckleDaemon.DaemonLog.LogError("Unable to unmarshal time increase in related handler func.", err)
 
@@ -706,6 +711,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
 		writer.WriteHeader(http.StatusUnauthorized)
 	}
+	heckleDaemon.UpdateActivity()
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 
 	body, _ := heckleDaemon.ReadRequest(req)
@@ -822,6 +828,7 @@ func outletStatus(writer http.ResponseWriter, req *http.Request) {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
 		writer.WriteHeader(http.StatusUnauthorized)
 	}
+	heckleDaemon.UpdateActivity()
 	body, _ := heckleDaemon.ReadRequest(req)
 
 	buf := bytes.NewBufferString(string(body))
@@ -843,7 +850,7 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
 		writer.WriteHeader(http.StatusUnauthorized)
 	}
-
+	heckleDaemon.UpdateActivity()
 	resourcesLock.Lock()
 	//This need to go away as well. Why are we writing out the response...?
 	for key, value := range resources {
@@ -858,7 +865,30 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
 	heckleDaemon.DaemonLog.LogError("Unable to write node status response in heckle.", error)
 }
 
+func daemonCall(w http.ResponseWriter, req *http.Request){
+        heckleDaemon.DaemonLog.DebugHttp(req)
+        req.ProtoMinor = 0
+        
+        err := heckleDaemon.AuthN.HTTPAuthenticate(req, true)
+        if err != nil {
+                heckleDaemon.DaemonLog.LogError("Access not permitted.", err)
+                w.WriteHeader(http.StatusUnauthorized)
+                return
+        }
+        heckleDaemon.UpdateActivity()
+        stat := heckleDaemon.ReturnStatus()
+
+        status, err := json.Marshal(stat)
+        if err != nil{
+           heckleDaemon.DaemonLog.LogError(err.String(), err)
+        }
+        w.Write(status)
+        return
+    
+}
+
 func main() {
+        http.HandleFunc("/daemon", daemonCall)
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/list", allocateList)
 	http.HandleFunc("/number", allocateNumber)

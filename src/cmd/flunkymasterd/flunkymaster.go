@@ -335,6 +335,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	    w.WriteHeader(http.StatusUnauthorized)
 	    return
         }
+	fmDaemon.UpdateActivity()
 	m.Lock()
 	tmp, err := json.Marshal(fm.data)
 	m.Unlock()
@@ -355,6 +356,7 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
         //Flunky auth needed
+	fmDaemon.UpdateActivity()
 	cmd := strings.Split(req.RawURL, "/")
 	staticTemp := fm.RenderGetStatic(req.RawURL, address)
 	w.Write(staticTemp)
@@ -379,6 +381,7 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
         //Flunky Auth needed
+	fmDaemon.UpdateActivity()
 	tmp := fm.RenderGetDynamic(req.RawURL, address)
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
@@ -395,6 +398,7 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	//Flunky auth needed
+	fmDaemon.UpdateActivity()
 	imageTemp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
 	_, err := w.Write(imageTemp)
 	tmp = fm.data[address]
@@ -419,6 +423,7 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	//Flunky auth needed
+	fmDaemon.UpdateActivity()
 	tmp := fm.RenderImage("install", address)
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
@@ -432,6 +437,7 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	//Flunky auth needed
+	fmDaemon.UpdateActivity()
 	var tmp DataStore
 	body, _ := fmDaemon.ReadRequest(req)
 	fmDaemon.DaemonLog.LogDebug("Received Info")
@@ -462,6 +468,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	//Flunky auth needed
+	fmDaemon.UpdateActivity()
 	var tmp DataStore
 	body, _ := fmDaemon.ReadRequest(req)
 	var msg interfaces.InfoMsg
@@ -492,7 +499,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	    w.WriteHeader(http.StatusUnauthorized)
 	    return
         }
-
+        fmDaemon.UpdateActivity()
 	body, _ := fmDaemon.ReadRequest(req)
 	temper, err := net.LookupIP(address)
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Could not find %s in host tables", address))
@@ -561,6 +568,27 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	w.Write(ret)
 }
 
+func daemonCall(w http.ResponseWriter, req *http.Request){
+        fmDaemon.DaemonLog.DebugHttp(req)
+        req.ProtoMinor = 0
+        
+        err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
+        if err != nil {
+                fmDaemon.DaemonLog.LogError("Access not permitted.", err)
+                w.WriteHeader(http.StatusUnauthorized)
+                return
+        }
+        fmDaemon.UpdateActivity()
+        stat := fmDaemon.ReturnStatus()
+
+        status, err := json.Marshal(stat)
+        if err != nil{
+           fmDaemon.DaemonLog.LogError(err.String(), err)
+        }
+        w.Write(status)
+        return
+}
+
 /*func makeHandler(fn  func(w http.ResponseWriter, r *http.Request, f chan Flunkym))http.HandlerFunc{
      return func (w http.ResponseWriter, r *http.Request){
      tmp := <- f
@@ -568,12 +596,12 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
      }
 }*/
 
-
 func main() {
 	//runtime.GOMAXPROCS(4)
 	fm.init()
 	fm.Store()
 	
+	http.Handle("/daemon", http.HandlerFunc(daemonCall))
 	http.Handle("/dump", http.HandlerFunc(DumpCall))
 	http.Handle("/static/", http.HandlerFunc(StaticCall))
 	http.Handle("/dynamic", http.HandlerFunc(DynamicCall))

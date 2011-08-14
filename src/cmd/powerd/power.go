@@ -23,12 +23,10 @@ type outletNode struct {
 type States struct{
      State bool
      Reboot bool
-     //Node string
 }
 
 type outletDB struct {
      outlets map[string]States
-     //writeChan chan States
 }
 
 
@@ -211,6 +209,7 @@ func printCmd(nodes []string, cmd string) {
 }
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
+        var empty []string
 	powerDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
@@ -219,7 +218,10 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	tmp, err := json.Marshal(outletStatus)
+	powerDaemon.UpdateActivity()
+	ret, _ := outletStatus.dialServer("status")
+        outletStatus.returnStatus(ret, empty)
+	tmp, err := json.Marshal(outletStatus.outlets)
 	powerDaemon.DaemonLog.LogError("Cannot Marshal power resources", err)
 	_, err = w.Write(tmp)
 	if err != nil {
@@ -250,6 +252,7 @@ func command(w http.ResponseWriter, req *http.Request) {
 		return
 		break
 	}
+	powerDaemon.UpdateActivity()
 	body, err := powerDaemon.ReadRequest(req)
 	powerDaemon.DaemonLog.LogError("Unable to read request", err)
 
@@ -267,8 +270,6 @@ func command(w http.ResponseWriter, req *http.Request) {
  	      }(node)
 	}
 	printCmd(nodes, cmd)
-
-       
 }
 
 func statusList(w http.ResponseWriter, req *http.Request) {
@@ -284,10 +285,10 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-
 	dex := strings.Split(req.RawURL, "/")
 	cmd := dex[1]
 	body, err := powerDaemon.ReadRequest(req)
+	powerDaemon.UpdateActivity()
 	powerDaemon.DaemonLog.LogError("Could not read request", err)
 
 	err = json.Unmarshal(body, &nodes)
@@ -312,11 +313,33 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 	   jsonStat, err = json.Marshal(retStatus)
 	   powerDaemon.DaemonLog.LogError("Unable to marshal outlet status response.", err)
         }
-
+	fmt.Println(string(jsonStat))
 	_, err = w.Write(jsonStat)
 	powerDaemon.DaemonLog.LogError("Unable to write outlet status response.", err)
 	
         return
+}
+
+func daemonCall(w http.ResponseWriter, req *http.Request){
+        powerDaemon.DaemonLog.DebugHttp(req)
+	req.ProtoMinor = 0
+        
+	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
+	if err != nil {
+		powerDaemon.DaemonLog.LogError("Access not permitted.", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	powerDaemon.UpdateActivity()
+	stat := powerDaemon.ReturnStatus()
+
+        status, err := json.Marshal(stat)
+	if err != nil{
+	   powerDaemon.DaemonLog.LogError(err.String(), err)
+        }
+	w.Write(status)
+	return
+    
 }
 
 func main() {
@@ -337,7 +360,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	
         outletStatus = new(outletDB)
 	outletStatus.outlets = make(map[string]States)
 
@@ -346,7 +368,8 @@ func main() {
 
 	err = json.Unmarshal(powerDB, &resources)
 	powerDaemon.DaemonLog.LogError("Failed to unmarshal data read from power.db file.", err)
-
+        
+	http.HandleFunc("/daemon", daemonCall)
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/command/", command)
 	http.HandleFunc("/status", statusList)

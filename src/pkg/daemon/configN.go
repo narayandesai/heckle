@@ -46,9 +46,7 @@ func (config *ConfigInfo) load() (err os.Error) {
 	config.daemonLog.LogError("Cannot unmarshall config.Data", err)
 	config.tmstamp = fi.Mtime_ns
 	return
-
 }
-
 
 func NewConfigInfo(path string, daemonLog *DaemonLogger) *ConfigInfo {
 	config := new(ConfigInfo)

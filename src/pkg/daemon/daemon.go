@@ -1,6 +1,7 @@
 package daemon
 
 import (
+       "time"
 	"flag"
 	"fmt"
 	"http"
@@ -24,7 +25,16 @@ type Daemon struct {
 	URL       string
 	User      string
 	Password  string
+	stat      Status
 	Comm      fnet.Communication
+	
+}
+
+type Status struct{
+        StartTime int64
+	UpTime    int64
+	LastActivity int64
+	Errors int
 }
 
 func (daemon *Daemon) ReadRequest(req *http.Request) (body []byte, err os.Error){
@@ -54,9 +64,20 @@ func (daemon *Daemon) ListenAndServe() (err os.Error) {
     return
 }
 
+func (daemon *Daemon)UpdateActivity(){
+     daemon.stat.LastActivity = time.Seconds()
+}
+
+func (daemon *Daemon)ReturnStatus() Status{
+    daemon.stat.UpTime = time.Seconds() - daemon.stat.StartTime
+    daemon.stat.Errors = daemon.DaemonLog.ReturnError()
+    return daemon.stat
+}
+
 func New(name string) (daemon *Daemon, err os.Error) {
 	daemon = new(Daemon)
 	daemon.Name = name
+        daemon.stat.StartTime = time.Seconds()
 
 	daemon.DaemonLog = NewDaemonLogger("/var/log/", daemon.Name)
 	daemon.Cfg = NewConfigInfo(FileDir+name+".conf", daemon.DaemonLog)

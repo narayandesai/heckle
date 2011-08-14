@@ -1,6 +1,6 @@
 include $(GOROOT)/src/Make.inc
 
-TARG=comStat
+TARG=comstat
 GOFILES=\
-	comStat.go
+	comstat.go
 include $(GOROOT)/src/Make.cmd
