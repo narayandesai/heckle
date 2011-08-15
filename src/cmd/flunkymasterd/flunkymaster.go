@@ -359,13 +359,13 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
+	cmd := strings.Split(req.RawURL, "/")
 	//Flunky Auth needed
 	fmDaemon.UpdateActivity()
 	tmp := fm.RenderGetDynamic(req.RawURL, address)
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", req.RawURL, address))
-
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", cmd[1:], address))
 }
 
 func BootconfigCall(w http.ResponseWriter, req *http.Request) {
@@ -377,7 +377,8 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	fmDaemon.UpdateActivity()
-	imageTemp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
+	cmd := strings.Split(req.RawURL, "/")
+	imageTemp := fm.RenderImage(strings.TrimSpace(cmd[1]), address)
 	_, err := w.Write(imageTemp)
 	tmp = fm.data[address]
 	tmp.Activity = time.Seconds()
@@ -400,9 +401,10 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
+	cmd := strings.Split(req.RawURL, "/")
 	//Flunky auth needed
 	fmDaemon.UpdateActivity()
-	tmp := fm.RenderImage("install", address)
+	tmp := fm.RenderImage(strings.TrimSpace(cmd[1]), address)
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
 }
@@ -523,6 +525,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
 
+	cmd := strings.Split(req.RawURL, "/")
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Recieved request for status from %s", address))
 	for _, addr := range msg.Addresses {
 		temper, err := net.LookupIP(addr)
@@ -531,7 +534,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 
 		tmp := fm.data[iaddr]
 		key := cstatus[addr]
-		tmpl := fm.RenderImage("status", iaddr)
+		tmpl := fm.RenderImage(strings.TrimSpace(cmd[1]), iaddr)
 		status := strings.TrimSpace(string(tmpl))
 		key.Status = string(status)
 		key.LastActivity = time.Seconds()
@@ -568,13 +571,6 @@ func daemonCall(w http.ResponseWriter, req *http.Request) {
 	w.Write(status)
 	return
 }
-
-/*func makeHandler(fn  func(w http.ResponseWriter, r *http.Request, f chan Flunkym))http.HandlerFunc{
-     return func (w http.ResponseWriter, r *http.Request){
-     tmp := <- f
-     fn(w, r, tmp)
-     }
-}*/
 
 func main() {
 	//runtime.GOMAXPROCS(4)
