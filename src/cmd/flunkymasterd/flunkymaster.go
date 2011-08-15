@@ -87,7 +87,7 @@ type DataStore struct {
 // for all functions. 
 type Flunkym struct {
 	path   *PathType
-	data   map[string]DataStore
+	data   map[string]*DataStore
 	static map[string]string
 }
 
@@ -109,6 +109,7 @@ func (fm *Flunkym) init() {
 		fmt.Println(fmt.Sprintf("You do not have proper permissions to start %s daemon.", fmDaemon.Name))
 		os.Exit(1)
 	}
+	fm.data = make(map[string]*DataStore)
 	fm.SetPath(fmDaemon)
 	src := rand.NewSource(time.Seconds())
 	random = rand.New(src)
@@ -160,16 +161,15 @@ func (fm *Flunkym) Assert_setup(image string, ip string, alloc uint64) {
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s", image), err)
 	usr := CreateCredin(8)
 	pass := CreateCredin(8)
-	newsetup := make(map[string]DataStore)
-	counts := make(map[string]int)
-	newsetup[ip] = DataStore{time.Seconds(), counts, 0, time.Seconds(), info, image, nil, "", "", 0}
-	newsetup[ip].Counts["bootconfig"] = 0
-	key := newsetup[ip]
-	key.Username = usr
-	key.Password = pass
-	key.AllocNum = alloc
-	newsetup[ip] = key
-	fm.data[ip] = newsetup[ip]
+	fm.data[ip] = new(DataStore)
+	fm.data[ip].Counts = make(map[string]int)
+	fm.data[ip].Extra = make(map[string]string)
+	fm.data[ip].Info = info
+	fm.data[ip].Image = image
+        fm.data[ip].Counts["bootconfig"] = 0
+        fm.data[ip].Username = usr
+	fm.data[ip].Password = pass
+	fm.data[ip].AllocNum = alloc
 	fm.Store()
 	return
 }
@@ -177,7 +177,7 @@ func (fm *Flunkym) Assert_setup(image string, ip string, alloc uint64) {
 func (fm *Flunkym) Load() {
 	_, err := os.Stat(fm.path.dataFile)
 	if err != nil {
-		data := make(map[string]DataStore)
+		data := make(map[string]*DataStore)
 		fm.data = data
 		fmDaemon.DaemonLog.Log("No previous data exsists. Data created")
 	} else {
@@ -187,7 +187,7 @@ func (fm *Flunkym) Load() {
 
 		if len(file) <= 0 {
 			fmDaemon.DaemonLog.LogError(fmt.Sprintf("%s is an empty file. Creating new %s", fm.path.dataFile, fm.path.dataFile), os.NewError("Empty Json"))
-			data := make(map[string]DataStore)
+			data := make(map[string]*DataStore)
 			fm.data = data
 		} else {
 			err = json.Unmarshal(file, &fm.data)
@@ -277,11 +277,12 @@ func (fm *Flunkym) RenderGetDynamic(loc string, address string) []byte {
 }
 
 func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
-	key := fm.data[address]
 	l := bytes.NewBuffer(buf)
 	bvar := build_vars(address, toRender)
-	request := fm.path.image + "/" + key.Image + "/" + toRender
+
+	request := fm.path.image + "/" + fm.data[address].Image + "/" + toRender
 	_, err := os.Stat(request)
+
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot find %s", request), err)
 	ans, err := ioutil.ReadFile(request)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read %s", request), err)
@@ -327,7 +328,6 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func StaticCall(w http.ResponseWriter, req *http.Request) {
-	var tmp DataStore
 	var msg interfaces.InfoMsg
 	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
@@ -340,15 +340,12 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	staticTemp := fm.RenderGetStatic(req.RawURL, address)
 	w.Write(staticTemp)
 	host, _ := net.LookupAddr(address)
-	tmp = fm.data[address]
-	tmp.Activity = time.Seconds()
+
+	fm.data[address].Activity = time.Seconds()
 	msg.Time = time.Seconds()
 	msg.MsgType = "Info"
 	msg.Message = fmt.Sprintf("%s is loading %s", host[:1], cmd)
-	tmp.Info = append(tmp.Info, msg)
-	m.Lock()
-	fm.data[address] = tmp
-	m.Unlock()
+	fm.data[address].Info = append(fm.data[address].Info, msg)
 	fm.Store()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", cmd[1:], address))
 }
@@ -369,7 +366,6 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func BootconfigCall(w http.ResponseWriter, req *http.Request) {
-	var tmp DataStore
 	var msg interfaces.InfoMsg
 	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
@@ -380,16 +376,14 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	cmd := strings.Split(req.RawURL, "/")
 	imageTemp := fm.RenderImage(strings.TrimSpace(cmd[1]), address)
 	_, err := w.Write(imageTemp)
-	tmp = fm.data[address]
-	tmp.Activity = time.Seconds()
+
+	
+	fm.data[address].Activity = time.Seconds()
 	msg.Time = time.Seconds()
 	msg.MsgType = "Info"
 	host, _ := net.LookupAddr(address)
 	msg.Message = fmt.Sprintf("%s is booting up", host[:1])
-	tmp.Info = append(tmp.Info, msg)
-	m.Lock()
-	fm.data[address] = tmp
-	m.Unlock()
+	fm.data[address].Info = append(fm.data[address].Info, msg)
 	fm.Store()
 	fmDaemon.DaemonLog.LogError("Will not write status", err)
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s in allocation #%d has booted.", address, fm.data[address].AllocNum))
@@ -417,7 +411,6 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	fmDaemon.UpdateActivity()
-	var tmp DataStore
 	body, _ := fmDaemon.ReadRequest(req)
 	fmDaemon.DaemonLog.LogDebug("Received Info")
 	var msg interfaces.InfoMsg
@@ -426,14 +419,10 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 		fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
-		tmp = fm.data[address]
-		tmp.Activity = time.Seconds()
+		fm.data[address].Activity = time.Seconds()
 		msg.Time = time.Seconds()
 		msg.MsgType = "Info"
-		tmp.Info = append(tmp.Info, msg)
-		m.Lock()
-		fm.data[address] = tmp
-		m.Unlock()
+		fm.data[address].Info = append(fm.data[address].Info, msg)
 		fm.Store()
 		fmDaemon.DaemonLog.Log(fmt.Sprintf("Info recieved from %s: %s.", address, msg.Message))
 	}
@@ -448,20 +437,18 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	address := addTmp[0]
 	//Flunky auth needed
 	fmDaemon.UpdateActivity()
-	var tmp DataStore
+	
+
 	body, _ := fmDaemon.ReadRequest(req)
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Cannot unmarsahll data", err)
-	tmp = fm.data[address]
-	tmp.Activity = time.Seconds()
-	tmp.Errors += 1
+
+	fm.data[address].Activity = time.Seconds()
+	fm.data[address].Errors += 1
 	msg.Time = time.Seconds()
 	msg.MsgType = "Error"
-	tmp.Info = append(tmp.Info, msg)
-	m.Lock()
-	fm.data[address] = tmp
-	m.Unlock()
+	fm.data[address].Info = append(fm.data[address].Info, msg)
 	fm.Store()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Error recieved from %s: %s. Error count is %d", address, msg.Message, fm.data[address].Errors))
 }
@@ -532,14 +519,14 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		iaddr := temper[0].String()
 		fmDaemon.DaemonLog.LogError("Could not find the ip addess in host tables", err)
 
-		tmp := fm.data[iaddr]
+		
 		key := cstatus[addr]
 		tmpl := fm.RenderImage(strings.TrimSpace(cmd[1]), iaddr)
 		status := strings.TrimSpace(string(tmpl))
 		key.Status = string(status)
 		key.LastActivity = time.Seconds()
 
-		for _, info := range tmp.Info {
+		for _, info := range fm.data[iaddr].Info {
 			if info.Time > msg.Time {
 				key.Info = append(key.Info, info)
 			}
