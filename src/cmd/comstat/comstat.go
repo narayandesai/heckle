@@ -11,6 +11,7 @@ import (
 	"time"
 	"tabwriter"
 	fclient "flunky/client"
+	fnet "flunky/net"
 )
 
 var help bool
@@ -33,14 +34,6 @@ func init() {
 	flag.BoolVar(&log, "l", false, "Print log file for specified host")
 	flag.BoolVar(&stat, "s", false, "Print daemon status")
 	flag.BoolVar(&dump, "d", false, "Dump daemon data")
-}
-
-func prettyPrint(data string) {
-	prettyData := strings.Split(data, ",")
-	for _, pretty := range prettyData {
-		fmt.Println(pretty)
-	}
-	return
 }
 
 func logs(name string) string {
@@ -68,28 +61,25 @@ func logs(name string) string {
 	return ""
 }
 
-func printStatus(status []byte, name string) {
-	var statusType Status
+func printStatus(status map[string]Status) {
 	tabWrite := tabwriter.NewWriter(os.Stdout, 1, 4, 0, '\t', 0)
-	err := json.Unmarshal(status, &statusType)
-	if err != nil {
-		fclient.PrintError(err.String(), err)
-	}
 	header := "NAME\t START\t LAST_ACTIVITY\t UPTIME\t ERRORS\n"
 	tabWrite.Write([]byte(header))
 
-	startTime := time.SecondsToLocalTime(statusType.StartTime).Format("01-02 15:04:05")
-	upTime := time.SecondsToLocalTime(statusType.UpTime).Format("04:05")
-	lastActivity := time.SecondsToLocalTime(statusType.LastActivity).Format("01-02 15:04:05")
-
-	line := fmt.Sprintf("%s\t %s\t         %s\t %s\t %d\n", name, startTime, lastActivity, upTime, statusType.Errors)
-	tabWrite.Write([]byte(line))
+        for name, statusType := range(status){
+	    startTime := time.SecondsToLocalTime(statusType.StartTime).Format("01-02 15:04:05")
+	    upTime := time.SecondsToLocalTime(statusType.UpTime).Format("04:05")
+	    lastActivity := time.SecondsToLocalTime(statusType.LastActivity).Format("01-02 15:04:05")
+	    line := fmt.Sprintf("%s\t %s\t         %s\t %s\t %d\n", name, startTime, lastActivity, upTime, statusType.Errors)
+	    tabWrite.Write([]byte(line))
+	}
 	tabWrite.Flush()
 	return
 }
 
 func main() {
 	flag.Parse()
+	clientList := make(map[string]*fnet.BuildServer)
 
 	if help {
 		fmt.Println(fmt.Sprintf("Command syntax -- %s daemon1 daemon2 ...daemonN", os.Args[0]))
@@ -103,6 +93,7 @@ func main() {
 		fclient.Usage()
 		os.Exit(1)
 	}
+
 	components := flag.Args()
 	if len(components) == 0 {
 		fclient.PrintError("No clients specified", os.NewError("no client"))
@@ -110,7 +101,6 @@ func main() {
 	}
 
 	for _, name := range components {
-		
 		comm, err := fclient.NewClient()
 		if err != nil {
 			fclient.PrintError("Failed to setup communication", err)
@@ -121,36 +111,54 @@ func main() {
 			fclient.PrintError(fmt.Sprintf("Failed to lookup component %s", name), err)
 			os.Exit(1)
 		}
-		if stat {
-			resp, err := client.Get("daemon")
-			if err != nil {
-				fclient.PrintError("Could not get daemon status", err)
-				os.Exit(1)
-			}
-			printStatus(resp, name)
-		}
+		clientList[name] = client
+	}
 
-		if dump {
-			resp, err := client.Get("dump")
-			if err != nil {
-				fclient.PrintError(fmt.Sprintf("Failed to contact component %s", name), err)
-				os.Exit(1)
-			}
-			fmt.Println(string(resp))
+	if stat {
+	    var statusType Status
+	    respList := make(map[string]Status)
+	    for name, client := range(clientList){
+		resp, err := client.Get("daemon")
+		if err != nil {
+			fclient.PrintError("Could not get daemon status", err)
+			os.Exit(1)
 		}
-		if log {
-			logging := logs(name)
-			fmt.Println(logging)
-		}
+		err = json.Unmarshal(resp, &statusType)
+                if err != nil {
+                    fclient.PrintError(err.String(), err)
+                }
+		respList[name] = statusType
+	     }
+	    printStatus(respList)
+	}
 
-		if error {
-			errorLogging := logs(name)
-			if len(errorLogging) <= 0 {
-				fmt.Println(fmt.Sprintf("No errors exsist in the logs for %s", name))
-			} else {
-				fmt.Println(errorLogging)
-			}
+	if dump {
+	    for name, client := range(clientList){
+		resp, err := client.Get("dump")
+		if err != nil {
+			fclient.PrintError(fmt.Sprintf("Failed to contact component %s", name), err)
+			os.Exit(1)
 		}
+		fmt.Println(string(resp))
+		}
+	}
+
+	if log {
+	    for name, _ := range(clientList){
+		logging := logs(name)
+		fmt.Println(logging)
+            }
+	}
+
+	if error {
+	    for name, _ := range(clientList){
+		errorLogging := logs(name)
+		if len(errorLogging) <= 0 {
+			fmt.Println(fmt.Sprintf("No errors exsist in the logs for %s", name))
+		} else {
+			fmt.Println(errorLogging)
+		}
+	     }
 	}
 
 }

@@ -19,9 +19,9 @@ import (
 	daemon "flunky/daemon"
 )
 
-type States struct{
-     State bool
-     Reboot bool
+type States struct {
+	State  bool
+	Reboot bool
 }
 
 type resourceInfo struct {
@@ -95,12 +95,12 @@ func init() {
 	heckleDaemon, err = daemon.New("heckle")
 	heckleDaemon.DaemonLog.LogError("Failed to create new heckle daemon.", err)
 	heckleDaemon.DaemonLog.LogDebug("Initializing variables and setting up daemon.")
-    
-        user, pass, _ := heckleDaemon.AuthN.GetUserAuth()
+
+	user, pass, _ := heckleDaemon.AuthN.GetUserAuth()
 	err = heckleDaemon.AuthN.Authenticate(user, pass, true)
-	if err != nil{
-	    fmt.Println(fmt.Sprintf("You do not have proper permissions to start %s daemon.", heckleDaemon.Name))
-	    os.Exit(1)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("You do not have proper permissions to start %s daemon.", heckleDaemon.Name))
+		os.Exit(1)
 	}
 
 	fmComm, err = fnet.NewCommunication(daemon.FileDir+"components.conf", heckleDaemon.Cfg.Data["username"], heckleDaemon.Cfg.Data["password"])
@@ -306,7 +306,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 	allocationNumber++
 	allocationNumberLock.Unlock()
 
-	heckleToAllocateChan <- iface.Listmsg{listMsg.Addresses, listMsg.Image, 0,tmpAllocationNumber}
+	heckleToAllocateChan <- iface.Listmsg{listMsg.Addresses, listMsg.Image, 0, tmpAllocationNumber}
 
 	currentRequestsLock.Lock()
 	for _, value := range listMsg.Addresses {
@@ -314,7 +314,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 		remove[value] = false
 	}
 	currentRequestsLock.Unlock()
-        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Added allocation #%d nodes: %s to Heckle", tmpAllocationNumber, listMsg.Addresses) )
+	heckleDaemon.DaemonLog.Log(fmt.Sprintf("Added allocation #%d nodes: %s to Heckle", tmpAllocationNumber, listMsg.Addresses))
 	js, _ := json.Marshal(tmpAllocationNumber)
 	writer.Write(js)
 
@@ -342,7 +342,7 @@ func allocateNumber(writer http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(body, &numMsg)
 	heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation list.", err)
 
-        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %d nodes.", numMsg))
+	heckleDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %d nodes.", numMsg))
 	allocationNumberLock.Lock()
 	tmpAllocationNumber := allocationNumber
 
@@ -460,7 +460,13 @@ func polling() {
 			var pstat string
 			//This garbage needs to change!
 			for key, value := range statmap {
-			        if outletStatus[key].Reboot {pstat = "currently rebooting"} else if outletStatus[key].State {pstat = "On"} else{pstat = "Off"}
+				if outletStatus[key].Reboot {
+					pstat = "currently rebooting"
+				} else if outletStatus[key].State {
+					pstat = "On"
+				} else {
+					pstat = "Off"
+				}
 				if _, ok := pollingOutletStatus[key]; !ok {
 					value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
 					pollingOutletStatus[key] = pstat
@@ -499,7 +505,7 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
-	        w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	heckleDaemon.UpdateActivity()
@@ -585,12 +591,12 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 
 	err = json.Unmarshal(body, &allocationNumber)
 	heckleDaemon.DaemonLog.LogError("Unable to unmarshal allocation number for freeing.", err)
-        
-	if allocationNumber <= 0{
-	    heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exsist",allocationNumber), os.NewError("0 used"))
-            writer.WriteHeader(http.StatusBadRequest)
-	    return
-        }
+
+	if allocationNumber <= 0 {
+		heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exsist", allocationNumber), os.NewError("0 used"))
+		writer.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	powerDown := []string{}
 
 	currentRequestsLock.Lock()
@@ -615,7 +621,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	resourcesLock.Unlock()
 
 	if !found {
-		heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exist.",allocationNumber), os.NewError("Wrong Number"))
+		heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exist.", allocationNumber), os.NewError("Wrong Number"))
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -626,7 +632,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	buf := bytes.NewBufferString(string(js))
 	_, err = ps.Post("/command/off", buf)
 	heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free allocation number.", err)
-        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Allocation #%d nodes %s have been freed.",allocationNumber,powerDown))
+	heckleDaemon.DaemonLog.Log(fmt.Sprintf("Allocation #%d nodes %s have been freed.", allocationNumber, powerDown))
 	updateDatabase(false)
 }
 
@@ -634,7 +640,7 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	//This function allows a user, if it owns the allocation, to free an allocation
 	//number and all associated nodes.  It resets the resource map and current
 	//requests map.
-        var end int64
+	var end int64
 	heckleDaemon.DaemonLog.DebugHttp(req)
 	heckleDaemon.DaemonLog.LogDebug("Increasing allocation time on an allocation number.")
 	timeIncrease := int64(0)
@@ -643,11 +649,11 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		heckleDaemon.DaemonLog.LogError("Permission Denied", err)
 		writer.WriteHeader(http.StatusUnauthorized)
-	}	
+	}
 	heckleDaemon.UpdateActivity()
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 	body, _ := heckleDaemon.ReadRequest(req)
-        
+
 	err = json.Unmarshal(body, &timeIncrease)
 	heckleDaemon.DaemonLog.LogError("Unable to unmarshal time increase in related handler func.", err)
 
@@ -659,7 +665,7 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 		}
 	}
 	resourcesLock.Unlock()
-        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Increased timeout by %d for %s. Allocation will end at %d", timeIncrease, username, end))
+	heckleDaemon.DaemonLog.Log(fmt.Sprintf("Increased timeout by %d for %s. Allocation will end at %d", timeIncrease, username, end))
 	updateDatabase(false)
 }
 
@@ -701,7 +707,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 	//the node from current resources if it exists and also resets it in resources map.
 
 	heckleDaemon.DaemonLog.LogDebug("Freeing a specific node given by client.")
-	
+
 	var node string
 	req.ProtoMinor = 0
 	heckleDaemon.DaemonLog.DebugHttp(req)
@@ -740,7 +746,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 	buf := bytes.NewBufferString(string(js))
 	_, err = ps.Post("/command/off", buf)
 	heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free node.", err)
-        heckleDaemon.DaemonLog.Log(fmt.Sprintf("Freed %s in allocation #%d for %s.",node, resources[node].AllocationNumber, username)) 
+	heckleDaemon.DaemonLog.Log(fmt.Sprintf("Freed %s in allocation #%d for %s.", node, resources[node].AllocationNumber, username))
 	updateDatabase(false)
 }
 
@@ -865,30 +871,30 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
 	heckleDaemon.DaemonLog.LogError("Unable to write node status response in heckle.", error)
 }
 
-func daemonCall(w http.ResponseWriter, req *http.Request){
-        heckleDaemon.DaemonLog.DebugHttp(req)
-        req.ProtoMinor = 0
-        
-        err := heckleDaemon.AuthN.HTTPAuthenticate(req, true)
-        if err != nil {
-                heckleDaemon.DaemonLog.LogError("Access not permitted.", err)
-                w.WriteHeader(http.StatusUnauthorized)
-                return
-        }
-        heckleDaemon.UpdateActivity()
-        stat := heckleDaemon.ReturnStatus()
+func daemonCall(w http.ResponseWriter, req *http.Request) {
+	heckleDaemon.DaemonLog.DebugHttp(req)
+	req.ProtoMinor = 0
 
-        status, err := json.Marshal(stat)
-        if err != nil{
-           heckleDaemon.DaemonLog.LogError(err.String(), err)
-        }
-        w.Write(status)
-        return
-    
+	err := heckleDaemon.AuthN.HTTPAuthenticate(req, true)
+	if err != nil {
+		heckleDaemon.DaemonLog.LogError("Access not permitted.", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	heckleDaemon.UpdateActivity()
+	stat := heckleDaemon.ReturnStatus()
+
+	status, err := json.Marshal(stat)
+	if err != nil {
+		heckleDaemon.DaemonLog.LogError(err.String(), err)
+	}
+	w.Write(status)
+	return
+
 }
 
 func main() {
-        http.HandleFunc("/daemon", daemonCall)
+	http.HandleFunc("/daemon", daemonCall)
 	http.HandleFunc("/dump", DumpCall)
 	http.HandleFunc("/list", allocateList)
 	http.HandleFunc("/number", allocateNumber)

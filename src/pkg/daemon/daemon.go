@@ -1,7 +1,7 @@
 package daemon
 
 import (
-       "time"
+	"time"
 	"flag"
 	"fmt"
 	"http"
@@ -27,20 +27,19 @@ type Daemon struct {
 	Password  string
 	stat      Status
 	Comm      fnet.Communication
-	
 }
 
-type Status struct{
-        StartTime int64
-	UpTime    int64
+type Status struct {
+	StartTime    int64
+	UpTime       int64
 	LastActivity int64
-	Errors int
+	Errors       int
 }
 
-func (daemon *Daemon) ReadRequest(req *http.Request) (body []byte, err os.Error){
-     body, err = ioutil.ReadAll(req.Body)
-     err = req.Body.Close()
-     return 
+func (daemon *Daemon) ReadRequest(req *http.Request) (body []byte, err os.Error) {
+	body, err = ioutil.ReadAll(req.Body)
+	err = req.Body.Close()
+	return
 }
 
 func (daemon *Daemon) GetPort() (port string, err os.Error) {
@@ -54,30 +53,30 @@ func (daemon *Daemon) GetPort() (port string, err os.Error) {
 }
 
 func (daemon *Daemon) ListenAndServe() (err os.Error) {
-    port, err := daemon.GetPort()
-    if err != nil {
-        fmt.Println("Port configuration error")
-        os.Exit(1)
-    }
-          err = http.ListenAndServe(":" + port, nil)
-          daemon.DaemonLog.LogError("Failed to listen on http socket.", err)
-    return
+	port, err := daemon.GetPort()
+	if err != nil {
+		fmt.Println("Port configuration error")
+		os.Exit(1)
+	}
+	err = http.ListenAndServe(":"+port, nil)
+	daemon.DaemonLog.LogError("Failed to listen on http socket.", err)
+	return
 }
 
-func (daemon *Daemon)UpdateActivity(){
-     daemon.stat.LastActivity = time.Seconds()
+func (daemon *Daemon) UpdateActivity() {
+	daemon.stat.LastActivity = time.Seconds()
 }
 
-func (daemon *Daemon)ReturnStatus() Status{
-    daemon.stat.UpTime = time.Seconds() - daemon.stat.StartTime
-    daemon.stat.Errors = daemon.DaemonLog.ReturnError()
-    return daemon.stat
+func (daemon *Daemon) ReturnStatus() Status {
+	daemon.stat.UpTime = time.Seconds() - daemon.stat.StartTime
+	daemon.stat.Errors = daemon.DaemonLog.ReturnError()
+	return daemon.stat
 }
 
 func New(name string) (daemon *Daemon, err os.Error) {
 	daemon = new(Daemon)
 	daemon.Name = name
-        daemon.stat.StartTime = time.Seconds()
+	daemon.stat.StartTime = time.Seconds()
 
 	daemon.DaemonLog = NewDaemonLogger("/var/log/", daemon.Name)
 	daemon.Cfg = NewConfigInfo(FileDir+name+".conf", daemon.DaemonLog)
@@ -90,7 +89,7 @@ func New(name string) (daemon *Daemon, err os.Error) {
 		daemon.Password = password
 	}
 
-	daemon.Comm, err = fnet.NewCommunication(FileDir + "components.conf", daemon.User, daemon.Password)
+	daemon.Comm, err = fnet.NewCommunication(FileDir+"components.conf", daemon.User, daemon.Password)
 	if err != nil {
 		return
 	}

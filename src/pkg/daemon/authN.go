@@ -12,9 +12,9 @@ import (
 	"http"
 )
 
-type Auth struct{
-     User string
-     Password string
+type Auth struct {
+	User     string
+	Password string
 }
 
 type UserNode struct {
@@ -41,13 +41,13 @@ func NewAuthInfo(path string, daemonLog *DaemonLogger) *Authinfo {
 
 func (auth *Authinfo) Load() (err os.Error) {
 	if auth.path == "" {
-                err =  os.NewError("Authorization file does not exsist")
+		err = os.NewError("Authorization file does not exsist")
 		return
 	}
 	authFile, err := os.Open(auth.path)
 	emsg := fmt.Sprintf("Unable to open %s for reading.", auth.path)
 	if err != nil {
-	        err = os.NewError(emsg)
+		err = os.NewError(emsg)
 		os.Exit(1)
 	}
 
@@ -111,8 +111,8 @@ func (auth *Authinfo) GetAuthenticateCred(user string, password string) (valid b
 	return
 }
 
-func (auth *Authinfo) Authenticate(user string, password string, isAdmin bool) (err os.Error){
-        auth.lock.RLock()
+func (auth *Authinfo) Authenticate(user string, password string, isAdmin bool) (err os.Error) {
+	auth.lock.RLock()
 	defer auth.lock.RUnlock()
 
 	_, ok := auth.Users[user]
@@ -123,38 +123,38 @@ func (auth *Authinfo) Authenticate(user string, password string, isAdmin bool) (
 
 	valid := (password == auth.Users[user].Password)
 	if !valid {
-	    err = os.NewError(fmt.Sprintf("Invalid Password"))
-	    return
+		err = os.NewError(fmt.Sprintf("Invalid Password"))
+		return
 	}
 
-        if isAdmin{
-	   admin := auth.Users[user].Admin
-	   if !admin{
-	       err = os.NewError(fmt.Sprintf("Authorization denied, not administrator"))
-	       return
-	   }
+	if isAdmin {
+		admin := auth.Users[user].Admin
+		if !admin {
+			err = os.NewError(fmt.Sprintf("Authorization denied, not administrator"))
+			return
+		}
 	}
 	return
 }
 
-func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool)(err os.Error){
-        if _, ok := req.Header["Authorization"]; !ok {
+func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool) (err os.Error) {
+	if _, ok := req.Header["Authorization"]; !ok {
 		err = os.NewError("Request header did not contain Authorization information.")
-		return 
+		return
 	}
-        header := req.Header.Get("Authorization")
+	header := req.Header.Get("Authorization")
 	tmpAuthArray := strings.Split(header, " ")
 
 	authValues, err := base64.URLEncoding.DecodeString(tmpAuthArray[1])
-	if err != nil{
-	   auth.daemonLog.LogError("Failed to decode encoded auth settings in http request.", err)
+	if err != nil {
+		auth.daemonLog.LogError("Failed to decode encoded auth settings in http request.", err)
 	}
 
 	authValuesArray := strings.Split(string(authValues), ":")
 	user := authValuesArray[0]
 	password := authValuesArray[1]
 	err = auth.Authenticate(user, password, isAdmin)
-        return
+	return
 }
 
 func (auth *Authinfo) NewUser(user string, password string, admin bool) {
@@ -197,17 +197,17 @@ func (auth *Authinfo) Store() (err os.Error) {
 	return
 }
 
-func (auth *Authinfo) GetUserAuth()(user string, password string, err os.Error){
-        var authdata Auth
-        homedir := os.Getenv("HOME")
+func (auth *Authinfo) GetUserAuth() (user string, password string, err os.Error) {
+	var authdata Auth
+	homedir := os.Getenv("HOME")
 
 	rawdata, err := ioutil.ReadFile(homedir + "/.hauth")
 	if err != nil {
-	   return
-	   }
-	   json.Unmarshal(rawdata, &authdata)
-	   user = authdata.User
-	   password = authdata.Password
-	   return
+		return
+	}
+	json.Unmarshal(rawdata, &authdata)
+	user = authdata.User
+	password = authdata.Password
+	return
 
 }

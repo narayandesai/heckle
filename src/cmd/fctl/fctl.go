@@ -11,13 +11,13 @@ import (
 	fclient "flunky/client"
 )
 
-var server          string
-var verbose         bool
-var help            bool
-var image           string
-var wait            bool
-var minutesTimeout  int64
-var extra           string
+var server string
+var verbose bool
+var help bool
+var image string
+var wait bool
+var minutesTimeout int64
+var extra string
 var username, password string
 
 func init() {
@@ -42,15 +42,15 @@ type infoMsg struct {
 	MsgType string
 }
 
-func (msg *infoMsg) Format (client string) (string) {
+func (msg *infoMsg) Format(client string) string {
 	strval := fmt.Sprintf("%s: %s: Node: %s: %s", msg.MsgType, time.SecondsToLocalTime(msg.Time).Format(time.UnixDate), client, msg.Message)
 	return strval
 }
 
 type statusMessage struct {
-	Status         string
-	LastActivity   int64
-	Info           []infoMsg
+	Status       string
+	LastActivity int64
+	Info         []infoMsg
 }
 
 type readyBailNode struct {
@@ -60,7 +60,7 @@ type readyBailNode struct {
 func (rbn *readyBailNode) InterpretPoll(status string, lastActivity int64) {
 	if status == "Ready" {
 		rbn.Ready = true
-	} else if status == "Cancel" || time.Seconds() - lastActivity > 300 {
+	} else if status == "Cancel" || time.Seconds()-lastActivity > 300 {
 		rbn.Bail = true
 	}
 }
@@ -88,12 +88,12 @@ func pollForMessages(cancelTime int64, addresses []string, bs *fnet.BuildServer)
 
 	for time.Seconds() < cancelTime && !done {
 		time.Sleep(10000000000)
-          sRjs, _ := json.Marshal(statRequest)
-          statRequest.Time = time.Seconds()
+		sRjs, _ := json.Marshal(statRequest)
+		statRequest.Time = time.Seconds()
 		reqbuf := bytes.NewBufferString(string(sRjs))
 		ret, _ := bs.Post("/status", reqbuf)
 		json.Unmarshal(ret, &statmap)
-        
+
 		for _, address := range addresses {
 			rbn := readyBail[address]
 			rbn.InterpretPoll(statmap[address].Status, statmap[address].LastActivity)

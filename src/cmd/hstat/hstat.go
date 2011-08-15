@@ -51,7 +51,7 @@ func printStatus(info string) {
 	tabWrite := tabwriter.NewWriter(os.Stdout, 1, 4, 0, '\t', 0)
 	header := fmt.Sprintf("ID\t USER\t NODES\t IMAGE\t RESERVATION ENDING\n")
 	tabWrite.Write([]byte(header))
-        
+
 	for _, status := range statusList {
 		if len(status) > 0 {
 			id := parse("ALLOCATION", status)
@@ -89,9 +89,9 @@ func getStatus() (someBytes []byte, err os.Error) {
 }
 
 func findValues(searchTerm string, masterList string, userTerm string) (ret string) {
-        var tmp string
-        buf := bytes.NewBufferString(tmp)
-        
+	var tmp string
+	buf := bytes.NewBufferString(tmp)
+
 	valueList := strings.Split(masterList, "\n")
 	for _, value := range valueList {
 		if len(value) > 0 {
@@ -129,11 +129,11 @@ func main() {
 	if user != " " {
 		validList := findValues("OWNER", string(someBytes), user)
 		if len(validList) > 0 {
-		     printStatus(validList)
-		 }else{
-		     cli.PrintError("User does not exist in the system", os.NewError("Unknown user"))
-		     os.Exit(1)
-                 }
+			printStatus(validList)
+		} else {
+			cli.PrintError("User does not exist in the system", os.NewError("Unknown user"))
+			os.Exit(1)
+		}
 
 	}
 
@@ -141,31 +141,31 @@ func main() {
 		validList := findValues("NODE", string(someBytes), node)
 		if len(validList) > 0 {
 			printStatus(validList)
-                }else{
-		    cli.PrintError("Node is not allocated or does not exsist", os.NewError("Missing"))
-		    os.Exit(1)
+		} else {
+			cli.PrintError("Node is not allocated or does not exsist", os.NewError("Missing"))
+			os.Exit(1)
 		}
 	}
 
 	if alloc != " " {
 		validList := findValues("ALLOCATION", string(someBytes), alloc)
 		if len(validList) > 0 {
-		    printStatus(validList)
-		}else{
-		    cli.PrintError("Allocation number does not exsist", os.NewError("Allocation does not exsist"))
-		    os.Exit(1)
+			printStatus(validList)
+		} else {
+			cli.PrintError("Allocation number does not exsist", os.NewError("Allocation does not exsist"))
+			os.Exit(1)
 		}
 	}
- 	
+
 	if image != " " {
-		 validList := findValues("IMAGE", string(someBytes), image)
-		 if len(validList) > 0 {
-		     printStatus(validList)
-		 }else{
-		     cli.PrintError("Image does not exist.", os.NewError("No image"))
-		     os.Exit(1)
-		 }
-        }
+		validList := findValues("IMAGE", string(someBytes), image)
+		if len(validList) > 0 {
+			printStatus(validList)
+		} else {
+			cli.PrintError("Image does not exist.", os.NewError("No image"))
+			os.Exit(1)
+		}
+	}
 
 	if len(os.Args) < 2 {
 		printStatus(string(someBytes))

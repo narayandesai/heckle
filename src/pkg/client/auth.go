@@ -8,7 +8,7 @@ import (
 )
 
 type Auth struct {
-	User string
+	User     string
 	Password string
 }
 

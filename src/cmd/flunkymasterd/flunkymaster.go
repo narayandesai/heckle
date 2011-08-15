@@ -92,23 +92,23 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
-        var err os.Error
-        flag.BoolVar(&help, "h", false, "Print usage message")
-        flag.Parse()
-        if help {
-	    Usage()
-        }
+	var err os.Error
+	flag.BoolVar(&help, "h", false, "Print usage message")
+	flag.Parse()
+	if help {
+		Usage()
+	}
 	fmDaemon, err = daemon.New("flunky")
 	if err != nil {
-	  fmt.Println("Could not create daemon")
-          os.Exit(1)
-        }
-        user, pass, _ := fmDaemon.AuthN.GetUserAuth()
+		fmt.Println("Could not create daemon")
+		os.Exit(1)
+	}
+	user, pass, _ := fmDaemon.AuthN.GetUserAuth()
 	err = fmDaemon.AuthN.Authenticate(user, pass, true)
-	if err != nil{
-	      fmt.Println(fmt.Sprintf("You do not have proper permissions to start %s daemon.", fmDaemon.Name))
-	      os.Exit(1)
-        }       
+	if err != nil {
+		fmt.Println(fmt.Sprintf("You do not have proper permissions to start %s daemon.", fmDaemon.Name))
+		os.Exit(1)
+	}
 	fm.SetPath(fmDaemon)
 	src := rand.NewSource(time.Seconds())
 	random = rand.New(src)
@@ -197,7 +197,7 @@ func (fm *Flunkym) Load() {
 	}
 	file, err := ioutil.ReadFile(fm.path.staticdataPath)
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not read %s", fm.path.staticdataPath), err)
-       
+
 	err = json.Unmarshal(file, &fm.static)
 	fmDaemon.DaemonLog.LogError("Could not read staticBuildVars.Json", err)
 	return
@@ -222,7 +222,7 @@ func (fm *Flunkym) Store() {
 func (fm *Flunkym) SetPath(fmDaemon *daemon.Daemon) {
 	path := new(PathType)
 	root := fmDaemon.Cfg.Data["repoPath"]
-	path.root = root 
+	path.root = root
 	path.dataFile = daemon.FileDir + fmDaemon.Cfg.Data["backupFile"]
 	path.staticdataPath = daemon.FileDir + "staticVars.json"
 	path.image = path.root + "/images"
@@ -299,42 +299,42 @@ func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
 	return v
 }
 
-func (fm *Flunkym)DecodeRequest(req *http.Request, address string) (username string, authed bool, admin bool){
-    if _, ok := req.Header["Authorization"]; !ok {
-        fmDaemon.DaemonLog.LogError("Request header did not contain authorization information", os.NewError("Http Auth missing"))
-       return
-     }
-     header := req.Header.Get("Authorization")
-     tmpCredins := strings.Split(header, " ")
+func (fm *Flunkym) DecodeRequest(req *http.Request, address string) (username string, authed bool, admin bool) {
+	if _, ok := req.Header["Authorization"]; !ok {
+		fmDaemon.DaemonLog.LogError("Request header did not contain authorization information", os.NewError("Http Auth missing"))
+		return
+	}
+	header := req.Header.Get("Authorization")
+	tmpCredins := strings.Split(header, " ")
 
-     credins, error := base64.URLEncoding.DecodeString(tmpCredins[1])
-     fmDaemon.DaemonLog.LogError("Failed to decode encoded auth setting in http request", error)
-      
-      userCredin := strings.Split(string(credins), ":")
-      username = userCredin[0]
-      password := userCredin[1]
-      authed, admin = fm.AuthFlunky(username, password, address)
-      return
+	credins, error := base64.URLEncoding.DecodeString(tmpCredins[1])
+	fmDaemon.DaemonLog.LogError("Failed to decode encoded auth setting in http request", error)
+
+	userCredin := strings.Split(string(credins), ":")
+	username = userCredin[0]
+	password := userCredin[1]
+	authed, admin = fm.AuthFlunky(username, password, address)
+	return
 }
 
-func (fm *Flunkym)AuthFlunky(user string, password string, address string)(valid bool, admin bool){
-   if user !=  fm.data[address].Username {
-       return false, false
-   }  
-   valid = (password == fm.data[address].Password)
-   admin = true
-   return
+func (fm *Flunkym) AuthFlunky(user string, password string, address string) (valid bool, admin bool) {
+	if user != fm.data[address].Username {
+		return false, false
+	}
+	valid = (password == fm.data[address].Password)
+	admin = true
+	return
 }
 
 func DumpCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
-        err := fmDaemon.AuthN.HTTPAuthenticate(req, false)
-	if err != nil{
-            fmDaemon.DaemonLog.LogError("Permission denied", err)
-	    w.WriteHeader(http.StatusUnauthorized)
-	    return
-        }
+	err := fmDaemon.AuthN.HTTPAuthenticate(req, false)
+	if err != nil {
+		fmDaemon.DaemonLog.LogError("Permission denied", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	fmDaemon.UpdateActivity()
 	m.Lock()
 	tmp, err := json.Marshal(fm.data)
@@ -348,14 +348,14 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func StaticCall(w http.ResponseWriter, req *http.Request) {
-        var tmp DataStore
+	var tmp DataStore
 	var msg interfaces.InfoMsg
 	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-        //Flunky auth needed
+	//Flunky auth needed
 	fmDaemon.UpdateActivity()
 	cmd := strings.Split(req.RawURL, "/")
 	staticTemp := fm.RenderGetStatic(req.RawURL, address)
@@ -380,7 +380,7 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-        //Flunky Auth needed
+	//Flunky Auth needed
 	fmDaemon.UpdateActivity()
 	tmp := fm.RenderGetDynamic(req.RawURL, address)
 	status := strings.TrimSpace(string(tmp))
@@ -390,7 +390,7 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func BootconfigCall(w http.ResponseWriter, req *http.Request) {
-        var tmp DataStore
+	var tmp DataStore
 	var msg interfaces.InfoMsg
 	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
@@ -405,7 +405,7 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	tmp.Activity = time.Seconds()
 	msg.Time = time.Seconds()
 	msg.MsgType = "Info"
-	host, _ := net.LookupAddr(address) 
+	host, _ := net.LookupAddr(address)
 	msg.Message = fmt.Sprintf("%s is booting up", host[:1])
 	tmp.Info = append(tmp.Info, msg)
 	m.Lock()
@@ -443,20 +443,20 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.LogDebug("Received Info")
 	var msg interfaces.InfoMsg
 	err := json.Unmarshal(body, &msg)
-	if err != nil{
-	   fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
-	   w.WriteHeader(http.StatusInternalServerError)
-        }else{
-	tmp = fm.data[address]
-	tmp.Activity = time.Seconds()
-	msg.Time = time.Seconds()
-	msg.MsgType = "Info"
-	tmp.Info = append(tmp.Info, msg)
-	m.Lock()
-	fm.data[address] = tmp
-	m.Unlock()
-	fm.Store()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Info recieved from %s: %s.", address, msg.Message))
+	if err != nil {
+		fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		tmp = fm.data[address]
+		tmp.Activity = time.Seconds()
+		msg.Time = time.Seconds()
+		msg.MsgType = "Info"
+		tmp.Info = append(tmp.Info, msg)
+		m.Lock()
+		fm.data[address] = tmp
+		m.Unlock()
+		fm.Store()
+		fmDaemon.DaemonLog.Log(fmt.Sprintf("Info recieved from %s: %s.", address, msg.Message))
 	}
 }
 
@@ -484,7 +484,7 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	fm.data[address] = tmp
 	m.Unlock()
 	fm.Store()
-        fmDaemon.DaemonLog.Log(fmt.Sprintf("Error recieved from %s: %s. Error count is %d", address, msg.Message, fm.data[address].Errors))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Error recieved from %s: %s. Error count is %d", address, msg.Message, fm.data[address].Errors))
 }
 
 func CtrlCall(w http.ResponseWriter, req *http.Request) {
@@ -493,21 +493,21 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-        err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
-        if err != nil {
-            fmDaemon.DaemonLog.LogError("Could not authenticate", err)
-	    w.WriteHeader(http.StatusUnauthorized)
-	    return
-        }
-        fmDaemon.UpdateActivity()
+	err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
+	if err != nil {
+		fmDaemon.DaemonLog.LogError("Could not authenticate", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	fmDaemon.UpdateActivity()
 	body, _ := fmDaemon.ReadRequest(req)
 	temper, err := net.LookupIP(address)
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Could not find %s in host tables", address))
 	iaddr := temper[0].String()
 	var msg interfaces.Ctlmsg
-	
+
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Received ctrl message from %s", iaddr))
-	
+
 	err = json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
 	if len(msg.Addresses) == 0 {
@@ -535,14 +535,14 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	address := addTmp[0]
 	err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
 	if err != nil {
-	    fmDaemon.DaemonLog.LogError("No access granted", err)
-	    w.WriteHeader(http.StatusUnauthorized)
-	    return
-        }
+		fmDaemon.DaemonLog.LogError("No access granted", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	body, _ := fmDaemon.ReadRequest(req)
 	err = json.Unmarshal(body, &msg)
 	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
-       
+
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Recieved request for status from %s", address))
 	for _, addr := range msg.Addresses {
 		temper, err := net.LookupIP(addr)
@@ -568,25 +568,25 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	w.Write(ret)
 }
 
-func daemonCall(w http.ResponseWriter, req *http.Request){
-        fmDaemon.DaemonLog.DebugHttp(req)
-        req.ProtoMinor = 0
-        
-        err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
-        if err != nil {
-                fmDaemon.DaemonLog.LogError("Access not permitted.", err)
-                w.WriteHeader(http.StatusUnauthorized)
-                return
-        }
-        fmDaemon.UpdateActivity()
-        stat := fmDaemon.ReturnStatus()
+func daemonCall(w http.ResponseWriter, req *http.Request) {
+	fmDaemon.DaemonLog.DebugHttp(req)
+	req.ProtoMinor = 0
 
-        status, err := json.Marshal(stat)
-        if err != nil{
-           fmDaemon.DaemonLog.LogError(err.String(), err)
-        }
-        w.Write(status)
-        return
+	err := fmDaemon.AuthN.HTTPAuthenticate(req, true)
+	if err != nil {
+		fmDaemon.DaemonLog.LogError("Access not permitted.", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	fmDaemon.UpdateActivity()
+	stat := fmDaemon.ReturnStatus()
+
+	status, err := json.Marshal(stat)
+	if err != nil {
+		fmDaemon.DaemonLog.LogError(err.String(), err)
+	}
+	w.Write(status)
+	return
 }
 
 /*func makeHandler(fn  func(w http.ResponseWriter, r *http.Request, f chan Flunkym))http.HandlerFunc{
@@ -600,7 +600,7 @@ func main() {
 	//runtime.GOMAXPROCS(4)
 	fm.init()
 	fm.Store()
-	
+
 	http.Handle("/daemon", http.HandlerFunc(daemonCall))
 	http.Handle("/dump", http.HandlerFunc(DumpCall))
 	http.Handle("/static/", http.HandlerFunc(StaticCall))
@@ -612,10 +612,10 @@ func main() {
 	http.Handle("/ctl", http.HandlerFunc(CtrlCall))
 	http.Handle("/status", http.HandlerFunc(StatusCall))
 
-        fmDaemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", fmDaemon.Name, fmDaemon.URL))
-        err := fmDaemon.ListenAndServe()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", fmDaemon.Name, fmDaemon.URL))
+	err := fmDaemon.ListenAndServe()
 	if err != nil {
-	   fmDaemon.DaemonLog.Log("Server exited gracefully. Cannot Listen on port")
-        }
-           
+		fmDaemon.DaemonLog.Log("Server exited gracefully. Cannot Listen on port")
+	}
+
 }

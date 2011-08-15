@@ -62,7 +62,7 @@ func init() {
 	flag.StringVar(&server, "S", "http://localhost:8080", "Base Server Address")
 	flag.StringVar(&power, "P", "http://localhost:8085", "Power Server Address")
 
-	diagDaemon, _= daemon.New("diagnostic")
+	diagDaemon, _ = daemon.New("diagnostic")
 }
 
 type NodeStatus struct {
@@ -90,14 +90,14 @@ func ControlMsg(nodes []string, times int64) (*bytes.Buffer, *interfaces.Ctlmsg)
 	req.Addresses = nodes
 	req.Time = times
 	req.Image = "ubuntu-Rescue"
-	resp, _:= json.Marshal(req)
+	resp, _ := json.Marshal(req)
 	buf := bytes.NewBufferString(string(resp))
 	return buf, req
 }
 
 func SendCtrl(addressList []string) bool {
 	exsist := false
-	fmServ := fnet.NewBuildServer("http://localhost:8080", true) 
+	fmServ := fnet.NewBuildServer("http://localhost:8080", true)
 	nanoBase := 1000000000
 	interval := int64(5) * int64(nanoBase)
 	buf, _ := ControlMsg(addressList, int64(0))
@@ -106,7 +106,7 @@ func SendCtrl(addressList []string) bool {
 	end := start + int64(timeoutOffset)
 	diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Sending control messages for %s", time.LocalTime(), addressList))
 	for start < end {
-		_, err :=fmServ.Post("/ctl", buf)
+		_, err := fmServ.Post("/ctl", buf)
 
 		if err == nil {
 			exsist = true
@@ -333,7 +333,7 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 	for times < timeout {
 		time.Sleep(interval)
 		buf, _ := ControlMsg(newList, msgTime)
-                ret, err :=fmServ.Post("/status", buf)	  
+		ret, err := fmServ.Post("/status", buf)
 		diagDaemon.DaemonLog.LogError("Could not find server", err)
 		if err == nil {
 			json.Unmarshal(ret, &status)
@@ -454,7 +454,7 @@ func main() {
 			} else if power != " " {
 				status := CheckPower(addressList, "reboot")
 				if !status {
- 					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: Cannot run the PowerCycle() function", time.LocalTime()))
+					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: Cannot run the PowerCycle() function", time.LocalTime()))
 				}
 
 			}

@@ -113,16 +113,16 @@ func ConvertTime(tm int64) string {
 }
 
 func printStatus(key string, value *iface.StatusMessage, i int) {
-    currentTime := time.SecondsToLocalTime(value.LastActivity).Format("Jan _2 15:04:05")
-    processName := os.Args[0]
-    pid := os.Getpid()
-    fmt.Println(fmt.Sprintf("%s %s %s[%d]: %s", currentTime, key, processName, pid, value.Info[i].Message)) 
-   /*fmt.Fprintf(os.Stdout, "NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %s\tMESSAGE: %s : %s\n", key, value.Status, ConvertTime(value.LastActivity), ConvertTime(value.Info[i].Time), value.Info[i].Message)*/
-    return
+	currentTime := time.SecondsToLocalTime(value.LastActivity).Format("Jan _2 15:04:05")
+	processName := os.Args[0]
+	pid := os.Getpid()
+	fmt.Println(fmt.Sprintf("%s %s %s[%d]: %s", currentTime, key, processName, pid, value.Info[i].Message))
+	/*fmt.Fprintf(os.Stdout, "NODE: %s\tSTATUS: %s\tLAST ACTIVITY: %s\tMESSAGE: %s : %s\n", key, value.Status, ConvertTime(value.LastActivity), ConvertTime(value.Info[i].Time), value.Info[i].Message)*/
+	return
 }
 
 func pollForStatus() {
-        start := time.Seconds()
+	start := time.Seconds()
 	statMap := make(map[string]*iface.StatusMessage)
 	pollStatus := make(map[string]string)
 	for {
@@ -143,7 +143,7 @@ func pollForStatus() {
 			done = true
 			for i := range value.Info {
 				if len(value.Info) != 0 {
-                                    printStatus(key, value, i)
+					printStatus(key, value, i)
 				}
 			}
 			done = done && (pollStatus[key] == "Ready")
@@ -152,12 +152,12 @@ func pollForStatus() {
 			}
 
 		}
-                //Get list of nodes for message
+		//Get list of nodes for message
 		if done {
-		        end := time.Seconds()
+			end := time.Seconds()
 			final := end - start
 			allocTime := time.SecondsToLocalTime(final).Format("04:05")
-			fmt.Println(fmt.Sprintf("Allocation #%d complete.  The build process for allocation %d took: %s", allocationNumber,allocationNumber, allocTime))
+			fmt.Println(fmt.Sprintf("Allocation #%d complete.  The build process for allocation %d took: %s", allocationNumber, allocationNumber, allocTime))
 			os.Exit(0)
 		}
 	}
@@ -176,7 +176,7 @@ func main() {
 	if bs, error = hallocC.SetupClient("heckle"); error != nil {
 		hclient.PrintError("Failed to setup client in halloc.", os.NewError("Client Setup Failed"))
 		os.Exit(1)
-        }
+	}
 
 	if timeIncrease != 0 {
 		requestTimeIncrease()

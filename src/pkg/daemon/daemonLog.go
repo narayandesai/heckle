@@ -11,7 +11,7 @@ import (
 type DaemonLogger struct {
 	stdoutLog *log.Logger
 	fileLog   *log.Logger
-        error     int
+	error     int
 	name      string
 }
 
@@ -32,58 +32,58 @@ func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
 }
 
 func (daemonLogger *DaemonLogger) Log(message string) {
-        currentTime := time.LocalTime()
-        formatTime := currentTime.Format("Jan _2 15:04:05")
+	currentTime := time.LocalTime()
+	formatTime := currentTime.Format("Jan _2 15:04:05")
 	name, _ := os.Hostname()
 	pid := os.Getpid()
-	daemonLogger.stdoutLog.Printf("%s %s %s[%d]: %s",formatTime, name, daemonLogger.name, pid, message)
-	daemonLogger.fileLog.Printf("%s %s %s[%d]: %s",formatTime, name, daemonLogger.name, pid, message)
+	daemonLogger.stdoutLog.Printf("%s %s %s[%d]: %s", formatTime, name, daemonLogger.name, pid, message)
+	daemonLogger.fileLog.Printf("%s %s %s[%d]: %s", formatTime, name, daemonLogger.name, pid, message)
 }
 
 func (daemonLogger *DaemonLogger) LogError(message string, error os.Error) {
-        currentTime := time.LocalTime()
-        formatTime := currentTime.Format("Jan _2 15:04:05")
+	currentTime := time.LocalTime()
+	formatTime := currentTime.Format("Jan _2 15:04:05")
 	name, _ := os.Hostname()
 	pid := os.Getpid()
 	if error != nil {
- 		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: ERROR %s",formatTime, name, daemonLogger.name, pid, message)
-		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s",formatTime, name, daemonLogger.name, pid, message)
+		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: ERROR %s", formatTime, name, daemonLogger.name, pid, message)
+		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s", formatTime, name, daemonLogger.name, pid, message)
 		daemonLogger.error++
 	}
-	
+
 }
 
 func (daemonLogger *DaemonLogger) LogHttp(request *http.Request) {
-        currentTime := time.LocalTime()
-        formatTime := currentTime.Format("Jan _2 15:04:05")
+	currentTime := time.LocalTime()
+	formatTime := currentTime.Format("Jan _2 15:04:05")
 	name, _ := os.Hostname()
 	pid := os.Getpid()
-	daemonLogger.stdoutLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d",formatTime ,name, daemonLogger.name, pid,  request.Method, request.RawURL, request.ContentLength)
-	daemonLogger.fileLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d",formatTime ,name, daemonLogger.name, pid,  request.Method, request.RawURL, request.ContentLength)
+	daemonLogger.stdoutLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d", formatTime, name, daemonLogger.name, pid, request.Method, request.RawURL, request.ContentLength)
+	daemonLogger.fileLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d", formatTime, name, daemonLogger.name, pid, request.Method, request.RawURL, request.ContentLength)
 }
 
-func (daemonLogger *DaemonLogger)DebugHttp(request *http.Request) {
-     if debug{
-        currentTime := time.LocalTime()
-        formatTime := currentTime.Format("Jan _2 15:04:05")
-	name, _ := os.Hostname()
-	pid := os.Getpid()
-	daemonLogger.stdoutLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d",formatTime ,name, daemonLogger.name, pid,  request.Method, request.RawURL, request.ContentLength)
-	daemonLogger.fileLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d",formatTime ,name, daemonLogger.name, pid,  request.Method, request.RawURL, request.ContentLength)
-     }
-}
-
-func (daemonLogger *DaemonLogger) LogDebug(message string) {
-        currentTime := time.LocalTime()
-        formatTime := currentTime.Format("Jan _2 15:04:05")
-	name, _ := os.Hostname()
-	pid := os.Getpid()
+func (daemonLogger *DaemonLogger) DebugHttp(request *http.Request) {
 	if debug {
-		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: DEBUG %s",formatTime, name, daemonLogger.name, pid, message)
-		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s",formatTime, name, daemonLogger.name, pid, message)
+		currentTime := time.LocalTime()
+		formatTime := currentTime.Format("Jan _2 15:04:05")
+		name, _ := os.Hostname()
+		pid := os.Getpid()
+		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d", formatTime, name, daemonLogger.name, pid, request.Method, request.RawURL, request.ContentLength)
+		daemonLogger.fileLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d", formatTime, name, daemonLogger.name, pid, request.Method, request.RawURL, request.ContentLength)
 	}
 }
 
-func (daemonLogger *DaemonLogger) ReturnError()int {
-     return daemonLogger.error
+func (daemonLogger *DaemonLogger) LogDebug(message string) {
+	currentTime := time.LocalTime()
+	formatTime := currentTime.Format("Jan _2 15:04:05")
+	name, _ := os.Hostname()
+	pid := os.Getpid()
+	if debug {
+		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: DEBUG %s", formatTime, name, daemonLogger.name, pid, message)
+		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s", formatTime, name, daemonLogger.name, pid, message)
+	}
+}
+
+func (daemonLogger *DaemonLogger) ReturnError() int {
+	return daemonLogger.error
 }
