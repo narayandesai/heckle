@@ -86,7 +86,7 @@ type DataStore struct {
 // onto the system. This data type has all of the interfaces that are needed
 // for all functions. 
 type Flunkym struct {
-	path   PathType
+	path   *PathType
 	data   map[string]DataStore
 	static map[string]string
 }
@@ -226,7 +226,7 @@ func (fm *Flunkym) SetPath(fmDaemon *daemon.Daemon) {
 	path.dataFile = daemon.FileDir + fmDaemon.Cfg.Data["backupFile"]
 	path.staticdataPath = daemon.FileDir + "staticVars.json"
 	path.image = path.root + "/images"
-	fm.path = *path
+	fm.path = path
 	return
 }
 
