@@ -319,7 +319,7 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 		jsonStat, err = json.Marshal(retStatus)
 		powerDaemon.DaemonLog.LogError("Unable to marshal outlet status response.", err)
 	}
-	fmt.Println(string(jsonStat))
+	
 	_, err = w.Write(jsonStat)
 	powerDaemon.DaemonLog.LogError("Unable to write outlet status response.", err)
 

@@ -35,7 +35,7 @@ import (
 	"flunky/daemon"
 	"flunky/interfaces"
 	"rand"
-	"encoding/base64"
+	//"encoding/base64"
 )
 
 var fm Flunkym
@@ -240,7 +240,6 @@ func (fm *Flunkym) Increment_Count(address string, path string) {
 	return
 }
 
-
 func (fm *Flunkym) RenderGetStatic(loc string, address string) []byte {
 	fname := fm.path.root + loc
 	_, err := os.Stat(fname)
@@ -300,29 +299,9 @@ func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
 }
 
 func (fm *Flunkym) DecodeRequest(req *http.Request, address string) (username string, authed bool, admin bool) {
-	if _, ok := req.Header["Authorization"]; !ok {
-		fmDaemon.DaemonLog.LogError("Request header did not contain authorization information", os.NewError("Http Auth missing"))
-		return
-	}
+        fmt.Println("IN decode request")
 	header := req.Header.Get("Authorization")
-	tmpCredins := strings.Split(header, " ")
-
-	credins, error := base64.URLEncoding.DecodeString(tmpCredins[1])
-	fmDaemon.DaemonLog.LogError("Failed to decode encoded auth setting in http request", error)
-
-	userCredin := strings.Split(string(credins), ":")
-	username = userCredin[0]
-	password := userCredin[1]
-	authed, admin = fm.AuthFlunky(username, password, address)
-	return
-}
-
-func (fm *Flunkym) AuthFlunky(user string, password string, address string) (valid bool, admin bool) {
-	if user != fm.data[address].Username {
-		return false, false
-	}
-	valid = (password == fm.data[address].Password)
-	admin = true
+	fmt.Println("Header", header)
 	return
 }
 
@@ -397,7 +376,6 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	//Flunky auth needed
 	fmDaemon.UpdateActivity()
 	imageTemp := fm.RenderImage("bootconfig", address) // allow for "name", "data[image]
 	_, err := w.Write(imageTemp)
@@ -436,7 +414,6 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	//Flunky auth needed
 	fmDaemon.UpdateActivity()
 	var tmp DataStore
 	body, _ := fmDaemon.ReadRequest(req)
@@ -499,6 +476,7 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	
 	fmDaemon.UpdateActivity()
 	body, _ := fmDaemon.ReadRequest(req)
 	temper, err := net.LookupIP(address)
@@ -514,11 +492,13 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 		fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved empty update from %s. No action taken", address))
 	} else {
 		for _, addr := range msg.Addresses {
+		go func (addr string){
 			temper, err := net.LookupIP(addr)
 			fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s in host table", addr), err)
 			iaddr := temper[0].String()
 			fm.Assert_setup(msg.Image, iaddr, msg.AllocNum)
 			fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %s as %s for allocation #%d", addr, msg.Image, msg.AllocNum))
+                }(addr)
 		}
 
 		fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Added %s to flunkyMaster", msg.Addresses))
@@ -604,7 +584,7 @@ func main() {
 	http.Handle("/daemon", http.HandlerFunc(daemonCall))
 	http.Handle("/dump", http.HandlerFunc(DumpCall))
 	http.Handle("/static/", http.HandlerFunc(StaticCall))
-	http.Handle("/dynamic", http.HandlerFunc(DynamicCall))
+	http.Handle("/dynamic/", http.HandlerFunc(DynamicCall))
 	http.Handle("/bootconfig", http.HandlerFunc(BootconfigCall))
 	http.Handle("/install", http.HandlerFunc(InstallCall))
 	http.Handle("/info", http.HandlerFunc(InfoCall))
