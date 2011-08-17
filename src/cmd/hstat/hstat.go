@@ -83,8 +83,7 @@ func parse(word string, words string) string {
 }
 
 func getStatus() (someBytes []byte, err os.Error) {
-	buf := bytes.NewBufferString("")
-	someBytes, err = bs.Post("/nodeStatus", buf)
+	someBytes, err = bs.Get("/nodeStatus")
 	return
 }
 
@@ -122,7 +121,7 @@ func main() {
 	}
 
 	if len(someBytes) <= 0 {
-		cli.PrintError("Empty update", os.NewError("no data"))
+		cli.PrintError("Your request does not exsist.", os.NewError("no data"))
 		os.Exit(1)
 	}
 

@@ -1,6 +1,7 @@
 package flunky
 
 import (
+       "bytes"
 	"exec"
 	"fmt"
 	"http"
@@ -96,6 +97,37 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	server.DebugLog(fmt.Sprintf("Exit status:%d", status))
 
 	err = os.Remove(runpath)
+	return
+}
+
+func (server *BuildServer) HandleJson(any interface{}) *bytes.Buffer {  
+    fmt.Println("ANY", any)
+    jsonMarshal, err := json.Marshal(any)
+    if err != nil{
+        fmt.Println(err.String())
+    }
+    fmt.Println("JSon Marshal:", jsonMarshal)
+    return bytes.NewBuffer(jsonMarshal)
+}
+
+func (server *BuildServer) PostServer(path string, any interface{}) (body []byte, err os.Error) {
+        data := server.HandleJson(any)
+	fmt.Println("After data", data.String())
+
+	response, err := server.client.Post(server.URL+path, "text/plain", data)
+	if err != nil {
+		err = os.NewError(fmt.Sprintf("Post failed: %s\n", err))
+		return
+	}
+	if response.StatusCode != 200 {
+		err = os.NewError(string(response.StatusCode))
+		return
+	}
+	server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
+
+	body, _ = ioutil.ReadAll(response.Body)
+	response.Body.Close()
+
 	return
 }
 

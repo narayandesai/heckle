@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"flag"
 	"os"
-	"json"
-	"bytes"
+	//"json"
+	//"bytes"
 	"strconv"
 	fnet "flunky/net"
 	cli "flunky/client"
@@ -23,11 +23,11 @@ func freeAlloc(alloc int64) (err os.Error) {
 	cli.PrintError("Failed to create a new client", err)
 	bs, err = allocfree.SetupClient("heckle")
 	cli.PrintError("Falied to setup heckle as a client", err)
-
-	msg, err := json.Marshal(alloc)
-	cli.PrintError("Unable to marshal allocation number", err)
-	buf := bytes.NewBufferString(string(msg))
-	_, err = bs.Post("/freeAllocation", buf)
+	
+	_, err = bs.PostServer("/freeAllocation", alloc)
+	if err != nil{
+	   return
+        }
 
 	return
 }

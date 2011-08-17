@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"bytes"
 	"flag"
 	"os"
 	"json"
@@ -96,18 +95,12 @@ func commPower(nodes []string, cmd string) (outletStatus map[string]States) {
 		cli.PrintError("Unable to lookup power", err)
 		os.Exit(1)
 	}
-       
-	buf, err := json.Marshal(nodes)
-	if err != nil {
-		cli.PrintError("Unable to marshall nodes", err)
-	}
-	req := bytes.NewBuffer(buf)
 
-	statusRet, err := client.Post(powerCommand, req)
-	if err != nil {
-		cli.PrintError(err.String(), err)
-		os.Exit(1)
-	}
+	statusRet, err := client.PostServer(powerCommand, nodes)
+        if err != nil{
+	    cli.PrintError("Unable to post", err)
+        }
+	
 
 	switch cmd {
 	case "on", "off", "reboot":

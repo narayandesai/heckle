@@ -4,7 +4,7 @@ import (
 	"flag"
 	"json"
 	"os"
-	"bytes"
+	//"bytes"
 	"fmt"
 	"time"
 	"strconv"
@@ -54,11 +54,7 @@ func allocationFail(allocType string) {
 func requestNumber() (tmpAllocationNumber uint64) {
 	nm := iface.Nummsg{numNodes, image, 300}
 
-	someBytes, error := json.Marshal(nm)
-	hclient.PrintError("Failed to marshal nummsg in requestNumber function.", error)
-
-	buf := bytes.NewBufferString(string(someBytes))
-	someBytes, error = bs.Post("/number", buf)
+	someBytes, error := bs.PostServer("/number", nm)
 	hclient.PrintError("Failed to post the request for number of nodes to heckle.", error)
 
 	if len(someBytes) == 0 {
@@ -76,11 +72,7 @@ func requestNumber() (tmpAllocationNumber uint64) {
 func requestList() (tmpAllocationNumber uint64) {
 	nm := iface.Listmsg{allocationList, image, 300, 0}
 
-	someBytes, error := json.Marshal(nm)
-	hclient.PrintError("Failed to marshal nummsg in requestList function.", error)
-
-	buf := bytes.NewBufferString(string(someBytes))
-	someBytes, error = bs.Post("/list", buf)
+	someBytes, error := bs.PostServer("/list", nm)
 	hclient.PrintError("Failed to post the request for list of nodes to heckle.", error)
 
 	if len(someBytes) == 0 {
@@ -98,11 +90,7 @@ func requestList() (tmpAllocationNumber uint64) {
 func requestTimeIncrease() {
 	tmpTimeMsg := int64(timeIncrease * 3600)
 
-	someBytes, error := json.Marshal(tmpTimeMsg)
-	hclient.PrintError("Failed to marshal time increase in requestTimeIncrease function.", error)
-
-	buf := bytes.NewBufferString(string(someBytes))
-	someBytes, error = bs.Post("/increaseTime", buf)
+	_, error := bs.PostServer("/increaseTime", tmpTimeMsg)
 	hclient.PrintError("Failed to post the request for time increase to heckle.", error)
 
 	return
@@ -127,11 +115,8 @@ func pollForStatus() {
 	pollStatus := make(map[string]string)
 	for {
 		time.Sleep(10000000000)
-		someBytes, error := json.Marshal(allocationNumber)
-		hclient.PrintError("Failed to marshal allocation number for status poll.", error)
 
-		buf := bytes.NewBufferString(string(someBytes))
-		someBytes, error = bs.Post("/status", buf)
+		someBytes, error := bs.PostServer("/status", allocationNumber)
 		hclient.PrintError("Failed to post for status of nodes to heckle.", error)
 
 		error = json.Unmarshal(someBytes, &statMap)

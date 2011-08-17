@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bytes"
+	//"bytes"
 	"flag"
 	"fmt"
 	"json"
@@ -42,11 +42,6 @@ type infoMsg struct {
 	MsgType string
 }
 
-func (msg *infoMsg) Format(client string) string {
-	strval := fmt.Sprintf("%s: %s: Node: %s: %s", msg.MsgType, time.SecondsToLocalTime(msg.Time).Format(time.UnixDate), client, msg.Message)
-	return strval
-}
-
 type statusMessage struct {
 	Status       string
 	LastActivity int64
@@ -55,6 +50,11 @@ type statusMessage struct {
 
 type readyBailNode struct {
 	Ready, Bail, Printed bool
+}
+
+func (msg *infoMsg) Format(client string) string {
+	strval := fmt.Sprintf("%s: %s: Node: %s: %s", msg.MsgType, time.SecondsToLocalTime(msg.Time).Format(time.UnixDate), client, msg.Message)
+	return strval
 }
 
 func (rbn *readyBailNode) InterpretPoll(status string, lastActivity int64) {
@@ -88,10 +88,11 @@ func pollForMessages(cancelTime int64, addresses []string, bs *fnet.BuildServer)
 
 	for time.Seconds() < cancelTime && !done {
 		time.Sleep(10000000000)
-		sRjs, _ := json.Marshal(statRequest)
+		/*sRjs, _ := json.Marshal(statRequest)
 		statRequest.Time = time.Seconds()
-		reqbuf := bytes.NewBufferString(string(sRjs))
-		ret, _ := bs.Post("/status", reqbuf)
+		reqbuf := bytes.NewBufferString(string(sRjs))*/
+
+		ret, _ := bs.PostServer("/status", statRequest)
 		json.Unmarshal(ret, &statmap)
 
 		for _, address := range addresses {
@@ -150,9 +151,9 @@ func main() {
 	cm.Image = image
 	cm.Addresses = addresses
 	// FIXME: need to add in extradata
-	js, _ := json.Marshal(cm)
-	buf := bytes.NewBufferString(string(js))
-	_, err = bs.Post("/ctl", buf)
+	/*js, _ := json.Marshal(cm)
+	buf := bytes.NewBufferString(string(js))*/
+	_, err = bs.PostServer("/ctl", cm)
 	if err != nil {
 		fclient.PrintError("Failed to allocate node", err)
 		os.Exit(1)
