@@ -8,7 +8,7 @@ import (
 	"time"
 	"io/ioutil"
 	"http"
-	"bytes"
+	//"bytes"
 	"sync"
 	"runtime"
 	"os/signal"
@@ -376,10 +376,11 @@ func allocate() {
 		cm.Addresses = i.Addresses
 		cm.AllocNum = i.AllocNum
 		// FIXME: need to add in extradata
-		js, _ := json.Marshal(cm)
-		buf := bytes.NewBufferString(string(js))
 
-		_, err := fs.Post("/ctl", buf)
+		/*js, _ := json.Marshal(cm)
+		buf := bytes.NewBufferString(string(js))*/
+
+		_, err := fs.PostServer("/ctl", cm)
 		heckleDaemon.DaemonLog.LogError("Failed to post for allocation of nodes.", err)
 
 		if err == nil {
@@ -440,10 +441,10 @@ func polling() {
 			statRequest.Time = pollTime
 
 			var statmap map[string]*iface.StatusMessage
-			sRjs, _ := json.Marshal(statRequest)
-			reqbuf := bytes.NewBufferString(string(sRjs))
+			/*sRjs, _ := json.Marshal(statRequest)
+			reqbuf := bytes.NewBufferString(string(sRjs))*/
 
-			ret, _ := fs.Post("/status", reqbuf)
+			ret, _ := fs.PostServer("/status", statRequest)
 			pollTime = time.Seconds()
 			json.Unmarshal(ret, &statmap)
 
