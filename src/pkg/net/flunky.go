@@ -100,19 +100,20 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	return
 }
 
-func (server *BuildServer) HandleJson(any interface{}) *bytes.Buffer {  
-    fmt.Println("ANY", any)
+func (server *BuildServer) HandleJson(any interface{}) (*bytes.Buffer, os.Error) {  
     jsonMarshal, err := json.Marshal(any)
     if err != nil{
-        fmt.Println(err.String())
+        return bytes.NewBuffer([]byte("")), err
     }
-    fmt.Println("JSon Marshal:", jsonMarshal)
-    return bytes.NewBuffer(jsonMarshal)
+    return bytes.NewBuffer(jsonMarshal), err
 }
 
 func (server *BuildServer) PostServer(path string, any interface{}) (body []byte, err os.Error) {
-        data := server.HandleJson(any)
-	fmt.Println("After data", data.String())
+        data, err := server.HandleJson(any)
+	if err != nil{
+	    fmt.Println("Unable to marshal data")
+	    return
+	}
 
 	response, err := server.client.Post(server.URL+path, "text/plain", data)
 	if err != nil {
