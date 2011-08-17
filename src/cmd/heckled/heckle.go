@@ -385,10 +385,7 @@ func allocate() {
 		if err == nil {
 			allocateToPollingChan <- i.Addresses
 
-			js, _ = json.Marshal(i.Addresses)
-			buf = bytes.NewBufferString(string(js))
-
-			_, err = ps.Post("/command/reboot", buf)
+			_, err = ps.PostServer("/command/reboot",i.Addresses)
 			heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in allocation go routine.", err)
 		}
 	}
@@ -452,10 +449,7 @@ func polling() {
 
 			outletStatus := make(map[string]States)
 
-			sRjs, _ = json.Marshal(pollAddresses)
-			reqbuf = bytes.NewBufferString(string(sRjs))
-
-			ret, _ = ps.Post("/status", reqbuf)
+			ret, _ = ps.PostServer("/status", pollAddresses)
 			json.Unmarshal(ret, &outletStatus)
 
 			var pstat string
@@ -621,10 +615,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 
 	pollingCancelChan <- powerDown //Needed because polling will continue to poll if allocation is freed during allocation. 
 
-	js, _ := json.Marshal(powerDown)
-	buf := bytes.NewBufferString(string(js))
-
-	_, err = ps.Post("/command/off", buf)
+	_, err = ps.PostServer("/command/off", powerDown)
 	heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free allocation number.", err)
 	heckleDaemon.DaemonLog.Log(fmt.Sprintf("Allocation #%d nodes %s have been freed.", *allocationNumber, powerDown))
 	updateDatabase(false)
@@ -687,10 +678,8 @@ func allocationTimeouts() {
 
 	if found {
 		heckleDaemon.DaemonLog.LogDebug("Found allocation time outs, deallocating them.")
-		js, _ := json.Marshal(powerDown)
-		buf := bytes.NewBufferString(string(js))
 
-		_, err := ps.Post("/command/off", buf)
+		_, err := ps.PostServer("/command/off", powerDown)
 		heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in allocation time outs.", err)
 		updateDatabase(false)
 	}
@@ -733,10 +722,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 	currentRequestsLock.Unlock()
 	resourcesLock.Unlock()
 
-	js, _ := json.Marshal([]string{*node})
-	buf := bytes.NewBufferString(string(js))
-
-	_, err = ps.Post("/command/off", buf)
+	_, err = ps.PostServer("/command/off", ([]string{*node}))
 	heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free node.", err)
 	heckleDaemon.DaemonLog.Log(fmt.Sprintf("Freed %s in allocation #%d for %s.", node, resources[*node].AllocationNumber, username))
 	updateDatabase(false)
@@ -772,10 +758,7 @@ func dealWithBrokenNode(node string) {
 	resources[node].Broken()
 	resourcesLock.Unlock()
 
-	js, _ := json.Marshal([]string{node})
-	buf := bytes.NewBufferString(string(js))
-
-	_, err := ps.Post("/command/off", buf)
+	_, err := ps.PostServer("/command/off", ([]string{node}))
 	heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in free node.", err)
 
 	//pass node off to diagnosing process
@@ -830,9 +813,7 @@ func outletStatus(writer http.ResponseWriter, req *http.Request) {
 	heckleDaemon.UpdateActivity()
 	body, _ := heckleDaemon.ReadRequest(req)
 
-	buf := bytes.NewBufferString(string(body))
-
-	someBytes, err := ps.Post("/status", buf)
+	someBytes, err := ps.PostServer("/status", body)
 	heckleDaemon.DaemonLog.LogError("Failed to post for status of outlets to Power.go.", err)
 
 	_, err = writer.Write(someBytes)
