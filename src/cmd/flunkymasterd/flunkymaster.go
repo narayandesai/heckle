@@ -411,21 +411,16 @@ func InfoCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	fmDaemon.UpdateActivity()
-	body, _ := fmDaemon.ReadRequest(req)
-	fmDaemon.DaemonLog.LogDebug("Received Info")
-	var msg interfaces.InfoMsg
-	err := json.Unmarshal(body, &msg)
-	if err != nil {
-		fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
-		w.WriteHeader(http.StatusInternalServerError)
-	} else {
-		fm.data[address].Activity = time.Seconds()
-		msg.Time = time.Seconds()
-		msg.MsgType = "Info"
-		fm.data[address].Info = append(fm.data[address].Info, msg)
-		fm.Store()
-		fmDaemon.DaemonLog.Log(fmt.Sprintf("Info recieved from %s: %s.", address, msg.Message))
-	}
+
+	jsonType := fmDaemon.ProcessJson(req, new(interfaces.InfoMsg))
+	msg := jsonType.(*interfaces.InfoMsg)
+	fm.data[address].Activity = time.Seconds()
+	msg.Time = time.Seconds()
+	msg.MsgType = "Info"
+	fm.data[address].Info = append(fm.data[address].Info, *msg)
+	fm.Store()
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("Info recieved from %s: %s.", address, msg.Message))
+	
 }
 
 //Mutex needed
@@ -437,18 +432,14 @@ func ErrorCall(w http.ResponseWriter, req *http.Request) {
 	address := addTmp[0]
 	//Flunky auth needed
 	fmDaemon.UpdateActivity()
-	
-
-	body, _ := fmDaemon.ReadRequest(req)
-	var msg interfaces.InfoMsg
-	err := json.Unmarshal(body, &msg)
-	fmDaemon.DaemonLog.LogError("Cannot unmarsahll data", err)
+	jsonType := fmDaemon.ProcessJson(req, new(interfaces.InfoMsg))
+	msg := jsonType.(*interfaces.InfoMsg)
 
 	fm.data[address].Activity = time.Seconds()
 	fm.data[address].Errors += 1
 	msg.Time = time.Seconds()
 	msg.MsgType = "Error"
-	fm.data[address].Info = append(fm.data[address].Info, msg)
+	fm.data[address].Info = append(fm.data[address].Info, *msg)
 	fm.Store()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("Error recieved from %s: %s. Error count is %d", address, msg.Message, fm.data[address].Errors))
 }
@@ -465,18 +456,16 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	
-	fmDaemon.UpdateActivity()
-	body, _ := fmDaemon.ReadRequest(req)
 	temper, err := net.LookupIP(address)
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Could not find %s in host tables", address))
 	iaddr := temper[0].String()
-	var msg interfaces.Ctlmsg
+
+	fmDaemon.UpdateActivity()
+	jsonType := fmDaemon.ProcessJson(req, new(interfaces.Ctlmsg))
+	msg := jsonType.(*interfaces.Ctlmsg)
 
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Received ctrl message from %s", iaddr))
 
-	err = json.Unmarshal(body, &msg)
-	fmDaemon.DaemonLog.LogError("Could not unmarshall data", err)
 	if len(msg.Addresses) == 0 {
 		fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved empty update from %s. No action taken", address))
 	} else {
@@ -495,7 +484,6 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 }
 
 func StatusCall(w http.ResponseWriter, req *http.Request) {
-	var msg interfaces.Ctlmsg
 	cstatus := make(map[string]interfaces.StatusMessage)
 	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
@@ -508,9 +496,8 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	body, _ := fmDaemon.ReadRequest(req)
-	err = json.Unmarshal(body, &msg)
-	fmDaemon.DaemonLog.LogError("Could not unmarshall message", err)
+        jsonType := fmDaemon.ProcessJson(req, new(interfaces.Ctlmsg))
+	msg := jsonType.(*interfaces.Ctlmsg)
 
 	cmd := strings.Split(req.RawURL, "/")
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Recieved request for status from %s", address))

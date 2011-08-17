@@ -239,7 +239,6 @@ func DumpCall(w http.ResponseWriter, req *http.Request) {
 
 
 func command(w http.ResponseWriter, req *http.Request) {
-	var nodes []string
 	req.ProtoMinor = 0
 	powerDaemon.DaemonLog.DebugHttp(req)
 	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
@@ -260,11 +259,9 @@ func command(w http.ResponseWriter, req *http.Request) {
 		break
 	}
 	powerDaemon.UpdateActivity()
-	body, err := powerDaemon.ReadRequest(req)
-	powerDaemon.DaemonLog.LogError("Unable to read request", err)
-
-	err = json.Unmarshal(body, &nodes)
-	powerDaemon.DaemonLog.LogError(fmt.Sprintf("Unable to unmarshal nodes for %s command.", cmd), err)
+	jsonType := powerDaemon.ProcessJson(req, make([]string, 0))
+	nodes := jsonType.([]string)
+	
 
 	for _, node := range nodes {
 		go func(node string) {
@@ -280,9 +277,8 @@ func command(w http.ResponseWriter, req *http.Request) {
 
 func statusList(w http.ResponseWriter, req *http.Request) {
 	retStatus := make(map[string]States)
+	var jsonStat []byte
 	powerDaemon.DaemonLog.DebugHttp(req)
-	powerDaemon.DaemonLog.LogDebug("Retreiving status for list given by client.")
-	var nodes []string
 	req.ProtoMinor = 0
 
 	err := powerDaemon.AuthN.HTTPAuthenticate(req, true)
@@ -293,12 +289,10 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 	}
 	dex := strings.Split(req.RawURL, "/")
 	cmd := dex[1]
-	body, err := powerDaemon.ReadRequest(req)
-	powerDaemon.UpdateActivity()
-	powerDaemon.DaemonLog.LogError("Could not read request", err)
+        powerDaemon.UpdateActivity()
 
-	err = json.Unmarshal(body, &nodes)
-	powerDaemon.DaemonLog.LogError("Unable to unmarshal nodes to be turned off.", err)
+	jsonType := powerDaemon.ProcessJson(req, make([]string, 0))
+	nodes :=  jsonType.([]string)
 
 	status, err := outletStatus.dialServer(cmd)
 	if err != nil {
@@ -308,7 +302,6 @@ func statusList(w http.ResponseWriter, req *http.Request) {
 	}
 	outletStatus.returnStatus(status, nodes)
 
-	var jsonStat []byte
 	if len(nodes) == 0 {
 		jsonStat, err = json.Marshal(outletStatus.outlets)
 		powerDaemon.DaemonLog.LogError("Unable to marshal outlet status response.", err)

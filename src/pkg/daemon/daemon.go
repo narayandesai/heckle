@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"reflect"
 	"time"
 	"flag"
 	"fmt"
@@ -8,7 +9,9 @@ import (
 	"os"
 	"io/ioutil"
 	"strings"
+	"json"
 	fnet "flunky/net"
+	iface "flunky/interfaces"
 )
 
 var FileDir string
@@ -36,9 +39,56 @@ type Status struct {
 	Errors       int
 }
 
+func (daemon *Daemon) ProcessJson(req *http.Request, theType interface{}) (retType interface{}) {
+	var tmp interface{}
+
+	body, err := ioutil.ReadAll(req.Body)
+	err = req.Body.Close()
+	if err != nil {
+		fmt.Println(err.String())
+	}
+
+	switch reflect.TypeOf(theType) {
+	case reflect.TypeOf(make([]string, 0)):
+	       	tmp = theType.([]string)
+		tmp = append(tmp.([]string), "Foo")//no empty list
+		break
+	case reflect.TypeOf(new(iface.InfoMsg)):
+		tmp = theType.(*iface.InfoMsg)
+		break
+	case reflect.TypeOf(new(iface.Ctlmsg)):
+		tmp = theType.(*iface.Ctlmsg)
+		break
+	case reflect.TypeOf(new(iface.Listmsg)):
+		tmp = theType.(*iface.Listmsg)
+		break
+	case reflect.TypeOf(new(iface.Nummsg)):
+		tmp = theType.(*iface.Nummsg)
+		break
+	case reflect.TypeOf(new(uint64)):
+		tmp = theType.(*uint64)
+		break
+	case reflect.TypeOf(new(int64)):
+		tmp = theType.(*int64)
+		break
+	case reflect.TypeOf(new(string)):
+		tmp = theType.(*string)
+		break
+	}
+
+	err = json.Unmarshal(body, &tmp)
+	if err != nil{
+	   fmt.Println(err.String())
+        }
+	
+	retType = tmp
+	return
+}
+
 func (daemon *Daemon) ReadRequest(req *http.Request) (body []byte, err os.Error) {
 	body, err = ioutil.ReadAll(req.Body)
 	err = req.Body.Close()
+	fmt.Println(string(body))
 	return
 }
 

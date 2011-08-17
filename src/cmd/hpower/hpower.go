@@ -96,7 +96,7 @@ func commPower(nodes []string, cmd string) (outletStatus map[string]States) {
 		cli.PrintError("Unable to lookup power", err)
 		os.Exit(1)
 	}
-
+       
 	buf, err := json.Marshal(nodes)
 	if err != nil {
 		cli.PrintError("Unable to marshall nodes", err)
