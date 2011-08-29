@@ -27,56 +27,30 @@ type States struct {
 	Reboot bool
 }
 
-func returnState(info bool, value string) (ret string) {
-	switch value {
-	case "state":
-		if info {
-			ret = "on"
-		} else {
-			ret = "off"
-		}
-		break
-	case "reboot":
-		if info {
-			ret = "is rebooting"
-		} else {
-			ret = "no pending reboot"
-		}
-		break
-	default:
-		cli.PrintError("Unsupported op", os.NewError("no op"))
-		ret = ""
-		break
+func (entry States) formatState(name string) (result string) {
+	translator := map[bool]string{true:"on", false:"off"}
+	ostatus := translator[entry.State]
+	if (entry.Reboot) {
+		ostatus = ostatus + "*"
 	}
+	result = fmt.Sprintf("%s\t\t%s\n", name, ostatus)
 	return
 }
 
-func format(outletStatus map[string]States) (stats []string) {
-	for key, node := range outletStatus {
-		status := fmt.Sprintf("%s\t %s\t %s\n", key, returnState(node.State, "state"), returnState(node.Reboot, "reboot"))
-		stats = append(stats, status)
-	}
-	return
-}
-
-func print(statusList []string) {
-	heading := "NODE ID\t OUTLET STATUS\t\t\t CONTROL STATE\n"
+func format(outletStatus map[string]States) {
+	heading := "NODE\t\tSTATUS\n"
 	tabWrite := tabwriter.NewWriter(os.Stdout, 1, 4, 0, '\t', 0)
 	tabWrite.Write([]byte(heading))
 
-	for _, stat := range statusList {
-		tabWrite.Write([]byte(stat))
+	for node, state := range outletStatus {
+		tabWrite.Write([]byte(state.formatState(node)))
 	}
+
 	tabWrite.Flush()
 	return
 }
 
-func printCommand(nodes []string, cmd string) {
-	fmt.Println(fmt.Sprintf("Nodes %s have been %s", nodes, cmd))
-	return
-}
-
-func commPower(nodes []string, cmd string) (outletStatus map[string]States) {
+func commPower(nodes []string, cmd string) (outletStatus map[string]States, err os.Error) {
 	var powerCommand string
 	if cmd == "status" {
 		powerCommand = "/status"
@@ -85,22 +59,23 @@ func commPower(nodes []string, cmd string) (outletStatus map[string]States) {
 	}
 
 	powerServ, err := cli.NewClient()
-	if err != nil {
+	if (err != nil) {
 		cli.PrintError("Unable to set up communication to power", err)
-		os.Exit(1)
+		return
 	}
 
 	client, err := powerServ.SetupClient("power")
-	if err != nil {
+	if (err != nil) {
 		cli.PrintError("Unable to lookup power", err)
-		os.Exit(1)
+		return
 	}
 
 	statusRet, err := client.PostServer(powerCommand, nodes)
-        if err != nil{
+
+    if (err != nil) {
 	    cli.PrintError("Unable to post", err)
-        }
-	
+		return
+    }
 
 	switch cmd {
 	case "on", "off", "reboot":
@@ -135,13 +110,16 @@ func main() {
 	}
 
 	if command == "status" {
-		outlets := commPower(node, command)
-		statusList := format(outlets)
-		print(statusList)
+		status, err := commPower(node, command)
+		if (err != nil) {
+			os.Exit(1)
+		}
+		format(status)
 	} else {
-		outlet := commPower(node, command)
-		if outlet == nil {
-			printCommand(node, command)
+		_, err := commPower(node, command)
+		if (err != nil) {
+			cli.PrintError(fmt.Sprintf("Failed to %s nodes %s", command, node), err)
+			os.Exit(1)
 		}
 	}
 }

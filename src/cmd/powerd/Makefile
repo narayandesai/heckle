@@ -2,5 +2,5 @@ include $(GOROOT)/src/Make.inc
 
 TARG=powerd
 GOFILES=\
-	power.go
+	server.go mux.go sentry.go
 include $(GOROOT)/src/Make.cmd
