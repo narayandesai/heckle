@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"json"
 	"os"
@@ -160,6 +159,5 @@ func (mux *ControllerMux) LoadSentryFromFile(filename string) (err os.Error) {
 	for i := range controllers {
 		mux.Controllers = append(mux.Controllers, controllers[i])
 	}
-	fmt.Println("Controllers is", mux.Controllers)
 	return
 }

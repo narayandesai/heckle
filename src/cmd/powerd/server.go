@@ -134,8 +134,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(cms.cm.Controllers)
-
 	http.HandleFunc("/status", func (w http.ResponseWriter, req *http.Request) {cms.wrapStatus(w, req)})
 	http.HandleFunc("/command/", func (w http.ResponseWriter, req *http.Request) {cms.wrapControl(w, req)})
 	powerDaemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", powerDaemon.Name, powerDaemon.URL))
