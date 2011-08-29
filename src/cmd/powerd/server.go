@@ -136,7 +136,6 @@ func main() {
 
 	http.HandleFunc("/status", func (w http.ResponseWriter, req *http.Request) {cms.wrapStatus(w, req)})
 	http.HandleFunc("/command/", func (w http.ResponseWriter, req *http.Request) {cms.wrapControl(w, req)})
-	powerDaemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", powerDaemon.Name, powerDaemon.URL))
 	err = powerDaemon.ListenAndServe()
 	if err != nil {
 		os.Exit(1)

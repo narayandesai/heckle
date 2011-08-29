@@ -562,7 +562,6 @@ func main() {
 	http.Handle("/ctl", http.HandlerFunc(CtrlCall))
 	http.Handle("/status", http.HandlerFunc(StatusCall))
 
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", fmDaemon.Name, fmDaemon.URL))
 	err := fmDaemon.ListenAndServe()
 	if err != nil {
 		fmDaemon.DaemonLog.Log("Server exited gracefully. Cannot Listen on port")

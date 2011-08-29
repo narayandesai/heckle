@@ -110,6 +110,7 @@ func (daemon *Daemon) ListenAndServe() (err os.Error) {
 	}
 	err = http.ListenAndServe(":"+port, nil)
 	daemon.DaemonLog.LogError("Failed to listen on http socket.", err)
+	daemon.DaemonLog.Log(fmt.Sprintf("%s started on %s", daemon.Name, daemon.URL))
 	return
 }
 
