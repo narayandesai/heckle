@@ -1,9 +1,9 @@
 package daemon
 
 import (
+	"fmt"
 	"log"
 	"os"
-	"time"
 	"http"
 	"flag"
 )
@@ -12,7 +12,6 @@ type DaemonLogger struct {
 	stdoutLog *log.Logger
 	fileLog   *log.Logger
 	error     int
-	name      string
 }
 
 var debug bool
@@ -23,64 +22,48 @@ func init() {
 
 func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
 	daemonLogger := new(DaemonLogger)
-	daemonLogger.name = daemonName
-	daemonLogger.stdoutLog = log.New(os.Stdout, "", 0)
+	hostname, _ := os.Hostname()
+	pid := os.Getpid()
+	header := fmt.Sprintf("%s %s[%d]: ", hostname, daemonName, pid)
+	daemonLogger.stdoutLog = log.New(os.Stdout, header, log.LstdFlags)
 	logFile, _ := os.OpenFile(logFilePath+daemonName+".log", os.O_WRONLY|os.O_CREATE, 0666)
-	daemonLogger.fileLog = log.New(logFile, "", 0)
+	logFile.Seek(0, 2)
+	daemonLogger.fileLog = log.New(logFile, header, log.LstdFlags)
 	daemonLogger.error = 0
 	return daemonLogger
 }
 
-func (daemonLogger *DaemonLogger) Log(message string) {
-	currentTime := time.LocalTime()
-	formatTime := currentTime.Format("Jan _2 15:04:05")
-	name, _ := os.Hostname()
-	pid := os.Getpid()
-	daemonLogger.stdoutLog.Printf("%s %s %s[%d]: %s", formatTime, name, daemonLogger.name, pid, message)
-	daemonLogger.fileLog.Printf("%s %s %s[%d]: %s", formatTime, name, daemonLogger.name, pid, message)
+func (dLog DaemonLogger) PrintAll(message string) {
+	dLog.stdoutLog.Print(message)
+	dLog.fileLog.Print(message)
 }
 
-func (daemonLogger *DaemonLogger) LogError(message string, error os.Error) {
-	currentTime := time.LocalTime()
-	formatTime := currentTime.Format("Jan _2 15:04:05")
-	name, _ := os.Hostname()
-	pid := os.Getpid()
+func (dLog *DaemonLogger) Log(message string) {
+	dLog.PrintAll(message)
+}
+
+func (dLog *DaemonLogger) LogError(message string, error os.Error) {
 	if error != nil {
-		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: ERROR %s", formatTime, name, daemonLogger.name, pid, message)
-		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s", formatTime, name, daemonLogger.name, pid, message)
-		daemonLogger.error++
-	}
-
-}
-
-func (daemonLogger *DaemonLogger) LogHttp(request *http.Request) {
-	currentTime := time.LocalTime()
-	formatTime := currentTime.Format("Jan _2 15:04:05")
-	name, _ := os.Hostname()
-	pid := os.Getpid()
-	daemonLogger.stdoutLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d", formatTime, name, daemonLogger.name, pid, request.Method, request.RawURL, request.ContentLength)
-	daemonLogger.fileLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d", formatTime, name, daemonLogger.name, pid, request.Method, request.RawURL, request.ContentLength)
-}
-
-func (daemonLogger *DaemonLogger) DebugHttp(request *http.Request) {
-	if debug {
-		currentTime := time.LocalTime()
-		formatTime := currentTime.Format("Jan _2 15:04:05")
-		name, _ := os.Hostname()
-		pid := os.Getpid()
-		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d", formatTime, name, daemonLogger.name, pid, request.Method, request.RawURL, request.ContentLength)
-		daemonLogger.fileLog.Printf("%s %s %s[%d]: %s %s Bytes Recieved: %d", formatTime, name, daemonLogger.name, pid, request.Method, request.RawURL, request.ContentLength)
+		dLog.PrintAll(message)
+		dLog.error++
 	}
 }
 
-func (daemonLogger *DaemonLogger) LogDebug(message string) {
-	currentTime := time.LocalTime()
-	formatTime := currentTime.Format("Jan _2 15:04:05")
-	name, _ := os.Hostname()
-	pid := os.Getpid()
+func (dLog *DaemonLogger) LogHttp(request *http.Request) {
+	msg := fmt.Sprintf("%s %s Bytes Recieved: %d", request.Method, request.RawURL, request.ContentLength)
+	dLog.PrintAll(msg)
+}
+
+func (dLog *DaemonLogger) DebugHttp(request *http.Request) {
 	if debug {
-		daemonLogger.stdoutLog.Printf("%s %s %s[%d]: DEBUG %s", formatTime, name, daemonLogger.name, pid, message)
-		daemonLogger.fileLog.Printf("%s %s %s[%d]: ERROR %s", formatTime, name, daemonLogger.name, pid, message)
+		msg := fmt.Sprintf("%s %s Bytes Recieved: %d", request.Method, request.RawURL, request.ContentLength)
+		dLog.PrintAll(msg)
+	}
+}
+
+func (dLog *DaemonLogger) LogDebug(message string) {
+	if debug {
+		dLog.PrintAll(message)
 	}
 }
 
