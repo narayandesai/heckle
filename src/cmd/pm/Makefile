@@ -1,6 +1,6 @@
 include $(GOROOT)/src/Make.inc
 
-TARG=hpower
+TARG=pm
 GOFILES=\
 	hpower.go
 include $(GOROOT)/src/Make.cmd

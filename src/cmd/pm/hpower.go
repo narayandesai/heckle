@@ -9,12 +9,14 @@ import (
 	cli "flunky/client"
 )
 
-var help bool
-var command string
+var help, query, cycle, turnon, turnoff, reboot bool
 
 func init() {
 	flag.BoolVar(&help, "h", false, "Print help message")
-	flag.StringVar(&command, "c", " ", "Run command on power server")
+	flag.BoolVar(&turnoff, "0", false, "Turn off nodes")
+	flag.BoolVar(&turnon, "1", false, "Turn on nodes")
+	flag.BoolVar(&cycle, "c", false, "Reboot nodes")
+	flag.BoolVar(&query, "q", false, "Query status of nodes")
 }
 
 type outletNode struct {
@@ -95,18 +97,26 @@ func commPower(nodes []string, cmd string) (outletStatus map[string]States, err 
 func main() {
 	flag.Parse()
 	if help {
-		cli.Usage()
+		fmt.Println("Usage of pm: pm [-0] [-1] [-c] [-q] <optional node list>")
 		os.Exit(0)
 	}
 
+	var command string
+
 	node := flag.Args()
-	switch command {
-	case "on", "off", "reboot", "status":
-		break
+
+	switch {
+	case cycle == true: 
+		command = "reboot"
+	case turnon == true:
+		command = "on"
+	case turnoff == true:
+		command = "off"
+	case query == true:
+		command = "status"
 	default:
-		cli.PrintError("Unsupported operation.", os.NewError("Unsuppored op"))
+		fmt.Println("One of -0 -1 -c or -q is required")
 		os.Exit(1)
-		break
 	}
 
 	if command == "status" {
