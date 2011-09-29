@@ -231,9 +231,9 @@ func (fm *Flunkym) SetPath(fmDaemon *daemon.Daemon) {
 }
 
 func (fm *Flunkym) Increment_Count(address string, path string) {
+	m.Lock()
 	key := fm.data[address]
 	key.Counts[path] += 1
-	m.Lock()
 	fm.data[address] = key
 	m.Unlock()
 	fm.Store()
@@ -403,45 +403,30 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte(status))
 }
 
-//Mutex needed
-func InfoCall(w http.ResponseWriter, req *http.Request) {
+//Mutex needed ?
+func EventCall(w http.ResponseWriter, req *http.Request) {
 	fmDaemon.DaemonLog.DebugHttp(req)
 	req.ProtoMinor = 0
-	add := req.RemoteAddr
-	addTmp := strings.Split(add, ":")
-	address := addTmp[0]
+	remote := strings.Split(req.RemoteAddr, ":")[0]
 	fmDaemon.UpdateActivity()
 
 	jsonType := fmDaemon.ProcessJson(req, new(interfaces.InfoMsg))
 	msg := jsonType.(*interfaces.InfoMsg)
-	fm.data[address].Activity = time.Seconds()
+	fm.data[remote].Activity = time.Seconds()
 	msg.Time = time.Seconds()
-	msg.MsgType = "Info"
-	fm.data[address].Info = append(fm.data[address].Info, *msg)
+	parts := strings.Split(req.RawURL, "/")
+	last := parts[len(parts)-1]
+	switch last {
+	case "info":
+		msg.MsgType = "Info"
+	case "error":
+		msg.MsgType = "Error"
+		fm.data[remote].Errors += 1
+	}
+	fm.data[remote].Info = append(fm.data[remote].Info, *msg)
 	fm.Store()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Info recieved from %s: %s.", address, msg.Message))
+	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s recieved from %s: %s.", msg.MsgType, remote, msg.Message))
 	
-}
-
-//Mutex needed
-func ErrorCall(w http.ResponseWriter, req *http.Request) {
-	fmDaemon.DaemonLog.DebugHttp(req)
-	req.ProtoMinor = 0
-	add := req.RemoteAddr
-	addTmp := strings.Split(add, ":")
-	address := addTmp[0]
-	//Flunky auth needed
-	fmDaemon.UpdateActivity()
-	jsonType := fmDaemon.ProcessJson(req, new(interfaces.InfoMsg))
-	msg := jsonType.(*interfaces.InfoMsg)
-
-	fm.data[address].Activity = time.Seconds()
-	fm.data[address].Errors += 1
-	msg.Time = time.Seconds()
-	msg.MsgType = "Error"
-	fm.data[address].Info = append(fm.data[address].Info, *msg)
-	fm.Store()
-	fmDaemon.DaemonLog.Log(fmt.Sprintf("Error recieved from %s: %s. Error count is %d", address, msg.Message, fm.data[address].Errors))
 }
 
 func CtrlCall(w http.ResponseWriter, req *http.Request) {
@@ -557,8 +542,8 @@ func main() {
 	http.Handle("/dynamic/", http.HandlerFunc(DynamicCall))
 	http.Handle("/bootconfig", http.HandlerFunc(BootconfigCall))
 	http.Handle("/install", http.HandlerFunc(InstallCall))
-	http.Handle("/info", http.HandlerFunc(InfoCall))
-	http.Handle("/error", http.HandlerFunc(ErrorCall))
+	http.Handle("/info", http.HandlerFunc(EventCall))
+	http.Handle("/error", http.HandlerFunc(EventCall))
 	http.Handle("/ctl", http.HandlerFunc(CtrlCall))
 	http.Handle("/status", http.HandlerFunc(StatusCall))
 
