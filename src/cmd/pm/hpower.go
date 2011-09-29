@@ -5,7 +5,7 @@ import (
 	"flag"
 	"os"
 	"json"
-	"tabwriter"
+	"sort"
 	cli "flunky/client"
 )
 
@@ -29,26 +29,29 @@ type States struct {
 	Reboot bool
 }
 
-func (entry States) formatState(name string) (result string) {
-	translator := map[bool]string{true:"on", false:"off"}
-	ostatus := translator[entry.State]
-	if (entry.Reboot) {
-		ostatus = ostatus + "*"
-	}
-	result = fmt.Sprintf("%s\t\t%s\n", name, ostatus)
-	return
-}
-
 func format(outletStatus map[string]States) {
-	heading := "NODE\t\tSTATUS\n"
-	tabWrite := tabwriter.NewWriter(os.Stdout, 1, 4, 0, '\t', 0)
-	tabWrite.Write([]byte(heading))
+    bins := make(map[string][]string, 5) 
+    for node, state := range outletStatus {
+        translator := map[bool]string{true:"on", false:"off"}
+        ostatus := translator[state.State]
+        if (state.Reboot) {
+            ostatus = ostatus + "*"
+        }
+        value, ok := bins[ostatus]
+        if (ok) {
+            bins[ostatus] = append(value, node)
+        } else {
+            bins[ostatus] = []string{node}
+        } 
+    } 
 
-	for node, state := range outletStatus {
-		tabWrite.Write([]byte(state.formatState(node)))
+	fmt.Println("STATUS\t\tNODES")
+
+	for state, nodes := range bins {
+		sort.Strings(nodes)
+		fmt.Println(fmt.Sprintf("%s\t\t%s", state, nodes))
 	}
 
-	tabWrite.Flush()
 	return
 }
 
