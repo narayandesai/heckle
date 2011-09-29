@@ -26,16 +26,22 @@ func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
 	pid := os.Getpid()
 	header := fmt.Sprintf("%s %s[%d]: ", hostname, daemonName, pid)
 	daemonLogger.stdoutLog = log.New(os.Stdout, header, log.LstdFlags)
-	logFile, _ := os.OpenFile(logFilePath+daemonName+".log", os.O_WRONLY|os.O_CREATE, 0666)
-	logFile.Seek(0, 2)
-	daemonLogger.fileLog = log.New(logFile, header, log.LstdFlags)
+	logFile, err := os.OpenFile(logFilePath+daemonName+".log", os.O_WRONLY|os.O_CREATE, 0666)
+        if (err != nil) {
+           fmt.Println("Failed to open logfile: ", err)
+        } else {
+	   logFile.Seek(0, 2)
+	   daemonLogger.fileLog = log.New(logFile, header, log.LstdFlags)
+        }
 	daemonLogger.error = 0
 	return daemonLogger
 }
 
 func (dLog DaemonLogger) PrintAll(message string) {
 	dLog.stdoutLog.Print(message)
-	dLog.fileLog.Print(message)
+        if dLog.fileLog != nil {
+	   dLog.fileLog.Print(message)
+        }
 }
 
 func (dLog *DaemonLogger) Log(message string) {
