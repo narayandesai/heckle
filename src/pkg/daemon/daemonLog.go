@@ -26,6 +26,7 @@ func NewDaemonLogger(logFilePath string, daemonName string) *DaemonLogger {
 	daemonLogger.name = daemonName
 	daemonLogger.stdoutLog = log.New(os.Stdout, "", 0)
 	logFile, _ := os.OpenFile(logFilePath+daemonName+".log", os.O_WRONLY|os.O_CREATE, 0666)
+        logFile.Seek(0, 2)
 	daemonLogger.fileLog = log.New(logFile, "", 0)
 	daemonLogger.error = 0
 	return daemonLogger
