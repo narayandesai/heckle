@@ -161,3 +161,19 @@ func (mux *ControllerMux) LoadSentryFromFile(filename string) (err os.Error) {
 	}
 	return
 }
+
+func (mux *ControllerMux) LoadIpmiFromFile(filename string) (err os.Error) {
+	data, err := ioutil.ReadFile(filename)
+	if (err != nil) { 
+		return
+	}
+	controllers := []Ipmi{}
+	err = json.Unmarshal(data, &controllers)
+	if (err != nil) {
+		return
+	}
+	for i := range controllers {
+		mux.Controllers = append(mux.Controllers, controllers[i])
+	}
+	return
+}

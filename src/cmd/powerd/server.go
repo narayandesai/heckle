@@ -129,7 +129,14 @@ func main() {
 	cms := NewControllerMuxServer()
 	err  = cms.cm.LoadSentryFromFile("/etc/heckle/power-sentry.db")
 	if (err != nil) {
-		fmt.Println("Failed to load database")
+		fmt.Println("Failed to load sentry database")
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	err  = cms.cm.LoadIpmiFromFile("/etc/heckle/power-ipmi.db")
+	if (err != nil) {
+		fmt.Println("Failed to load ipmi database")
 		fmt.Println(err)
 		os.Exit(1)
 	}
