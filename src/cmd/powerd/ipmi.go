@@ -52,7 +52,7 @@ func (i Ipmi) Status() (map[string]PortStatus, os.Error) {
 	return ps, nil
 }
 
-func (i Ipmi) On(node string) (err os.Error) {
+func (i Ipmi) NodeAction(node string, action string) (err os.Error) {
 	mname, ok := i.Nodes[node]
 	if (!ok) {
 		return os.NewError("Failed to resolve client")
@@ -62,24 +62,16 @@ func (i Ipmi) On(node string) (err os.Error) {
 	return 
 }
 
+func (i Ipmi) On(node string) (err os.Error) {
+	return i.NodeAction(node, "--on")
+}
+
 func (i Ipmi) Off(node string) (err os.Error) {
-	mname, ok := i.Nodes[node]
-	if (!ok) {
-		return os.NewError("Failed to resolve client")
-	}
-	ndata := []string{mname}
-	_, err = i.RunCmd("--off", ndata)
-	return
+	return i.NodeAction(node, "--off")
 }
 
 func (i Ipmi) Reboot(node string) (err os.Error) {
-	mname, ok := i.Nodes[node]
-	if (!ok) {
-		return os.NewError("Failed to resolve client")
-	}
-	ndata := []string{mname}
-	_, err = i.RunCmd("--reboot", ndata)
-	return
+	return i.NodeAction(node, "--reboot")
 }
 
 func (i Ipmi) Controls(node string) (ok bool) {
