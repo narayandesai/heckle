@@ -2,7 +2,6 @@ package main
 
 import (
 	"exec"
-	/* "fmt" */
 	"os"
 	"strings"
 	)
