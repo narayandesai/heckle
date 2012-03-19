@@ -19,22 +19,23 @@ package main
 // all nodes for that build request. 
 
 import (
-	"http"
-	"os"
-	"io/ioutil"
-	"json"
-	"time"
 	"bytes"
+	"encoding/json"
+	"errors"
 	"flag"
-	"strings"
 	"github.com/ziutek/kasia.go"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 	//"runtime"
-	"net"
-	"sync"
-	"fmt"
 	"flunky/daemon"
 	"flunky/interfaces"
-	"rand"
+	"fmt"
+	"math/rand"
+	"net"
+	"sync"
 	//"encoding/base64"
 )
 
@@ -92,7 +93,7 @@ type Flunkym struct {
 }
 
 func (fm *Flunkym) init() {
-	var err os.Error
+	var err error
 	flag.BoolVar(&help, "h", false, "Print usage message")
 	flag.Parse()
 	if help {
@@ -111,9 +112,9 @@ func (fm *Flunkym) init() {
 	}
 	fm.data = make(map[string]*DataStore)
 	fm.SetPath(fmDaemon)
-	src := rand.NewSource(time.Seconds())
+	src := rand.NewSource(time.Now())
 	random = rand.New(src)
-	random.Seed(time.Seconds())
+	random.Seed(time.Now())
 	fm.Load()
 	return
 }
@@ -166,8 +167,8 @@ func (fm *Flunkym) Assert_setup(image string, ip string, alloc uint64) {
 	fm.data[ip].Extra = make(map[string]string)
 	fm.data[ip].Info = info
 	fm.data[ip].Image = image
-        fm.data[ip].Counts["bootconfig"] = 0
-        fm.data[ip].Username = usr
+	fm.data[ip].Counts["bootconfig"] = 0
+	fm.data[ip].Username = usr
 	fm.data[ip].Password = pass
 	fm.data[ip].AllocNum = alloc
 	fm.Store()
@@ -186,7 +187,7 @@ func (fm *Flunkym) Load() {
 		fmDaemon.DaemonLog.LogError(fmt.Sprintf("Cannot read %s", fm.path.dataFile), err)
 
 		if len(file) <= 0 {
-			fmDaemon.DaemonLog.LogError(fmt.Sprintf("%s is an empty file. Creating new %s", fm.path.dataFile, fm.path.dataFile), os.NewError("Empty Json"))
+			fmDaemon.DaemonLog.LogError(fmt.Sprintf("%s is an empty file. Creating new %s", fm.path.dataFile, fm.path.dataFile), errors.New("Empty Json"))
 			data := make(map[string]*DataStore)
 			fm.data = data
 		} else {
@@ -300,7 +301,7 @@ func (fm *Flunkym) RenderImage(toRender string, address string) (buf []byte) {
 }
 
 func (fm *Flunkym) DecodeRequest(req *http.Request, address string) (username string, authed bool, admin bool) {
-        fmt.Println("IN decode request")
+	fmt.Println("IN decode request")
 	header := req.Header.Get("Authorization")
 	fmt.Println("Header", header)
 	return
@@ -341,8 +342,8 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	w.Write(staticTemp)
 	host, _ := net.LookupAddr(address)
 
-	fm.data[address].Activity = time.Seconds()
-	msg.Time = time.Seconds()
+	fm.data[address].Activity = time.Now()
+	msg.Time = time.Now()
 	msg.MsgType = "Info"
 	msg.Message = fmt.Sprintf("%s is loading %s", host[:1], cmd)
 	fm.data[address].Info = append(fm.data[address].Info, msg)
@@ -377,9 +378,8 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	imageTemp := fm.RenderImage(strings.TrimSpace(cmd[1]), address)
 	_, err := w.Write(imageTemp)
 
-	
-	fm.data[address].Activity = time.Seconds()
-	msg.Time = time.Seconds()
+	fm.data[address].Activity = time.Now()
+	msg.Time = time.Now()
 	msg.MsgType = "Info"
 	host, _ := net.LookupAddr(address)
 	msg.Message = fmt.Sprintf("%s is booting up", host[:1])
@@ -412,8 +412,8 @@ func EventCall(w http.ResponseWriter, req *http.Request) {
 
 	jsonType := fmDaemon.ProcessJson(req, new(interfaces.InfoMsg))
 	msg := jsonType.(*interfaces.InfoMsg)
-	fm.data[remote].Activity = time.Seconds()
-	msg.Time = time.Seconds()
+	fm.data[remote].Activity = time.Now()
+	msg.Time = time.Now()
 	parts := strings.Split(req.RawURL, "/")
 	last := parts[len(parts)-1]
 	switch last {
@@ -426,7 +426,7 @@ func EventCall(w http.ResponseWriter, req *http.Request) {
 	fm.data[remote].Info = append(fm.data[remote].Info, *msg)
 	fm.Store()
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s recieved from %s: %s.", msg.MsgType, remote, msg.Message))
-	
+
 }
 
 func CtrlCall(w http.ResponseWriter, req *http.Request) {
@@ -455,13 +455,13 @@ func CtrlCall(w http.ResponseWriter, req *http.Request) {
 		fmDaemon.DaemonLog.Log(fmt.Sprintf("Recieved empty update from %s. No action taken", address))
 	} else {
 		for _, addr := range msg.Addresses {
-		go func (addr string){
-			temper, err := net.LookupIP(addr)
-			fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s in host table", addr), err)
-			iaddr := temper[0].String()
-			fm.Assert_setup(msg.Image, iaddr, msg.AllocNum)
-			fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %s as %s for allocation #%d", addr, msg.Image, msg.AllocNum))
-                }(addr)
+			go func(addr string) {
+				temper, err := net.LookupIP(addr)
+				fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s in host table", addr), err)
+				iaddr := temper[0].String()
+				fm.Assert_setup(msg.Image, iaddr, msg.AllocNum)
+				fmDaemon.DaemonLog.Log(fmt.Sprintf("Allocating %s as %s for allocation #%d", addr, msg.Image, msg.AllocNum))
+			}(addr)
 		}
 
 		fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Added %s to flunkyMaster", msg.Addresses))
@@ -481,7 +481,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-        jsonType := fmDaemon.ProcessJson(req, new(interfaces.Ctlmsg))
+	jsonType := fmDaemon.ProcessJson(req, new(interfaces.Ctlmsg))
 	msg := jsonType.(*interfaces.Ctlmsg)
 
 	cmd := strings.Split(req.RawURL, "/")
@@ -491,12 +491,11 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		iaddr := temper[0].String()
 		fmDaemon.DaemonLog.LogError("Could not find the ip addess in host tables", err)
 
-		
 		key := cstatus[addr]
 		tmpl := fm.RenderImage(strings.TrimSpace(cmd[1]), iaddr)
 		status := strings.TrimSpace(string(tmpl))
 		key.Status = string(status)
-		key.LastActivity = time.Seconds()
+		key.LastActivity = time.Now()
 
 		for _, info := range fm.data[iaddr].Info {
 			if info.Time > msg.Time {
@@ -525,7 +524,7 @@ func daemonCall(w http.ResponseWriter, req *http.Request) {
 
 	status, err := json.Marshal(stat)
 	if err != nil {
-		fmDaemon.DaemonLog.LogError(err.String(), err)
+		fmDaemon.DaemonLog.LogError(err.Error(), err)
 	}
 	w.Write(status)
 	return

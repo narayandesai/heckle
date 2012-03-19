@@ -31,17 +31,17 @@ package main
     http.Error(w, err.String(), 500)*/
 
 import (
-	"http"
-	"io/ioutil"
-	"json"
-	"time"
 	"bytes"
-	"strings"
+	"encoding/json"
 	"flag"
-	"fmt"
-	"flunky/interfaces"
 	"flunky/daemon"
+	"flunky/interfaces"
 	fnet "flunky/net"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"time"
 )
 
 /*var Usage = func() {
@@ -84,7 +84,6 @@ func CheckMethod(req *http.Request) bool {
 	return exsist
 }
 
-
 func ControlMsg(nodes []string, times int64) (*bytes.Buffer, *interfaces.Ctlmsg) {
 	req := new(interfaces.Ctlmsg)
 	req.Addresses = nodes
@@ -102,9 +101,9 @@ func SendCtrl(addressList []string) bool {
 	interval := int64(5) * int64(nanoBase)
 	buf, _ := ControlMsg(addressList, int64(0))
 	timeoutOffset := 5 * 60
-	start := time.Seconds()
+	start := time.Now()
 	end := start + int64(timeoutOffset)
-	diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Sending control messages for %s", time.LocalTime(), addressList))
+	diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Sending control messages for %s", time.Now(), addressList))
 	for start < end {
 		_, err := fmServ.Post("/ctl", buf)
 
@@ -112,9 +111,9 @@ func SendCtrl(addressList []string) bool {
 			exsist = true
 			break
 		}
-		diagDaemon.DaemonLog.LogError(fmt.Sprintf("%s - ERROR: %s", time.LocalTime()), err)
+		diagDaemon.DaemonLog.LogError(fmt.Sprintf("%s - ERROR: %s", time.Now()), err)
 		time.Sleep(interval)
-		start = time.Seconds()
+		start = time.Now()
 	}
 	return exsist
 }
@@ -124,7 +123,7 @@ func FillNodes(addresses []string) map[string]NodeStatus {
 	for _, address := range addresses {
 		key := nodes[address]
 		key.Name = address
-		key.Time = time.Seconds()
+		key.Time = time.Now()
 		key.Stat = false
 		nodes[address] = key
 	}
@@ -152,7 +151,7 @@ func ReadInfo(address string, status map[string]interfaces.StatusMessage) bool {
 			ok = false
 			return ok
 		} else if info.MsgType == "Info" {
-			diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - %s", time.LocalTime(), address, info.Message))
+			diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - %s", time.Now(), address, info.Message))
 		}
 	}
 
@@ -204,7 +203,7 @@ func PowerCycle(w http.ResponseWriter, req *http.Request) {
 
 	status := CheckPower(nodes, "reboot")
 	if status {
-		diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Power Cycle Request Filled", time.LocalTime()))
+		diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Power Cycle Request Filled", time.Now()))
 	}
 	//return a node status structure to the caller to see that everying went kind of ok.  
 
@@ -228,11 +227,10 @@ func ImageNodes(w http.ResponseWriter, req *http.Request) {
 	SendCtrl(nodes)
 	status, _ := CheckBuild(nodes, nodeStat)
 	if status {
-		diagDaemon.DaemonLog.Log(fmt.Sprintf("%s are allocated and available", time.LocalTime(), nodes))
+		diagDaemon.DaemonLog.Log(fmt.Sprintf("%s are allocated and available", time.Now(), nodes))
 	}
 	//Return info/error message back to caller in form of nodestat
 }
-
 
 func DiagnoseNodes(w http.ResponseWriter, req *http.Request) {
 	var nodes []string
@@ -251,7 +249,7 @@ func DiagnoseNodes(w http.ResponseWriter, req *http.Request) {
 	nodeStat := FillNodes(nodes)
 	stat := CheckNodes(nodes, nodeStat)
 	if stat {
-		diagDaemon.DaemonLog.Log(fmt.Sprintf("Diagnosis complete for %s", time.LocalTime(), nodes))
+		diagDaemon.DaemonLog.Log(fmt.Sprintf("Diagnosis complete for %s", time.Now(), nodes))
 	}
 	//Return some type of info and error message back to the caller. 
 }
@@ -260,7 +258,7 @@ func CheckNodes(addressList []string, nodeStat map[string]NodeStatus) bool {
 	ready := false
 	status := SendCtrl(addressList)
 	if status {
-		diagDaemon.DaemonLog.Log(fmt.Sprintf("Control messages sent for %s", time.LocalTime(), addressList))
+		diagDaemon.DaemonLog.Log(fmt.Sprintf("Control messages sent for %s", time.Now(), addressList))
 	} else {
 		ready = false
 		return ready
@@ -280,7 +278,7 @@ func CheckNodes(addressList []string, nodeStat map[string]NodeStatus) bool {
 		ready = false
 		return ready
 	}
-	diagDaemon.DaemonLog.Log(fmt.Sprintf("Build completed. Rebooting %s", time.LocalTime(), addressList))
+	diagDaemon.DaemonLog.Log(fmt.Sprintf("Build completed. Rebooting %s", time.Now(), addressList))
 	status = CheckPower(addressList, "reboot")
 	if status {
 		diagDaemon.DaemonLog.Log(fmt.Sprintf("%s have been power cycled", addressList))
@@ -294,7 +292,6 @@ func CheckNodes(addressList []string, nodeStat map[string]NodeStatus) bool {
 	return ready
 }
 
-
 func CheckStatus(address string, status map[string]interfaces.StatusMessage, buildStatus string) NodeStatus {
 	var key NodeStatus
 	var readyList []string
@@ -304,12 +301,11 @@ func CheckStatus(address string, status map[string]interfaces.StatusMessage, bui
 		readyList = append(readyList, address)
 		diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - STATUS: %s", address, status[address].Status))
 	} else if status[address].Status != buildStatus || key.ready == false {
-		diagDaemon.DaemonLog.Log(fmt.Sprintf(" %s - STATUS: %s", time.LocalTime(), address, status[address].Status))
+		diagDaemon.DaemonLog.Log(fmt.Sprintf(" %s - STATUS: %s", time.Now(), address, status[address].Status))
 	}
 
 	return key
 }
-
 
 //Return nodes status and see which nodes failed and which nodes are still ok haha.
 //We know we want an address list to be changed only when a node goes down. 
@@ -325,7 +321,7 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 	timeoutOffset := 45 * 60
 	nanoBase := 1000000000
 	interval := int64(5) * int64(nanoBase)
-	times := time.Seconds()
+	times := time.Now()
 	timeout := times + int64(timeoutOffset)
 	msgTime := int64(0)
 
@@ -343,7 +339,7 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 				working := ReadInfo(address, status)
 				if !working {
 					kill = append(kill, address)
-					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: %s has been shut down due to error", time.LocalTime(), address))
+					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: %s has been shut down due to error", time.Now(), address))
 				}
 
 			}
@@ -354,8 +350,8 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 			}
 			kill = nil
 
-			msgTime = time.Seconds()
-			times = time.Seconds()
+			msgTime = time.Now()
+			times = time.Now()
 			cnt = 0
 
 			//Last function needs to be cleaned better.
@@ -390,7 +386,7 @@ func CheckPower(addressList []string, cmd string) bool {
 
 	buf := bytes.NewBufferString(string(resp))
 
-	start := time.Seconds()
+	start := time.Now()
 	end := start + int64(timeoutOffset)
 
 	for start < end {
@@ -401,7 +397,7 @@ func CheckPower(addressList []string, cmd string) bool {
 		}
 		diagDaemon.DaemonLog.LogError("%s", err)
 		time.Sleep(interval)
-		start = time.Seconds()
+		start = time.Now()
 	}
 
 	if exsist {
@@ -415,11 +411,10 @@ func CheckPower(addressList []string, cmd string) bool {
 	return ready
 }
 
-
 func main() {
 	flag.Parse()
 	if flag.NArg() == 0 {
-		diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Starting Server....", time.LocalTime()))
+		diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Starting Server....", time.Now()))
 		http.Handle("/diag", http.HandlerFunc(DiagnoseNodes)) //Currenlty only allocates and reboots nodes.
 		http.Handle("/power", http.HandlerFunc(PowerCycle))
 		http.Handle("/image", http.HandlerFunc(ImageNodes))
@@ -442,19 +437,19 @@ func main() {
 				nodeStat := FillNodes(addressList)
 				status := CheckNodes(addressList, nodeStat)
 				if !status {
-					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: Cannot run the CheckNodes() function", time.LocalTime()))
+					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: Cannot run the CheckNodes() function", time.Now()))
 				}
 			} else if image != " " {
 				nodeStat := FillNodes(addressList)
 				status, _ := CheckBuild(addressList, nodeStat)
 				if !status {
-					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: Cannot run the ImageNodes() function", time.LocalTime()))
+					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: Cannot run the ImageNodes() function", time.Now()))
 				}
 
 			} else if power != " " {
 				status := CheckPower(addressList, "reboot")
 				if !status {
-					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: Cannot run the PowerCycle() function", time.LocalTime()))
+					diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - ERROR: Cannot run the PowerCycle() function", time.Now()))
 				}
 
 			}

@@ -1,16 +1,17 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
-	"json"
 	"os"
 	//"bytes"
-	"fmt"
-	"time"
-	"strconv"
-	fnet "flunky/net"
-	iface "flunky/interfaces"
 	hclient "flunky/client"
+	iface "flunky/interfaces"
+	fnet "flunky/net"
+	"fmt"
+	"strconv"
+	"time"
 )
 
 var help bool
@@ -22,7 +23,7 @@ var hallocC fnet.Communication
 var bs *fnet.BuildServer
 
 func init() {
-	var error os.Error
+	var error error
 	flag.BoolVar(&help, "h", false, "Print usage of command.")
 	flag.IntVar(&numNodes, "n", 0, "Request an arbitrary number of nodes.")
 	flag.IntVar(&timeIncrease, "t", 0, "Increase current allocation by this many hours.")
@@ -82,7 +83,7 @@ func requestList() (tmpAllocationNumber uint64) {
 	error = json.Unmarshal(someBytes, &tmpAllocationNumber)
 	hclient.PrintError("Failed to unmarshal allocation number from http response in request list.", error)
 
-	fmt.Fprintf(os.Stdout, "Your allocation number is %s.\n", strconv.Uitoa64(tmpAllocationNumber))
+	fmt.Fprintf(os.Stdout, "Your allocation number is %s.\n", strconv.FormatUint(tmpAllocationNumber, 10))
 
 	return
 }
@@ -97,11 +98,11 @@ func requestTimeIncrease() {
 }
 
 func ConvertTime(tm int64) string {
-	return time.SecondsToLocalTime(tm).Format("15:04:05")
+	return time.Unix(tm, 0).Format("15:04:05")
 }
 
 func printStatus(key string, value *iface.StatusMessage, i int) {
-	currentTime := time.SecondsToLocalTime(value.LastActivity).Format("Jan _2 15:04:05")
+	currentTime := time.Unix(value.LastActivity, 0).Format("Jan _2 15:04:05")
 	processName := os.Args[0]
 	pid := os.Getpid()
 	fmt.Println(fmt.Sprintf("%s %s %s[%d]: %s", currentTime, key, processName, pid, value.Info[i].Message))
@@ -110,7 +111,7 @@ func printStatus(key string, value *iface.StatusMessage, i int) {
 }
 
 func pollForStatus() {
-	start := time.Seconds()
+	start := time.Now()
 	statMap := make(map[string]*iface.StatusMessage)
 	pollStatus := make(map[string]string)
 	for {
@@ -133,15 +134,15 @@ func pollForStatus() {
 			}
 			done = done && (pollStatus[key] == "Ready")
 			if pollStatus[key] == "Cancel" {
-				pollStatus[key] = "", false
+				delete(pollStatus, key)
 			}
 
 		}
 		//Get list of nodes for message
 		if done {
-			end := time.Seconds()
-			final := end - start
-			allocTime := time.SecondsToLocalTime(final).Format("04:05")
+			end := time.Now()
+			final := end.Sub(start)
+			allocTime := time.Unix(final, 0).Format("04:05")
 			fmt.Println(fmt.Sprintf("Allocation #%d complete.  The build process for allocation %d took: %s", allocationNumber, allocationNumber, allocTime))
 			os.Exit(0)
 		}
@@ -149,9 +150,9 @@ func pollForStatus() {
 }
 
 func main() {
-	var error os.Error
+	var error error
 	if len(allocationList) != 0 && numNodes != 0 {
-		hclient.PrintError("Cannot use node list, and number of nodes option at the same time.", os.NewError("Flag contradiction"))
+		hclient.PrintError("Cannot use node list, and number of nodes option at the same time.", errors.New("Flag contradiction"))
 		os.Exit(1)
 	} else if (len(allocationList) == 0 && numNodes == 0 && timeIncrease == 0 && freeAlloc == 0) || help {
 		hclient.Usage()
@@ -159,7 +160,7 @@ func main() {
 	}
 
 	if bs, error = hallocC.SetupClient("heckle"); error != nil {
-		hclient.PrintError("Failed to setup client in halloc.", os.NewError("Client Setup Failed"))
+		hclient.PrintError("Failed to setup client in halloc.", errors.New("Client Setup Failed"))
 		os.Exit(1)
 	}
 

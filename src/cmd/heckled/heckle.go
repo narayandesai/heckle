@@ -1,22 +1,23 @@
 package main
 
 import (
-	"fmt"
-	"json"
+	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"time"
-	"io/ioutil"
-	"http"
 	//"bytes"
-	"sync"
-	"runtime"
-	"os/signal"
-	"syscall"
-	"strconv"
-	fnet "flunky/net"
-	iface "flunky/interfaces"
 	daemon "flunky/daemon"
+	iface "flunky/interfaces"
+	fnet "flunky/net"
+	"os/signal"
+	"runtime"
+	"strconv"
+	"sync"
+	"syscall"
 )
 
 type States struct {
@@ -56,14 +57,14 @@ func (resource *resourceInfo) Allocate(owner string, image string, allocationNum
 	resource.Allocated = true
 	resource.Owner = owner
 	resource.Image = image
-	resource.TimeAllocated = time.Seconds()
-	resource.AllocationEndTime = time.Seconds() + 604800
+	resource.TimeAllocated = time.Now()
+	resource.AllocationEndTime = time.Now() + 604800
 	resource.AllocationNumber = allocationNum
 }
 
 func (resource *resourceInfo) Broken() {
 	resource.Allocated = true
-	resource.TimeAllocated = time.Seconds()
+	resource.TimeAllocated = time.Now()
 	resource.AllocationEndTime = 9223372036854775807
 	resource.Owner = "System Admin"
 	resource.Image = "brokenNode-headAche-amd64"
@@ -89,7 +90,7 @@ var toDelete map[string]bool
 
 func init() {
 	//new comments here
-	var err os.Error
+	var err error
 	flag.Parse()
 
 	heckleDaemon, err = daemon.New("heckle")
@@ -149,7 +150,7 @@ func updateDatabase(term bool) {
 
 	intError := syscall.Flock(databaseFile.Fd(), 2) //2 is exclusive lock
 	if intError != 0 {
-		heckleDaemon.DaemonLog.LogError("Unable to lock resource database file.", os.NewError("Flock Syscall Failed"))
+		heckleDaemon.DaemonLog.LogError("Unable to lock resource database file.", errors.New("Flock Syscall Failed"))
 	}
 
 	error = databaseFile.Truncate(0)
@@ -170,7 +171,7 @@ func updateDatabase(term bool) {
 
 	intError = syscall.Flock(databaseFile.Fd(), 8) //8 is unlock
 	if intError != 0 {
-		heckleDaemon.DaemonLog.LogError("Unable to unlock resource database for reading.", os.NewError("Flock Syscall Failed"))
+		heckleDaemon.DaemonLog.LogError("Unable to unlock resource database for reading.", errors.New("Flock Syscall Failed"))
 	}
 
 	error = databaseFile.Close()
@@ -235,7 +236,7 @@ func getNumNodes(numNodes int, owner string, image string, allocationNum uint64)
 	}
 
 	if index != numNodes {
-		heckleDaemon.DaemonLog.LogError("Not enough open nodes to allocate, cancelling allocation", os.NewError("Not Enough Nodes"))
+		heckleDaemon.DaemonLog.LogError("Not enough open nodes to allocate, cancelling allocation", errors.New("Not Enough Nodes"))
 		return []string{}
 	} else {
 		for _, value := range tmpNodeList {
@@ -262,7 +263,7 @@ func checkNodeList(nodeList []string, owner string, image string, allocationNum 
 	}
 
 	if !listOk {
-		heckleDaemon.DaemonLog.LogError("Some of the nodes asked for are allocated, cancelling allocation.", os.NewError("List Nodes Taken"))
+		heckleDaemon.DaemonLog.LogError("Some of the nodes asked for are allocated, cancelling allocation.", errors.New("List Nodes Taken"))
 	} else {
 		for _, value := range nodeList {
 			resources[value].Allocate(owner, image, allocationNum)
@@ -279,7 +280,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 
 	heckleDaemon.DaemonLog.DebugHttp(req)
 	heckleDaemon.DaemonLog.LogDebug("Allocating a list of nodes.")
-	
+
 	req.ProtoMinor = 0
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
@@ -289,7 +290,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 	}
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 	heckleDaemon.UpdateActivity()
-	
+
 	jsonType := heckleDaemon.ProcessJson(req, new(iface.Listmsg))
 	listMsg := jsonType.(*iface.Listmsg)
 
@@ -324,7 +325,7 @@ func allocateNumber(writer http.ResponseWriter, req *http.Request) {
 	//It grabs the number, gets a list of that number or less of nodes, gets
 	//an allocation number, and adds them to the current requests map.
 	heckleDaemon.DaemonLog.DebugHttp(req)
-	
+
 	req.ProtoMinor = 0
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
@@ -386,7 +387,7 @@ func allocate() {
 		if err == nil {
 			allocateToPollingChan <- i.Addresses
 
-			_, err = ps.PostServer("/command/reboot",i.Addresses)
+			_, err = ps.PostServer("/command/reboot", i.Addresses)
 			heckleDaemon.DaemonLog.LogError("Failed to post for reboot of nodes in allocation go routine.", err)
 		}
 	}
@@ -426,7 +427,7 @@ func polling() {
 	pollAddresses := []string{}
 	pollingOutletStatus := make(map[string]string)
 	var pollAddressesLock sync.Mutex
-	pollTime := time.Seconds()
+	pollTime := time.Now()
 
 	go addToPollList(&pollAddressesLock, &pollAddresses)
 	go deleteFromPollList(&pollAddressesLock, &pollAddresses)
@@ -445,7 +446,7 @@ func polling() {
 			reqbuf := bytes.NewBufferString(string(sRjs))*/
 
 			ret, _ := fs.PostServer("/status", statRequest)
-			pollTime = time.Seconds()
+			pollTime = time.Now()
 			json.Unmarshal(ret, &statmap)
 
 			outletStatus := make(map[string]States)
@@ -464,10 +465,10 @@ func polling() {
 					pstat = "Off"
 				}
 				if _, ok := pollingOutletStatus[key]; !ok {
-					value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
+					value.Info = append(value.Info, iface.InfoMsg{time.Now(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
 					pollingOutletStatus[key] = pstat
 				} else if pollingOutletStatus[key] != pstat {
-					value.Info = append(value.Info, iface.InfoMsg{time.Seconds(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
+					value.Info = append(value.Info, iface.InfoMsg{time.Now(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
 					pollingOutletStatus[key] = pstat
 				}
 			}
@@ -546,7 +547,7 @@ func status(writer http.ResponseWriter, req *http.Request) {
 					remove[key] = true
 				}
 			} else {
-				heckleDaemon.DaemonLog.LogError("Cannot request status of allocations that do not beling to you.", os.NewError("Access Denied"))
+				heckleDaemon.DaemonLog.LogError("Cannot request status of allocations that do not beling to you.", errors.New("Access Denied"))
 				writer.WriteHeader(http.StatusUnauthorized)
 				currentRequestsLock.Unlock()
 				return
@@ -581,7 +582,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	allocationNumber := jsonType.(*uint64)
 
 	if *allocationNumber <= 0 {
-		heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exsist", *allocationNumber), os.NewError("0 used"))
+		heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exsist", *allocationNumber), errors.New("0 used"))
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -595,10 +596,10 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 			if username == value.Owner || admin {
 				value.Reset()
 				powerDown = append(powerDown, key)
-				currentRequests[key] = nil, false
+				delete(currentRequests, key)
 				found = true
 			} else {
-				heckleDaemon.DaemonLog.LogError("Cannot free allocations that do not belong to you.", os.NewError("Access Denied"))
+				heckleDaemon.DaemonLog.LogError("Cannot free allocations that do not belong to you.", errors.New("Access Denied"))
 				currentRequestsLock.Unlock()
 				resourcesLock.Unlock()
 				return
@@ -609,7 +610,7 @@ func freeAllocation(writer http.ResponseWriter, req *http.Request) {
 	resourcesLock.Unlock()
 
 	if !found {
-		heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exist.", allocationNumber), os.NewError("Wrong Number"))
+		heckleDaemon.DaemonLog.LogError(fmt.Sprintf("Allocation #%d does not exist.", allocationNumber), errors.New("Wrong Number"))
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -629,7 +630,7 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	var end int64
 	heckleDaemon.DaemonLog.DebugHttp(req)
 	heckleDaemon.DaemonLog.LogDebug("Increasing allocation time on an allocation number.")
-	
+
 	req.ProtoMinor = 0
 	err := heckleDaemon.AuthN.HTTPAuthenticate(req, false)
 	if err != nil {
@@ -638,7 +639,7 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	}
 	heckleDaemon.UpdateActivity()
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
-	
+
 	jsonType := heckleDaemon.ProcessJson(req, new(int64))
 	timeIncrease := jsonType.(*int64)
 
@@ -666,10 +667,10 @@ func allocationTimeouts() {
 	resourcesLock.Lock()
 
 	for key, value := range resources {
-		if value.Allocated && value.AllocationEndTime <= time.Seconds() {
+		if value.Allocated && value.AllocationEndTime <= time.Now() {
 			found = true
 			powerDown = append(powerDown, key)
-			currentRequests[key] = nil, false
+			delete(currentRequests, key)
 			value.Reset()
 		}
 	}
@@ -702,7 +703,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 	}
 	heckleDaemon.UpdateActivity()
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
-	
+
 	jsonType := heckleDaemon.ProcessJson(req, new(string))
 	node := jsonType.(*string)
 
@@ -710,7 +711,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 	resourcesLock.Lock()
 
 	if val, ok := resources[*node]; !ok || val.Owner != username {
-		heckleDaemon.DaemonLog.LogError("Access denied, cannot free nodes that do not belong to you.", os.NewError("Access Denied"))
+		heckleDaemon.DaemonLog.LogError("Access denied, cannot free nodes that do not belong to you.", errors.New("Access Denied"))
 		writer.WriteHeader(http.StatusUnauthorized)
 		currentRequestsLock.Unlock()
 		resourcesLock.Unlock()
@@ -718,7 +719,7 @@ func freeNode(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	resources[*node].Reset()
-	currentRequests[*node] = nil, false
+	delete(currentRequests, *node)
 
 	currentRequestsLock.Unlock()
 	resourcesLock.Unlock()
@@ -747,7 +748,7 @@ func freeCurrentRequests() {
 	for key, value := range currentRequests {
 		if (value.Status == "Cancel" || toDelete[key] == true) && (len(value.Info) == 0) {
 			//if (value.Status == "Cancel" || value.Status == "Ready") && (len(value.Info) == 0) {
-			currentRequests[key] = nil, false
+			delete(currentRequests, key)
 		}
 	}
 	currentRequestsLock.Unlock()
@@ -781,7 +782,7 @@ func interpretPollMessages() {
 				currentRequests[key].Info = append(currentRequests[key].Info, value.Info...)
 			}
 
-			if value.Status == "Cancel" || time.Seconds()-value.LastActivity >= currentRequests[key].ActivityTimeout {
+			if value.Status == "Cancel" || time.Now().Sub(value.LastActivity) >= currentRequests[key].ActivityTimeout {
 				nodesToRemove = append(nodesToRemove, key)
 				go dealWithBrokenNode(key)
 
@@ -837,7 +838,7 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
 	//This need to go away as well. Why are we writing out the response...?
 	for key, value := range resources {
 		if value.Allocated {
-			response = response + "NODE: " + key + "\tALLOCATED: yes\tALLOCATION: " + strconv.Uitoa64(value.AllocationNumber) + "\tOWNER: " + value.Owner + "\tIMAGE: " + value.Image + "\tALLOCATION START: " + time.SecondsToLocalTime(value.TimeAllocated).Format(time.UnixDate) + "\tALLOCATION END: " + time.SecondsToLocalTime(value.AllocationEndTime).Format(time.UnixDate) + "\tCOMMENTS: " + value.Comments + "\n\n"
+			response = response + "NODE: " + key + "\tALLOCATED: yes\tALLOCATION: " + strconv.FormatUint(value.AllocationNumber, 10) + "\tOWNER: " + value.Owner + "\tIMAGE: " + value.Image + "\tALLOCATION START: " + time.Unix(value.TimeAllocated, 0).Format(time.UnixDate) + "\tALLOCATION END: " + time.Unix(value.AllocationEndTime, 0).Format(time.UnixDate) + "\tCOMMENTS: " + value.Comments + "\n\n"
 
 		}
 	}
@@ -862,7 +863,7 @@ func daemonCall(w http.ResponseWriter, req *http.Request) {
 
 	status, err := json.Marshal(stat)
 	if err != nil {
-		heckleDaemon.DaemonLog.LogError(err.String(), err)
+		heckleDaemon.DaemonLog.LogError(err.Error(), err)
 	}
 	w.Write(status)
 	return

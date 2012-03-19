@@ -1,22 +1,22 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"io/ioutil"
-	"json"
-	"os"
 )
 
 type PortStatus struct {
-	State bool
+	State  bool
 	Reboot bool
 }
 
 type Controller interface {
-	Status()  (map[string]PortStatus, os.Error)
-	On(string) (os.Error)
-	Off(string) (os.Error)
-	Reboot(string) (os.Error)
-	Controls(string) (bool)
+	Status() (map[string]PortStatus, error)
+	On(string) error
+	Off(string) error
+	Reboot(string) error
+	Controls(string) bool
 }
 
 type ControllerMux struct {
@@ -30,11 +30,11 @@ func NewControllerMux() (cm ControllerMux) {
 }
 
 type PortSplit struct {
-	Device Controller
+	Device   Controller
 	Hostlist []string
 }
 
-func (mux ControllerMux) splitNodeList(nodelist []string) (split []PortSplit, err os.Error) {
+func (mux ControllerMux) splitNodeList(nodelist []string) (split []PortSplit, err error) {
 	for i := range mux.Controllers {
 		ctrl := mux.Controllers[i]
 		pl := PortSplit{ctrl, []string{}}
@@ -44,7 +44,7 @@ func (mux ControllerMux) splitNodeList(nodelist []string) (split []PortSplit, er
 				pl.Hostlist = append(pl.Hostlist, nodelist[i])
 			}
 		}
-		if ((len(pl.Hostlist) > 0) || (len(nodelist) == 0 )){
+		if (len(pl.Hostlist) > 0) || (len(nodelist) == 0) {
 			split = append(split, pl)
 		}
 	}
@@ -54,15 +54,15 @@ func (mux ControllerMux) splitNodeList(nodelist []string) (split []PortSplit, er
 	}
 
 	if foundnodes != len(nodelist) {
-		err = os.NewError("Could not locate all nodes")
+		err = errors.New("Could not locate all nodes")
 	}
 	return
 }
 
-func (mux ControllerMux) Status(nodelist []string) (status map[string]PortStatus, err os.Error) {
+func (mux ControllerMux) Status(nodelist []string) (status map[string]PortStatus, err error) {
 	status = make(map[string]PortStatus, 8)
 	split, err := mux.splitNodeList(nodelist)
-	if (err != nil) {
+	if err != nil {
 		return
 	}
 
@@ -70,10 +70,10 @@ func (mux ControllerMux) Status(nodelist []string) (status map[string]PortStatus
 		ctrl := split[i].Device
 		var data map[string]PortStatus
 		data, err = ctrl.Status()
-		if (err != nil) {
+		if err != nil {
 			return
 		}
-		if (len(nodelist) == 0) {
+		if len(nodelist) == 0 {
 			for key, value := range data {
 				status[key] = value
 			}
@@ -87,14 +87,14 @@ func (mux ControllerMux) Status(nodelist []string) (status map[string]PortStatus
 			}
 		}
 	}
-	return 
+	return
 }
 
-type ControllerAction func (ctrl Controller, node string) (err os.Error)
+type ControllerAction func(ctrl Controller, node string) (err error)
 
-func (mux ControllerMux) splitAction(nodelist []string, action ControllerAction) (err os.Error) {
+func (mux ControllerMux) splitAction(nodelist []string, action ControllerAction) (err error) {
 	split, err := mux.splitNodeList(nodelist)
-	if (err != nil) {
+	if err != nil {
 		return
 	}
 
@@ -102,7 +102,7 @@ func (mux ControllerMux) splitAction(nodelist []string, action ControllerAction)
 		ctrl := split[i].Device
 		for j := range split[i].Hostlist {
 			err = action(ctrl, split[i].Hostlist[j])
-			if (err != nil) {
+			if err != nil {
 				return
 			}
 		}
@@ -110,50 +110,50 @@ func (mux ControllerMux) splitAction(nodelist []string, action ControllerAction)
 	return
 }
 
-func (mux ControllerMux) On(nodelist []string) (err os.Error) {
-	err = mux.splitAction(nodelist, 
-		func (ctrl Controller, node string) (err os.Error){
-		porterr := ctrl.On(node)
-		if (porterr != nil) {
-			err = porterr
-		}
-		return err
-	})
+func (mux ControllerMux) On(nodelist []string) (err error) {
+	err = mux.splitAction(nodelist,
+		func(ctrl Controller, node string) (err error) {
+			porterr := ctrl.On(node)
+			if porterr != nil {
+				err = porterr
+			}
+			return err
+		})
 	return err
 }
 
-func (mux ControllerMux) Off(nodelist []string) (err os.Error) {
-	err = mux.splitAction(nodelist, 
-		func (ctrl Controller, node string) (err os.Error){
-		porterr := ctrl.Off(node)
-		if (porterr != nil) {
-			err = porterr
-		}
-		return err
-	})
+func (mux ControllerMux) Off(nodelist []string) (err error) {
+	err = mux.splitAction(nodelist,
+		func(ctrl Controller, node string) (err error) {
+			porterr := ctrl.Off(node)
+			if porterr != nil {
+				err = porterr
+			}
+			return err
+		})
 	return err
 }
 
-func (mux ControllerMux) Reboot(nodelist []string) (err os.Error) {
-	err = mux.splitAction(nodelist, 
-		func (ctrl Controller, node string) (err os.Error){
-		porterr := ctrl.Reboot(node)
-		if (porterr != nil) {
-			err = porterr
-		}
-		return err
-	})
+func (mux ControllerMux) Reboot(nodelist []string) (err error) {
+	err = mux.splitAction(nodelist,
+		func(ctrl Controller, node string) (err error) {
+			porterr := ctrl.Reboot(node)
+			if porterr != nil {
+				err = porterr
+			}
+			return err
+		})
 	return err
 }
 
-func (mux *ControllerMux) LoadSentryFromFile(filename string) (err os.Error) {
+func (mux *ControllerMux) LoadSentryFromFile(filename string) (err error) {
 	data, err := ioutil.ReadFile(filename)
-	if (err != nil) { 
+	if err != nil {
 		return
 	}
 	controllers := []Sentry{}
 	err = json.Unmarshal(data, &controllers)
-	if (err != nil) {
+	if err != nil {
 		return
 	}
 	for i := range controllers {
@@ -162,14 +162,14 @@ func (mux *ControllerMux) LoadSentryFromFile(filename string) (err os.Error) {
 	return
 }
 
-func (mux *ControllerMux) LoadIpmiFromFile(filename string) (err os.Error) {
+func (mux *ControllerMux) LoadIpmiFromFile(filename string) (err error) {
 	data, err := ioutil.ReadFile(filename)
-	if (err != nil) { 
+	if err != nil {
 		return
 	}
 	controllers := []Ipmi{}
 	err = json.Unmarshal(data, &controllers)
-	if (err != nil) {
+	if err != nil {
 		return
 	}
 	for i := range controllers {

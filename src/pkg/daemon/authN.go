@@ -2,14 +2,15 @@ package daemon
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
-	"json"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"syscall"
-	"http"
 )
 
 type Auth struct {
@@ -39,22 +40,22 @@ func NewAuthInfo(path string, daemonLog *DaemonLogger) *Authinfo {
 	return auth
 }
 
-func (auth *Authinfo) Load() (err os.Error) {
+func (auth *Authinfo) Load() (err error) {
 	if auth.path == "" {
-		err = os.NewError("Authorization file does not exsist")
+		err = errors.New("Authorization file does not exsist")
 		return
 	}
 	authFile, err := os.Open(auth.path)
 	emsg := fmt.Sprintf("Unable to open %s for reading.", auth.path)
 	if err != nil {
-		err = os.NewError(emsg)
+		err = errors.New(emsg)
 		os.Exit(1)
 	}
 
 	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
 	if intError != 0 {
 		emsg = fmt.Sprintf("Unable to lock %s for reading.", auth.path)
-		err = os.NewError(emsg)
+		err = errors.New(emsg)
 	}
 
 	someBytes, err := ioutil.ReadAll(authFile)
@@ -62,7 +63,7 @@ func (auth *Authinfo) Load() (err os.Error) {
 
 	intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
 	if intError != 0 {
-		err = os.NewError("Flock Syscall Failed")
+		err = errors.New("Flock Syscall Failed")
 	}
 	fi, err := authFile.Stat()
 	auth.daemonLog.LogError("Failed to stat file", err)
@@ -80,7 +81,7 @@ func (auth *Authinfo) Load() (err os.Error) {
 
 func (auth *Authinfo) GetHTTPAuthenticateInfo(req *http.Request) (user string, valid bool, admin bool) {
 	if _, ok := req.Header["Authorization"]; !ok {
-		auth.daemonLog.LogError("Request header did not contain Authorization information.", os.NewError("HTTP Auth Missing"))
+		auth.daemonLog.LogError("Request header did not contain Authorization information.", errors.New("HTTP Auth Missing"))
 		return
 	}
 
@@ -111,35 +112,35 @@ func (auth *Authinfo) GetAuthenticateCred(user string, password string) (valid b
 	return
 }
 
-func (auth *Authinfo) Authenticate(user string, password string, isAdmin bool) (err os.Error) {
+func (auth *Authinfo) Authenticate(user string, password string, isAdmin bool) (err error) {
 	auth.lock.RLock()
 	defer auth.lock.RUnlock()
 
 	_, ok := auth.Users[user]
 	if !ok {
-		err = os.NewError(fmt.Sprintf("User does not exsist"))
+		err = errors.New(fmt.Sprintf("User does not exsist"))
 		return
 	}
 
 	valid := (password == auth.Users[user].Password)
 	if !valid {
-		err = os.NewError(fmt.Sprintf("Invalid Password"))
+		err = errors.New(fmt.Sprintf("Invalid Password"))
 		return
 	}
 
 	if isAdmin {
 		admin := auth.Users[user].Admin
 		if !admin {
-			err = os.NewError(fmt.Sprintf("Authorization denied, not administrator"))
+			err = errors.New(fmt.Sprintf("Authorization denied, not administrator"))
 			return
 		}
 	}
 	return
 }
 
-func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool) (err os.Error) {
+func (auth *Authinfo) HTTPAuthenticate(req *http.Request, isAdmin bool) (err error) {
 	if _, ok := req.Header["Authorization"]; !ok {
-		err = os.NewError("Request header did not contain Authorization information.")
+		err = errors.New("Request header did not contain Authorization information.")
 		return
 	}
 	header := req.Header.Get("Authorization")
@@ -163,20 +164,20 @@ func (auth *Authinfo) NewUser(user string, password string, admin bool) {
 	return
 }
 
-func (auth *Authinfo) DelUser(user string) (err os.Error) {
+func (auth *Authinfo) DelUser(user string) (err error) {
 	auth.lock.Lock()
 	defer auth.lock.Unlock()
 	return
 }
 
-func (auth *Authinfo) Store() (err os.Error) {
+func (auth *Authinfo) Store() (err error) {
 
 	authFile, err := os.Open(auth.path)
 	auth.daemonLog.LogError(fmt.Sprintf("Unable to open %s for reading.", auth.path), err)
 
 	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
 	if intError != 0 {
-		err = os.NewError(fmt.Sprintf("Failed to lock %s for reading.", auth.path))
+		err = errors.New(fmt.Sprintf("Failed to lock %s for reading.", auth.path))
 	}
 
 	auth.lock.RLock()
@@ -188,7 +189,7 @@ func (auth *Authinfo) Store() (err os.Error) {
 
 	intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
 	if intError != 0 {
-		err = os.NewError(fmt.Sprintf("Unable to unlock %s for reading.", auth.path))
+		err = errors.New(fmt.Sprintf("Unable to unlock %s for reading.", auth.path))
 	}
 
 	fi, err := authFile.Stat()
@@ -197,7 +198,7 @@ func (auth *Authinfo) Store() (err os.Error) {
 	return
 }
 
-func (auth *Authinfo) GetUserAuth() (user string, password string, err os.Error) {
+func (auth *Authinfo) GetUserAuth() (user string, password string, err error) {
 	var authdata Auth
 	homedir := os.Getenv("HOME")
 

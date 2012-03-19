@@ -2,15 +2,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
-	"fmt"
-	"os"
-	"json"
-	"strings"
-	"io/ioutil"
-	"time"
-	fnet "flunky/net"
 	fclient "flunky/client"
+	fnet "flunky/net"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
+	"time"
 )
 
 var server string
@@ -69,10 +69,10 @@ func main() {
 		exec = "install"
 		bs := fnet.NewBuildServer(server, verbose)
 		fmt.Fprintf(os.Stdout, "Getting and executing %s script.\n", exec)
-		startTime := time.Seconds()
+		startTime := time.Now()
 		bail := false
 		for _, err := bs.Run(exec); err != nil && !bail; _, err = bs.Run(exec) {
-			if time.Seconds()-startTime >= 300 {
+			if time.Now().Sub(startTime) >= 300 {
 				bail = true
 				fmt.Fprintf(os.Stderr, "ERROR: 5 minutes passed and microcore could not get install script.")
 			}

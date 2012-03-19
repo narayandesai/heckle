@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"flag"
-	"os"
-	"json"
-	"sort"
 	cli "flunky/client"
+	"fmt"
+	"os"
+	"sort"
 )
 
 var help, query, cycle, turnon, turnoff, reboot bool
@@ -30,20 +30,20 @@ type States struct {
 }
 
 func format(outletStatus map[string]States) {
-    bins := make(map[string][]string, 5) 
-    for node, state := range outletStatus {
-        translator := map[bool]string{true:"on", false:"off"}
-        ostatus := translator[state.State]
-        if (state.Reboot) {
-            ostatus = ostatus + "*"
-        }
-        value, ok := bins[ostatus]
-        if (ok) {
-            bins[ostatus] = append(value, node)
-        } else {
-            bins[ostatus] = []string{node}
-        } 
-    } 
+	bins := make(map[string][]string, 5)
+	for node, state := range outletStatus {
+		translator := map[bool]string{true: "on", false: "off"}
+		ostatus := translator[state.State]
+		if state.Reboot {
+			ostatus = ostatus + "*"
+		}
+		value, ok := bins[ostatus]
+		if ok {
+			bins[ostatus] = append(value, node)
+		} else {
+			bins[ostatus] = []string{node}
+		}
+	}
 
 	fmt.Println("STATUS\t\tNODES")
 
@@ -55,7 +55,7 @@ func format(outletStatus map[string]States) {
 	return
 }
 
-func commPower(nodes []string, cmd string) (outletStatus map[string]States, err os.Error) {
+func commPower(nodes []string, cmd string) (outletStatus map[string]States, err error) {
 	var powerCommand string
 	if cmd == "status" {
 		powerCommand = "/status"
@@ -64,23 +64,23 @@ func commPower(nodes []string, cmd string) (outletStatus map[string]States, err 
 	}
 
 	powerServ, err := cli.NewClient()
-	if (err != nil) {
+	if err != nil {
 		cli.PrintError("Unable to set up communication to power", err)
 		return
 	}
 
 	client, err := powerServ.SetupClient("power")
-	if (err != nil) {
+	if err != nil {
 		cli.PrintError("Unable to lookup power", err)
 		return
 	}
 
 	statusRet, err := client.PostServer(powerCommand, nodes)
 
-    if (err != nil) {
-	    cli.PrintError("Unable to post", err)
+	if err != nil {
+		cli.PrintError("Unable to post", err)
 		return
-    }
+	}
 
 	switch cmd {
 	case "on", "off", "reboot":
@@ -109,7 +109,7 @@ func main() {
 	node := flag.Args()
 
 	switch {
-	case cycle == true: 
+	case cycle == true:
 		command = "reboot"
 	case turnon == true:
 		command = "on"
@@ -124,13 +124,13 @@ func main() {
 
 	if command == "status" {
 		status, err := commPower(node, command)
-		if (err != nil) {
+		if err != nil {
 			os.Exit(1)
 		}
 		format(status)
 	} else {
 		_, err := commPower(node, command)
-		if (err != nil) {
+		if err != nil {
 			cli.PrintError(fmt.Sprintf("Failed to %s nodes %s", command, node), err)
 			os.Exit(1)
 		}

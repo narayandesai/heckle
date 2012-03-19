@@ -1,15 +1,16 @@
 package main
 
 import (
-	"fmt"
-	"flag"
-	"os"
 	"bytes"
-	"strings"
-	"time"
-	"tabwriter"
-	fnet "flunky/net"
+	"errors"
+	"flag"
 	cli "flunky/client"
+	fnet "flunky/net"
+	"fmt"
+	"os"
+	"strings"
+	"text/tabwriter"
+	"time"
 )
 
 var help, status bool
@@ -21,14 +22,14 @@ var alloc string
 var image string
 
 func init() {
-	var err os.Error
+	var err error
 	if hstat, err = cli.NewClient(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to get new client.\n")
 		os.Exit(1)
 	}
 
 	if bs, err = hstat.SetupClient("heckle"); err != nil {
-		cli.PrintError("Failed to setup client in halloc.", os.NewError("Client Setup Failed"))
+		cli.PrintError("Failed to setup client in halloc.", errors.New("Client Setup Failed"))
 		os.Exit(1)
 	}
 
@@ -68,7 +69,6 @@ func printStatus(info string) {
 	tabWrite.Flush()
 }
 
-
 func parse(word string, words string) string {
 	dex := strings.Index(words, word)
 	newWords := words[dex:]
@@ -82,7 +82,7 @@ func parse(word string, words string) string {
 	return strings.TrimSpace(ret)
 }
 
-func getStatus() (someBytes []byte, err os.Error) {
+func getStatus() (someBytes []byte, err error) {
 	someBytes, err = bs.Get("/nodeStatus")
 	return
 }
@@ -121,7 +121,7 @@ func main() {
 	}
 
 	if len(someBytes) <= 0 {
-		cli.PrintError("Your request does not exsist.", os.NewError("no data"))
+		cli.PrintError("Your request does not exsist.", errors.New("no data"))
 		os.Exit(1)
 	}
 
@@ -130,7 +130,7 @@ func main() {
 		if len(validList) > 0 {
 			printStatus(validList)
 		} else {
-			cli.PrintError("User does not exist in the system", os.NewError("Unknown user"))
+			cli.PrintError("User does not exist in the system", errors.New("Unknown user"))
 			os.Exit(1)
 		}
 
@@ -141,7 +141,7 @@ func main() {
 		if len(validList) > 0 {
 			printStatus(validList)
 		} else {
-			cli.PrintError("Node is not allocated or does not exsist", os.NewError("Missing"))
+			cli.PrintError("Node is not allocated or does not exsist", errors.New("Missing"))
 			os.Exit(1)
 		}
 	}
@@ -151,7 +151,7 @@ func main() {
 		if len(validList) > 0 {
 			printStatus(validList)
 		} else {
-			cli.PrintError("Allocation number does not exsist", os.NewError("Allocation does not exsist"))
+			cli.PrintError("Allocation number does not exsist", errors.New("Allocation does not exsist"))
 			os.Exit(1)
 		}
 	}
@@ -161,7 +161,7 @@ func main() {
 		if len(validList) > 0 {
 			printStatus(validList)
 		} else {
-			cli.PrintError("Image does not exist.", os.NewError("No image"))
+			cli.PrintError("Image does not exist.", errors.New("No image"))
 			os.Exit(1)
 		}
 	}

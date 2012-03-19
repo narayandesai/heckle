@@ -1,10 +1,10 @@
 package client
 
 import (
-	"io/ioutil"
-	"json"
-	"os"
+	"encoding/json"
 	fnet "flunky/net"
+	"io/ioutil"
+	"os"
 )
 
 type Auth struct {
@@ -12,7 +12,7 @@ type Auth struct {
 	Password string
 }
 
-func GetUserAuth() (user string, password string, err os.Error) {
+func GetUserAuth() (user string, password string, err error) {
 	homedir := os.Getenv("HOME")
 
 	var authdata Auth
@@ -27,7 +27,7 @@ func GetUserAuth() (user string, password string, err os.Error) {
 	return
 }
 
-func NewClient() (comm fnet.Communication, err os.Error) {
+func NewClient() (comm fnet.Communication, err error) {
 	user, password, err := GetUserAuth()
 	if err != nil {
 		return

@@ -1,14 +1,15 @@
 package flunky
 
 import (
-       "bytes"
-	"exec"
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"http"
 	"io"
 	"io/ioutil"
-	"json"
+	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -29,14 +30,14 @@ func (server *BuildServer) DebugLog(message string) {
 	}
 }
 
-func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
+func (server *BuildServer) Get(path string) (body []byte, err error) {
 
 	fullpath := server.URL + "/" + path
 
 	response, err := server.client.Get(fullpath)
 
 	if err != nil {
-		err = os.NewError(fmt.Sprintf("err is %s\n", err))
+		err = errors.New(fmt.Sprintf("err is %s\n", err))
 		return
 	}
 
@@ -44,19 +45,19 @@ func (server *BuildServer) Get(path string) (body []byte, err os.Error) {
 	response.Body.Close()
 
 	if response.StatusCode != 200 {
-		err = os.NewError("Fetch Failed")
+		err = errors.New("Fetch Failed")
 		return
 	}
 
 	return
 }
 
-func (server *BuildServer) Run(path string) (status int, err os.Error) {
+func (server *BuildServer) Run(path string) (status int, err error) {
 	status = 255
 	data, err := server.Get(path)
 
 	if err != nil {
-		os.NewError(fmt.Sprintf("File fetch of %s failed\n", path))
+		errors.New(fmt.Sprintf("File fetch of %s failed\n", path))
 		return
 	}
 
@@ -66,17 +67,17 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 
 	newbin, err := os.Create(runpath)
 	if err != nil {
-		err = os.NewError(fmt.Sprintf("Failed to create file %s\n", runpath))
+		err = errors.New(fmt.Sprintf("Failed to create file %s\n", runpath))
 		return
 	}
 	_, err = newbin.Write(data)
 	if err != nil {
-		err = os.NewError(fmt.Sprintf("Failed to write data\n"))
+		err = errors.New(fmt.Sprintf("Failed to write data\n"))
 		return
 	}
 	err = newbin.Chmod(0777)
 	if err != nil {
-		err = os.NewError(fmt.Sprintf("Failed to chmod %s\n", runpath))
+		err = errors.New(fmt.Sprintf("Failed to chmod %s\n", runpath))
 		return
 	}
 
@@ -91,7 +92,7 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	err = fcmd.Run()
 
 	if err != nil {
-		err = os.NewError(fmt.Sprintf("%s\n", err))
+		err = errors.New(fmt.Sprintf("%s\n", err))
 	}
 
 	server.DebugLog(fmt.Sprintf("Exit status:%d", status))
@@ -100,28 +101,28 @@ func (server *BuildServer) Run(path string) (status int, err os.Error) {
 	return
 }
 
-func (server *BuildServer) HandleJson(any interface{}) (*bytes.Buffer, os.Error) {  
-    jsonMarshal, err := json.Marshal(any)
-    if err != nil{
-        return bytes.NewBuffer([]byte("")), err
-    }
-    return bytes.NewBuffer(jsonMarshal), err
+func (server *BuildServer) HandleJson(any interface{}) (*bytes.Buffer, error) {
+	jsonMarshal, err := json.Marshal(any)
+	if err != nil {
+		return bytes.NewBuffer([]byte("")), err
+	}
+	return bytes.NewBuffer(jsonMarshal), err
 }
 
-func (server *BuildServer) PostServer(path string, any interface{}) (body []byte, err os.Error) {
-        data, err := server.HandleJson(any)
-	if err != nil{
-	    fmt.Println("Unable to marshal data")
-	    return
+func (server *BuildServer) PostServer(path string, any interface{}) (body []byte, err error) {
+	data, err := server.HandleJson(any)
+	if err != nil {
+		fmt.Println("Unable to marshal data")
+		return
 	}
 
 	response, err := server.client.Post(server.URL+path, "text/plain", data)
 	if err != nil {
-		err = os.NewError(fmt.Sprintf("Post failed: %s\n", err))
+		err = errors.New(fmt.Sprintf("Post failed: %s\n", err))
 		return
 	}
 	if response.StatusCode != 200 {
-		err = os.NewError(string(response.StatusCode))
+		err = errors.New(string(response.StatusCode))
 		return
 	}
 	server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
@@ -132,14 +133,14 @@ func (server *BuildServer) PostServer(path string, any interface{}) (body []byte
 	return
 }
 
-func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err os.Error) {
+func (server *BuildServer) Post(path string, data io.Reader) (body []byte, err error) {
 	response, err := server.client.Post(server.URL+path, "text/plain", data)
 	if err != nil {
-		err = os.NewError(fmt.Sprintf("Post failed: %s\n", err))
+		err = errors.New(fmt.Sprintf("Post failed: %s\n", err))
 		return
 	}
 	if response.StatusCode != 200 {
-		err = os.NewError(string(response.StatusCode))
+		err = errors.New(string(response.StatusCode))
 		return
 	}
 	server.DebugLog(fmt.Sprintf("POST response statuscode:%d", response.StatusCode))
@@ -156,7 +157,7 @@ type Communication struct {
 	Password  string
 }
 
-func NewCommunication(path string, user string, password string) (comm Communication, err os.Error) {
+func NewCommunication(path string, user string, password string) (comm Communication, err error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return
@@ -168,10 +169,10 @@ func NewCommunication(path string, user string, password string) (comm Communica
 	return
 }
 
-func (comm *Communication) SetupClient(component string) (hclient *BuildServer, err os.Error) {
+func (comm *Communication) SetupClient(component string) (hclient *BuildServer, err error) {
 	location, ok := comm.Locations[component]
 	if !ok {
-		err = os.NewError("Compomnent Lookup Failure")
+		err = errors.New("Compomnent Lookup Failure")
 		return
 	}
 

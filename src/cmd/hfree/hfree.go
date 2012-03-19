@@ -1,14 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"os"
 	//"json"
 	//"bytes"
-	"strconv"
-	fnet "flunky/net"
 	cli "flunky/client"
+	fnet "flunky/net"
+	"strconv"
 )
 
 var help bool
@@ -17,17 +17,17 @@ func init() {
 	flag.BoolVar(&help, "h", false, "Print usage of command.")
 }
 
-func freeAlloc(alloc int64) (err os.Error) {
+func freeAlloc(alloc int64) (err error) {
 	bs := new(fnet.BuildServer)
 	allocfree, err := cli.NewClient()
 	cli.PrintError("Failed to create a new client", err)
 	bs, err = allocfree.SetupClient("heckle")
 	cli.PrintError("Falied to setup heckle as a client", err)
-	
+
 	_, err = bs.PostServer("/freeAllocation", alloc)
-	if err != nil{
-	   return
-        }
+	if err != nil {
+		return
+	}
 
 	return
 }
@@ -46,7 +46,7 @@ func main() {
 	}
 
 	allocations := flag.Args()
-	alloc, _ := strconv.Atoi64(allocations[0])
+	alloc, _ := strconv.ParseInt(allocations[0], 10, 64)
 
 	err := freeAlloc(alloc)
 	if err != nil {

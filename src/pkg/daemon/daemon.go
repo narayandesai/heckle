@@ -1,17 +1,18 @@
 package daemon
 
 import (
-	"reflect"
-	"time"
+	"encoding/json"
+	"errors"
 	"flag"
-	"fmt"
-	"http"
-	"os"
-	"io/ioutil"
-	"strings"
-	"json"
-	fnet "flunky/net"
 	iface "flunky/interfaces"
+	fnet "flunky/net"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"reflect"
+	"strings"
+	"time"
 )
 
 var FileDir string
@@ -45,13 +46,13 @@ func (daemon *Daemon) ProcessJson(req *http.Request, theType interface{}) (retTy
 	body, err := ioutil.ReadAll(req.Body)
 	err = req.Body.Close()
 	if err != nil {
-		fmt.Println(err.String())
+		fmt.Println(err.Error())
 	}
 
 	switch reflect.TypeOf(theType) {
 	case reflect.TypeOf(make([]string, 0)):
-	       	tmp = theType.([]string)
-		tmp = append(tmp.([]string), "Foo")//no empty list
+		tmp = theType.([]string)
+		tmp = append(tmp.([]string), "Foo") //no empty list
 		break
 	case reflect.TypeOf(new(iface.InfoMsg)):
 		tmp = theType.(*iface.InfoMsg)
@@ -77,32 +78,32 @@ func (daemon *Daemon) ProcessJson(req *http.Request, theType interface{}) (retTy
 	}
 
 	err = json.Unmarshal(body, &tmp)
-	if err != nil{
-	   fmt.Println(err.String())
-        }
-	
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
 	retType = tmp
 	return
 }
 
-func (daemon *Daemon) ReadRequest(req *http.Request) (body []byte, err os.Error) {
+func (daemon *Daemon) ReadRequest(req *http.Request) (body []byte, err error) {
 	body, err = ioutil.ReadAll(req.Body)
 	err = req.Body.Close()
 	fmt.Println(string(body))
 	return
 }
 
-func (daemon *Daemon) GetPort() (port string, err os.Error) {
+func (daemon *Daemon) GetPort() (port string, err error) {
 	parts := strings.Split(daemon.URL, ":")
 	if len(parts) > 0 {
 		port = parts[len(parts)-1]
 		return
 	}
-	err = os.NewError("Failed to parse URL")
+	err = errors.New("Failed to parse URL")
 	return
 }
 
-func (daemon *Daemon) ListenAndServe() (err os.Error) {
+func (daemon *Daemon) ListenAndServe() (err error) {
 	port, err := daemon.GetPort()
 	if err != nil {
 		fmt.Println("Port configuration error")
@@ -115,19 +116,19 @@ func (daemon *Daemon) ListenAndServe() (err os.Error) {
 }
 
 func (daemon *Daemon) UpdateActivity() {
-	daemon.stat.LastActivity = time.Seconds()
+	daemon.stat.LastActivity = time.Now()
 }
 
 func (daemon *Daemon) ReturnStatus() Status {
-	daemon.stat.UpTime = time.Seconds() - daemon.stat.StartTime
+	daemon.stat.UpTime = time.Now().Sub(daemon.stat.StartTime)
 	daemon.stat.Errors = daemon.DaemonLog.ReturnError()
 	return daemon.stat
 }
 
-func New(name string) (daemon *Daemon, err os.Error) {
+func New(name string) (daemon *Daemon, err error) {
 	daemon = new(Daemon)
 	daemon.Name = name
-	daemon.stat.StartTime = time.Seconds()
+	daemon.stat.StartTime = time.Now()
 
 	daemon.DaemonLog = NewDaemonLogger("/var/log/", daemon.Name)
 	daemon.Cfg = NewConfigInfo(FileDir+name+".conf", daemon.DaemonLog)
@@ -147,7 +148,7 @@ func New(name string) (daemon *Daemon, err os.Error) {
 
 	location, ok := daemon.Comm.Locations[name]
 	if !ok {
-		err = os.NewError("Component lookup failure")
+		err = errors.New("Component lookup failure")
 	}
 
 	daemon.URL = location

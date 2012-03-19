@@ -1,12 +1,13 @@
 package daemon
 
 import (
-	"sync"
-	"os"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"syscall"
 	"io/ioutil"
-	"json"
+	"os"
+	"sync"
+	"syscall"
 )
 
 type ConfigInfo struct {
@@ -17,7 +18,7 @@ type ConfigInfo struct {
 	daemonLog *DaemonLogger
 }
 
-func (config *ConfigInfo) load() (err os.Error) {
+func (config *ConfigInfo) load() (err error) {
 	configFile, err := os.Open(config.path)
 	config.daemonLog.LogError(fmt.Sprintf("Cannot open %s for reading", config.path), err)
 	if err != nil {
@@ -31,7 +32,7 @@ func (config *ConfigInfo) load() (err os.Error) {
 
 	intError = syscall.Flock(configFile.Fd(), 8)
 	if intError != 0 {
-		config.daemonLog.LogError("Cannot unlock the config file for reading.", os.NewError("Flock sys call Failed"))
+		config.daemonLog.LogError("Cannot unlock the config file for reading.", errors.New("Flock sys call Failed"))
 	}
 
 	fi, err := configFile.Stat()

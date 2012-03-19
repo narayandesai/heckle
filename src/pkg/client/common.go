@@ -2,8 +2,8 @@ package client
 
 import (
 	"flag"
-	"os"
 	"fmt"
+	"os"
 )
 
 func Usage() {
@@ -12,7 +12,7 @@ func Usage() {
 
 }
 
-func PrintError(message string, err os.Error) {
+func PrintError(message string, err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", message)
 	}

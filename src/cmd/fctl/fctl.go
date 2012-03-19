@@ -2,13 +2,14 @@ package main
 
 import (
 	//"bytes"
+	"encoding/json"
+	"errors"
 	"flag"
+	fclient "flunky/client"
+	fnet "flunky/net"
 	"fmt"
-	"json"
 	"os"
 	"time"
-	fnet "flunky/net"
-	fclient "flunky/client"
 )
 
 var server string
@@ -53,14 +54,14 @@ type readyBailNode struct {
 }
 
 func (msg *infoMsg) Format(client string) string {
-	strval := fmt.Sprintf("%s: %s: Node: %s: %s", msg.MsgType, time.SecondsToLocalTime(msg.Time).Format(time.UnixDate), client, msg.Message)
+	strval := fmt.Sprintf("%s: %s: Node: %s: %s", msg.MsgType, time.Unix(msg.Time, 0).Format(time.UnixDate), client, msg.Message)
 	return strval
 }
 
 func (rbn *readyBailNode) InterpretPoll(status string, lastActivity int64) {
 	if status == "Ready" {
 		rbn.Ready = true
-	} else if status == "Cancel" || time.Seconds()-lastActivity > 300 {
+	} else if status == "Cancel" || time.Now().Sub(lastActivity) > 300 {
 		rbn.Bail = true
 	}
 }
@@ -82,11 +83,11 @@ func pollForMessages(cancelTime int64, addresses []string, bs *fnet.BuildServer)
 
 	statRequest := new(ctlmsg)
 	statRequest.Addresses = addresses
-	statRequest.Time = time.Seconds()
+	statRequest.Time = time.Now()
 
 	statmap := make(map[string]statusMessage, 50)
 
-	for time.Seconds() < cancelTime && !done {
+	for time.Now() < cancelTime && !done {
 		time.Sleep(10000000000)
 		/*sRjs, _ := json.Marshal(statRequest)
 		statRequest.Time = time.Seconds()
@@ -110,13 +111,13 @@ func printStatusMessage(node string, readyBail readyBailNode, tmpStatusMessage s
 		fmt.Fprintf(os.Stdout, "%s\n", value.Format(node))
 	}
 	if readyBail.Ready && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Ready \n", node, time.LocalTime().Format(time.UnixDate))
+		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Ready \n", node, time.Now().Format(time.UnixDate))
 		readyBail.Printed = true
 	} else if readyBail.Bail && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Failed \n", node, time.LocalTime().Format(time.UnixDate))
+		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Failed \n", node, time.Now().Format(time.UnixDate))
 		readyBail.Printed = true
 	} else {
-		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Building \n", node, time.LocalTime().Format(time.UnixDate))
+		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Building \n", node, time.Now().Format(time.UnixDate))
 	}
 }
 
@@ -134,7 +135,7 @@ func main() {
 	}
 
 	secondsTimeout := minutesTimeout * 60
-	cancelTime := time.Seconds() + secondsTimeout
+	cancelTime := time.Now() + secondsTimeout
 	addresses := flag.Args()
 
 	bs, err := comm.SetupClient("flunky")
@@ -142,7 +143,7 @@ func main() {
 	bs.DebugLog(fmt.Sprintf("Allocating hosts: %s", flag.Args()))
 
 	if image == "" {
-		fclient.PrintError("-i option is required\n", os.NewError("wrong arg"))
+		fclient.PrintError("-i option is required\n", errors.New("wrong arg"))
 		fclient.Usage()
 		os.Exit(1)
 	}
