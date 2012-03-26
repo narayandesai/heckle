@@ -1,4 +1,4 @@
-package flunky
+package net
 
 import (
 	"bytes"

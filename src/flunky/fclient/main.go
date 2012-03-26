@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
-	fclient "flunky/client"
 	fnet "flunky/net"
 	"fmt"
 	"io/ioutil"
@@ -37,13 +36,19 @@ func init() {
 
 func parseCmdLine() {
 	cmdLineFile, error := os.Open("/proc/cmdline")
-	fclient.PrintError("ERROR:  Failed to open /proc/cmdline for reading.", error)
+        if error != nil {
+                fmt.Fprintf(os.Stderr, "%s\n", "ERROR:  Failed to open /proc/cmdline for reading.")
+        }
 
 	cmdLineBytes, error := ioutil.ReadAll(cmdLineFile)
-	fclient.PrintError("ERROR:  Failed to read all from /proc/cmdline.", error)
+        if error != nil {
+                fmt.Fprintf(os.Stderr, "ERROR:  Failed to read all from /proc/cmdline.")
+        }
 
 	error = cmdLineFile.Close()
-	fclient.PrintError("ERROR:  Failed to close /proc/cmdline.", error)
+        if error != nil {
+                fmt.Fprintf(os.Stderr, "ERROR:  Failed to close /proc/cmdline.")
+        }
 
 	cmdLineOptions := strings.Split(string(cmdLineBytes), " ")
 
@@ -60,7 +65,8 @@ func parseCmdLine() {
 func main() {
 	flag.Parse()
 	if help {
-		fclient.Usage()
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		flag.PrintDefaults()
 		os.Exit(0)
 	}
 

@@ -1,4 +1,4 @@
-package heckleTypes
+package interfaces
 
 import (
 	"time"
