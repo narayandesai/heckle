@@ -1,26 +1,7 @@
-all: flunky flunkymaster heckle power testHeckle
+all: 
+	test ! -d src/github.com/ziutek/kasia && mkdir -p src/github.com/ziutek && cd src/github.com/ziutek/ && git clone https://github.com/ziutek/kasia.go kasia && cd ../../..
+	GOPATH=`pwd` go install flunky/...
 
 clean:
-	rm -f *.6 6.out flunky flunkymaster heckle power testHeckle fctl
-
-flunky: main.6
-	6l -o $@ main.6
-
-#fctl:   fctl.6 flunky.6
-#	6l -o $@ fctl.6
-
-flunkymaster: flunkymaster.6
-	6l -o $@ flunkymaster.6
-
-heckle: heckle.6
-	6l -o $@ heckle.6
-
-power: power.6
-	6l -o $@ power.6
-
-testHeckle: testHeckle.6
-	6l -o $@ testHeckle.6
-
-%.6: %.go
-	6g $*.go
+	rm -fR bin/* pkg/* src/github.com
 

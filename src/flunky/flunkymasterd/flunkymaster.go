@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"github.com/ziutek/kasia.go"
+	"github.com/ziutek/kasia"
 	"io/ioutil"
 	"net/http"
 	"os"
