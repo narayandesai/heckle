@@ -67,7 +67,7 @@ func init() {
 
 type NodeStatus struct {
 	Name  string
-	Time  int64
+	Time  time.Time
 	Stat  bool
 	ready bool
 }
@@ -97,14 +97,11 @@ func ControlMsg(nodes []string, times int64) (*bytes.Buffer, *interfaces.Ctlmsg)
 func SendCtrl(addressList []string) bool {
 	exsist := false
 	fmServ := fnet.NewBuildServer("http://localhost:8080", true)
-	nanoBase := 1000000000
-	interval := int64(5) * int64(nanoBase)
+	interval := time.Duration(5000000000)
 	buf, _ := ControlMsg(addressList, int64(0))
-	timeoutOffset := 5 * 60
-	start := time.Now()
-	end := start + int64(timeoutOffset)
+	finish := time.Now().Add(time.Duration(300000000000))
 	diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Sending control messages for %s", time.Now(), addressList))
-	for start < end {
+	for finish.After(time.Now()) {
 		_, err := fmServ.Post("/ctl", buf)
 
 		if err == nil {
@@ -113,7 +110,6 @@ func SendCtrl(addressList []string) bool {
 		}
 		diagDaemon.DaemonLog.LogError(fmt.Sprintf("%s - ERROR: %s", time.Now()), err)
 		time.Sleep(interval)
-		start = time.Now()
 	}
 	return exsist
 }
@@ -319,16 +315,14 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 
 	status := make(map[string]interfaces.StatusMessage)
 	timeoutOffset := 45 * 60
-	nanoBase := 1000000000
-	interval := int64(5) * int64(nanoBase)
-	times := time.Now()
-	timeout := times + int64(timeoutOffset)
-	msgTime := int64(0)
+	interval := time.Duration(5)
+	finish := time.Now().Add(time.Duration(timeoutOffset))
+	msgTime := time.Now()
 
 	diagDaemon.DaemonLog.Log(fmt.Sprintf("Waiting for information from nodes in %s", newList))
-	for times < timeout {
+	for finish.After(time.Now()) {
 		time.Sleep(interval)
-		buf, _ := ControlMsg(newList, msgTime)
+		buf, _ := ControlMsg(newList, msgTime.Unix())
 		ret, err := fmServ.Post("/status", buf)
 		diagDaemon.DaemonLog.LogError("Could not find server", err)
 		if err == nil {
@@ -351,7 +345,6 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 			kill = nil
 
 			msgTime = time.Now()
-			times = time.Now()
 			cnt = 0
 
 			//Last function needs to be cleaned better.
@@ -378,18 +371,16 @@ func CheckPower(addressList []string, cmd string) bool {
 	ready := false
 	exsist := false
 	fmServ := fnet.NewBuildServer("http://localhost:8085", true)
-	nanoBase := 1000000000
-	interval := int64(5) * int64(nanoBase)
+	interval := time.Duration(5000000000)
 	timeoutOffset := 5 * 60
 	resp, err := json.Marshal(addressList)
 	diagDaemon.DaemonLog.LogError("Unable to marshal data", err)
 
 	buf := bytes.NewBufferString(string(resp))
 
-	start := time.Now()
-	end := start + int64(timeoutOffset)
-
-	for start < end {
+	finish := time.Now().Add(time.Duration(timeoutOffset))
+	
+	for finish.After(time.Now()) {
 		_, err = fmServ.Post("/reboot", buf)
 		if err == nil {
 			exsist = true
@@ -397,7 +388,6 @@ func CheckPower(addressList []string, cmd string) bool {
 		}
 		diagDaemon.DaemonLog.LogError("%s", err)
 		time.Sleep(interval)
-		start = time.Now()
 	}
 
 	if exsist {
