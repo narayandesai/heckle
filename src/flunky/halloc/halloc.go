@@ -141,9 +141,8 @@ func pollForStatus() {
 		//Get list of nodes for message
 		if done {
 			end := time.Now()
-			final := end.Sub(start)
-			allocTime := time.Unix(final, 0).Format("04:05")
-			fmt.Println(fmt.Sprintf("Allocation #%d complete.  The build process for allocation %d took: %s", allocationNumber, allocationNumber, allocTime))
+			final := end.Sub(start).String()
+			fmt.Println(fmt.Sprintf("Allocation #%d complete.  The build process for allocation %d took: %s", allocationNumber, allocationNumber, final))
 			os.Exit(0)
 		}
 	}

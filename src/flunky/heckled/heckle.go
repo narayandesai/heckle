@@ -27,7 +27,7 @@ type States struct {
 
 type resourceInfo struct {
 	Allocated                        bool
-	TimeAllocated, AllocationEndTime int64
+	TimeAllocated, AllocationEndTime time.Time
 	Owner, Image, Comments           string
 	AllocationNumber                 uint64
 }
@@ -45,8 +45,8 @@ type currentRequestsNode struct {
 
 func (resource *resourceInfo) Reset() {
 	resource.Allocated = false
-	resource.TimeAllocated = 0
-	resource.AllocationEndTime = 0
+	resource.TimeAllocated = time.Now()
+	resource.AllocationEndTime = time.Now()
 	resource.Owner = "None"
 	resource.Image = "None"
 	resource.Comments = ""
@@ -58,14 +58,14 @@ func (resource *resourceInfo) Allocate(owner string, image string, allocationNum
 	resource.Owner = owner
 	resource.Image = image
 	resource.TimeAllocated = time.Now()
-	resource.AllocationEndTime = time.Now() + 604800
+	resource.AllocationEndTime = time.Now().Add(time.Duration(604800))
 	resource.AllocationNumber = allocationNum
 }
 
 func (resource *resourceInfo) Broken() {
 	resource.Allocated = true
 	resource.TimeAllocated = time.Now()
-	resource.AllocationEndTime = 9223372036854775807
+	resource.AllocationEndTime = time.Now().Add(time.Duration(9223372036854775807))
 	resource.Owner = "System Admin"
 	resource.Image = "brokenNode-headAche-amd64"
 	resource.Comments = "Installation failed or there was a timeout."
@@ -136,7 +136,7 @@ func resetResources(resourceNames []string) {
 	resources = make(map[string]*resourceInfo)
 
 	for _, value := range resourceNames {
-		resources[value] = &resourceInfo{false, 0, 0, "None", "None", "", 0}
+		resources[value] = &resourceInfo{false, time.Now(), time.Now(), "None", "None", "", 0}
 	}
 	resourcesLock.Unlock()
 }
@@ -148,8 +148,8 @@ func updateDatabase(term bool) {
 	databaseFile, error := os.OpenFile(daemon.FileDir+"resources.db", os.O_RDWR, 0777)
 	heckleDaemon.DaemonLog.LogError("Unable to open resource database file for reading and writing.", error)
 
-	intError := syscall.Flock(databaseFile.Fd(), 2) //2 is exclusive lock
-	if intError != 0 {
+	err := syscall.Flock(int(databaseFile.Fd()), 2) //2 is exclusive lock
+	if (err != nil) {
 		heckleDaemon.DaemonLog.LogError("Unable to lock resource database file.", errors.New("Flock Syscall Failed"))
 	}
 
@@ -169,8 +169,8 @@ func updateDatabase(term bool) {
 		os.Exit(0)
 	}
 
-	intError = syscall.Flock(databaseFile.Fd(), 8) //8 is unlock
-	if intError != 0 {
+	err = syscall.Flock(int(databaseFile.Fd()), 8) //8 is unlock
+	if (err != nil) {
 		heckleDaemon.DaemonLog.LogError("Unable to unlock resource database for reading.", errors.New("Flock Syscall Failed"))
 	}
 
@@ -305,7 +305,7 @@ func allocateList(writer http.ResponseWriter, req *http.Request) {
 	allocationNumber++
 	allocationNumberLock.Unlock()
 
-	heckleToAllocateChan <- iface.Listmsg{listMsg.Addresses, listMsg.Image, 0, tmpAllocationNumber}
+	heckleToAllocateChan <- iface.Listmsg{listMsg.Addresses, listMsg.Image, 0, int(tmpAllocationNumber)}
 
 	currentRequestsLock.Lock()
 	for _, value := range listMsg.Addresses {
@@ -351,7 +351,7 @@ func allocateNumber(writer http.ResponseWriter, req *http.Request) {
 	allocationNumber++
 	allocationNumberLock.Unlock()
 
-	heckleToAllocateChan <- iface.Listmsg{allocationList, numMsg.Image, 0, tmpAllocationNumber}
+	heckleToAllocateChan <- iface.Listmsg{allocationList, numMsg.Image, 0, int(tmpAllocationNumber)}
 
 	currentRequestsLock.Lock()
 	for _, value := range allocationList {
@@ -375,7 +375,7 @@ func allocate() {
 		cm := new(iface.Ctlmsg)
 		cm.Image = i.Image
 		cm.Addresses = i.Addresses
-		cm.AllocNum = i.AllocNum
+		cm.AllocNum = uint64(i.AllocNum)
 		// FIXME: need to add in extradata
 
 		/*js, _ := json.Marshal(cm)
@@ -439,7 +439,7 @@ func polling() {
 		statRequest.Addresses = pollAddresses
 		pollAddressesLock.Unlock()
 		if len(statRequest.Addresses) != 0 {
-			statRequest.Time = pollTime
+			statRequest.Time = pollTime.Unix()
 
 			var statmap map[string]*iface.StatusMessage
 			/*sRjs, _ := json.Marshal(statRequest)
@@ -465,10 +465,10 @@ func polling() {
 					pstat = "Off"
 				}
 				if _, ok := pollingOutletStatus[key]; !ok {
-					value.Info = append(value.Info, iface.InfoMsg{time.Now(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
+					value.Info = append(value.Info, iface.InfoMsg{time.Now().Unix(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
 					pollingOutletStatus[key] = pstat
 				} else if pollingOutletStatus[key] != pstat {
-					value.Info = append(value.Info, iface.InfoMsg{time.Now(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
+					value.Info = append(value.Info, iface.InfoMsg{time.Now().Unix(), "Power outlet for " + key + " is " + pstat + ".", "Info"})
 					pollingOutletStatus[key] = pstat
 				}
 			}
@@ -485,7 +485,7 @@ func findNewNode(owner string, image string, activityTimeout int64, tmpAllocatio
 
 	heckleDaemon.DaemonLog.Log(fmt.Sprintf("User %s, your node is either offline or allocated. Finding a replacement node for allocation #%d.", owner, tmpAllocationNumber))
 	allocationList := getNumNodes(1, owner, image, tmpAllocationNumber)
-	heckleToAllocateChan <- iface.Listmsg{allocationList, image, 0, tmpAllocationNumber}
+	heckleToAllocateChan <- iface.Listmsg{allocationList, image, 0, int(tmpAllocationNumber)}
 
 	currentRequestsLock.Lock()
 	for _, value := range allocationList {
@@ -627,7 +627,7 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	//This function allows a user, if it owns the allocation, to free an allocation
 	//number and all associated nodes.  It resets the resource map and current
 	//requests map.
-	var end int64
+	var end time.Time
 	heckleDaemon.DaemonLog.DebugHttp(req)
 	heckleDaemon.DaemonLog.LogDebug("Increasing allocation time on an allocation number.")
 
@@ -641,17 +641,17 @@ func increaseTime(writer http.ResponseWriter, req *http.Request) {
 	username, _, _ := heckleDaemon.AuthN.GetHTTPAuthenticateInfo(req)
 
 	jsonType := heckleDaemon.ProcessJson(req, new(int64))
-	timeIncrease := jsonType.(*int64)
+	timeIncrease := jsonType.(int64)
 
 	resourcesLock.Lock()
 	for _, value := range resources {
 		if value.Owner == username {
-			value.AllocationEndTime = value.AllocationEndTime + *timeIncrease
+			value.AllocationEndTime = value.AllocationEndTime.Add(time.Duration(timeIncrease))
 			end = value.AllocationEndTime
 		}
 	}
 	resourcesLock.Unlock()
-	heckleDaemon.DaemonLog.Log(fmt.Sprintf("Increased timeout by %d for %s. Allocation will end at %d", timeIncrease, username, end))
+	heckleDaemon.DaemonLog.Log(fmt.Sprintf("Increased timeout by %d for %s. Allocation will end at %d", timeIncrease, username, end.Unix()))
 	updateDatabase(false)
 }
 
@@ -667,7 +667,7 @@ func allocationTimeouts() {
 	resourcesLock.Lock()
 
 	for key, value := range resources {
-		if value.Allocated && value.AllocationEndTime <= time.Now() {
+		if value.Allocated && time.Since(value.AllocationEndTime).Seconds() < 0 {
 			found = true
 			powerDown = append(powerDown, key)
 			delete(currentRequests, key)
@@ -782,7 +782,7 @@ func interpretPollMessages() {
 				currentRequests[key].Info = append(currentRequests[key].Info, value.Info...)
 			}
 
-			if value.Status == "Cancel" || time.Now().Sub(value.LastActivity) >= currentRequests[key].ActivityTimeout {
+			if value.Status == "Cancel" || time.Since(time.Unix(value.LastActivity, 0)) >= time.Duration(currentRequests[key].ActivityTimeout) {
 				nodesToRemove = append(nodesToRemove, key)
 				go dealWithBrokenNode(key)
 
@@ -838,7 +838,7 @@ func nodeStatus(writer http.ResponseWriter, req *http.Request) {
 	//This need to go away as well. Why are we writing out the response...?
 	for key, value := range resources {
 		if value.Allocated {
-			response = response + "NODE: " + key + "\tALLOCATED: yes\tALLOCATION: " + strconv.FormatUint(value.AllocationNumber, 10) + "\tOWNER: " + value.Owner + "\tIMAGE: " + value.Image + "\tALLOCATION START: " + time.Unix(value.TimeAllocated, 0).Format(time.UnixDate) + "\tALLOCATION END: " + time.Unix(value.AllocationEndTime, 0).Format(time.UnixDate) + "\tCOMMENTS: " + value.Comments + "\n\n"
+			response = response + "NODE: " + key + "\tALLOCATED: yes\tALLOCATION: " + strconv.FormatUint(value.AllocationNumber, 10) + "\tOWNER: " + value.Owner + "\tIMAGE: " + value.Image + "\tALLOCATION START: " + value.TimeAllocated.Format(time.UnixDate) + "\tALLOCATION END: " + value.AllocationEndTime.Format(time.UnixDate) + "\tCOMMENTS: " + value.Comments + "\n\n"
 
 		}
 	}
@@ -887,12 +887,15 @@ func main() {
 	go interpretPollMessages()
 	go listenAndServeWrapper()
 
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
 	for {
 		select {
-		case sig := <-signal.Incoming:
-			if sig.(os.UnixSignal) == syscall.SIGTERM || sig.(os.UnixSignal) == syscall.SIGINT || sig.(os.UnixSignal) == syscall.SIGQUIT || sig.(os.UnixSignal) == syscall.SIGTSTP {
-				updateDatabase(true)
-			}
+		case <-interrupt: 
+			updateDatabase(true)
+			fmt.Println("Shutting down")
+			os.Exit(1)
 		default:
 			runtime.Gosched()
 			allocationTimeouts()

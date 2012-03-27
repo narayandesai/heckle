@@ -52,8 +52,8 @@ func (auth *Authinfo) Load() (err error) {
 		os.Exit(1)
 	}
 
-	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
-	if intError != 0 {
+	err = syscall.Flock(int(authFile.Fd()), 2) //2 is exclusive lock
+	if (err != nil) {
 		emsg = fmt.Sprintf("Unable to lock %s for reading.", auth.path)
 		err = errors.New(emsg)
 	}
@@ -61,8 +61,8 @@ func (auth *Authinfo) Load() (err error) {
 	someBytes, err := ioutil.ReadAll(authFile)
 	auth.daemonLog.LogError("Unable to read from file UserDatabase.", err)
 
-	intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
-	if intError != 0 {
+	err = syscall.Flock(int(authFile.Fd()), 8) //8 is unlock
+	if (err != nil) {
 		err = errors.New("Flock Syscall Failed")
 	}
 	fi, err := authFile.Stat()
@@ -75,7 +75,7 @@ func (auth *Authinfo) Load() (err error) {
 
 	err = json.Unmarshal(someBytes, &auth.Users)
 	auth.daemonLog.LogError("Failed to unmarshal data read from UserDatabase file.", err)
-	auth.dbstamp = fi.Mtime_ns
+	auth.dbstamp = fi.ModTime().Unix()
 	return
 }
 
@@ -175,8 +175,8 @@ func (auth *Authinfo) Store() (err error) {
 	authFile, err := os.Open(auth.path)
 	auth.daemonLog.LogError(fmt.Sprintf("Unable to open %s for reading.", auth.path), err)
 
-	intError := syscall.Flock(authFile.Fd(), 2) //2 is exclusive lock
-	if intError != 0 {
+	err = syscall.Flock(int(authFile.Fd()), 2) //2 is exclusive lock
+	if (err != nil) {
 		err = errors.New(fmt.Sprintf("Failed to lock %s for reading.", auth.path))
 	}
 
@@ -187,13 +187,13 @@ func (auth *Authinfo) Store() (err error) {
 	_, err = authFile.Write(data)
 	auth.daemonLog.LogError("Unable to write to file .", err)
 
-	intError = syscall.Flock(authFile.Fd(), 8) //8 is unlock
-	if intError != 0 {
+	err = syscall.Flock(int(authFile.Fd()), 8) //8 is unlock
+	if (err != nil) {
 		err = errors.New(fmt.Sprintf("Unable to unlock %s for reading.", auth.path))
 	}
 
 	fi, err := authFile.Stat()
-	auth.dbstamp = fi.Mtime_ns
+	auth.dbstamp = fi.ModTime().Unix()
 	authFile.Close()
 	return
 }

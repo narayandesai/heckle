@@ -56,13 +56,13 @@ func (dLog *DaemonLogger) LogError(message string, error error) {
 }
 
 func (dLog *DaemonLogger) LogHttp(request *http.Request) {
-	msg := fmt.Sprintf("%s %s Bytes Recieved: %d", request.Method, request.RawURL, request.ContentLength)
+	msg := fmt.Sprintf("%s %s Bytes Recieved: %d", request.Method, request.RequestURI, request.ContentLength)
 	dLog.PrintAll(msg)
 }
 
 func (dLog *DaemonLogger) DebugHttp(request *http.Request) {
 	if debug {
-		msg := fmt.Sprintf("%s %s Bytes Recieved: %d", request.Method, request.RawURL, request.ContentLength)
+		msg := fmt.Sprintf("%s %s Bytes Recieved: %d", request.Method, request.RequestURI, request.ContentLength)
 		dLog.PrintAll(msg)
 	}
 }

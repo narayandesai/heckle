@@ -61,7 +61,7 @@ func (msg *infoMsg) Format(client string) string {
 func (rbn *readyBailNode) InterpretPoll(status string, lastActivity int64) {
 	if status == "Ready" {
 		rbn.Ready = true
-	} else if status == "Cancel" || time.Now().Sub(lastActivity) > 300 {
+	} else if status == "Cancel" || (time.Now().Unix() - lastActivity) > 300 {
 		rbn.Bail = true
 	}
 }
@@ -74,7 +74,7 @@ func determineDone(readyBail map[string]readyBailNode) bool {
 	return done
 }
 
-func pollForMessages(cancelTime int64, addresses []string, bs *fnet.BuildServer) {
+func pollForMessages(cancelTime time.Time, addresses []string, bs *fnet.BuildServer) {
 	done := false
 	readyBail := make(map[string]readyBailNode, len(addresses))
 	for _, value := range addresses {
@@ -83,11 +83,11 @@ func pollForMessages(cancelTime int64, addresses []string, bs *fnet.BuildServer)
 
 	statRequest := new(ctlmsg)
 	statRequest.Addresses = addresses
-	statRequest.Time = time.Now()
+	statRequest.Time = time.Now().Unix()
 
 	statmap := make(map[string]statusMessage, 50)
 
-	for time.Now() < cancelTime && !done {
+	for time.Since(cancelTime).Seconds() < 0 && !done {
 		time.Sleep(10000000000)
 		/*sRjs, _ := json.Marshal(statRequest)
 		statRequest.Time = time.Seconds()
@@ -135,7 +135,7 @@ func main() {
 	}
 
 	secondsTimeout := minutesTimeout * 60
-	cancelTime := time.Now() + secondsTimeout
+	cancelTime := time.Now().Add(time.Duration(secondsTimeout))
 	addresses := flag.Args()
 
 	bs, err := comm.SetupClient("flunky")

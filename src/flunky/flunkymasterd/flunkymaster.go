@@ -28,7 +28,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 	//"runtime"
 	"flunky/daemon"
 	"flunky/interfaces"
@@ -36,7 +35,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
-	//"encoding/base64"
+	"time"
 )
 
 var fm Flunkym
@@ -71,10 +70,10 @@ type PathType struct {
 //DataStore is the main user database for all compute nodes that have
 // connected to the Flunky Master system for build orders. 
 type DataStore struct {
-	Allocate int64
+	Allocate time.Time
 	Counts   map[string]int
 	Errors   int
-	Activity int64
+	Activity time.Time
 	Info     []interfaces.InfoMsg
 	Image    string
 	Extra    map[string]string
@@ -112,9 +111,9 @@ func (fm *Flunkym) init() {
 	}
 	fm.data = make(map[string]*DataStore)
 	fm.SetPath(fmDaemon)
-	src := rand.NewSource(time.Now())
+	src := rand.NewSource(time.Now().Unix())
 	random = rand.New(src)
-	random.Seed(time.Now())
+	random.Seed(time.Now().Unix())
 	fm.Load()
 	return
 }
@@ -337,13 +336,13 @@ func StaticCall(w http.ResponseWriter, req *http.Request) {
 	address := addTmp[0]
 	//Flunky auth needed
 	fmDaemon.UpdateActivity()
-	cmd := strings.Split(req.RawURL, "/")
-	staticTemp := fm.RenderGetStatic(req.RawURL, address)
+	cmd := strings.Split(req.RequestURI, "/")
+	staticTemp := fm.RenderGetStatic(req.RequestURI, address)
 	w.Write(staticTemp)
 	host, _ := net.LookupAddr(address)
 
 	fm.data[address].Activity = time.Now()
-	msg.Time = time.Now()
+	msg.Time = time.Now().Unix()
 	msg.MsgType = "Info"
 	msg.Message = fmt.Sprintf("%s is loading %s", host[:1], cmd)
 	fm.data[address].Info = append(fm.data[address].Info, msg)
@@ -357,10 +356,10 @@ func DynamicCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	cmd := strings.Split(req.RawURL, "/")
+	cmd := strings.Split(req.RequestURI, "/")
 	//Flunky Auth needed
 	fmDaemon.UpdateActivity()
-	tmp := fm.RenderGetDynamic(req.RawURL, address)
+	tmp := fm.RenderGetDynamic(req.RequestURI, address)
 	status := strings.TrimSpace(string(tmp))
 	w.Write([]byte(status))
 	fmDaemon.DaemonLog.Log(fmt.Sprintf("%s Rendered %s", cmd[1:], address))
@@ -374,12 +373,12 @@ func BootconfigCall(w http.ResponseWriter, req *http.Request) {
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
 	fmDaemon.UpdateActivity()
-	cmd := strings.Split(req.RawURL, "/")
+	cmd := strings.Split(req.RequestURI, "/")
 	imageTemp := fm.RenderImage(strings.TrimSpace(cmd[1]), address)
 	_, err := w.Write(imageTemp)
 
 	fm.data[address].Activity = time.Now()
-	msg.Time = time.Now()
+	msg.Time = time.Now().Unix()
 	msg.MsgType = "Info"
 	host, _ := net.LookupAddr(address)
 	msg.Message = fmt.Sprintf("%s is booting up", host[:1])
@@ -395,7 +394,7 @@ func InstallCall(w http.ResponseWriter, req *http.Request) {
 	add := req.RemoteAddr
 	addTmp := strings.Split(add, ":")
 	address := addTmp[0]
-	cmd := strings.Split(req.RawURL, "/")
+	cmd := strings.Split(req.RequestURI, "/")
 	//Flunky auth needed
 	fmDaemon.UpdateActivity()
 	tmp := fm.RenderImage(strings.TrimSpace(cmd[1]), address)
@@ -413,8 +412,8 @@ func EventCall(w http.ResponseWriter, req *http.Request) {
 	jsonType := fmDaemon.ProcessJson(req, new(interfaces.InfoMsg))
 	msg := jsonType.(*interfaces.InfoMsg)
 	fm.data[remote].Activity = time.Now()
-	msg.Time = time.Now()
-	parts := strings.Split(req.RawURL, "/")
+	msg.Time = time.Now().Unix()
+	parts := strings.Split(req.RequestURI, "/")
 	last := parts[len(parts)-1]
 	switch last {
 	case "info":
@@ -484,7 +483,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 	jsonType := fmDaemon.ProcessJson(req, new(interfaces.Ctlmsg))
 	msg := jsonType.(*interfaces.Ctlmsg)
 
-	cmd := strings.Split(req.RawURL, "/")
+	cmd := strings.Split(req.RequestURI, "/")
 	fmDaemon.DaemonLog.LogDebug(fmt.Sprintf("Recieved request for status from %s", address))
 	for _, addr := range msg.Addresses {
 		temper, err := net.LookupIP(addr)
@@ -495,7 +494,7 @@ func StatusCall(w http.ResponseWriter, req *http.Request) {
 		tmpl := fm.RenderImage(strings.TrimSpace(cmd[1]), iaddr)
 		status := strings.TrimSpace(string(tmpl))
 		key.Status = string(status)
-		key.LastActivity = time.Now()
+		key.LastActivity = time.Now().Unix()
 
 		for _, info := range fm.data[iaddr].Info {
 			if info.Time > msg.Time {

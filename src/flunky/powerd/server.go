@@ -74,7 +74,7 @@ func (cms ControllerMuxServer) wrapControl(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	cmd := strings.Split(req.RawURL, "/")[2]
+	cmd := strings.Split(req.RequestURI, "/")[2]
 
 	switch cmd {
 	case "on", "off", "reboot":

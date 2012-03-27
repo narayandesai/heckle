@@ -116,11 +116,11 @@ func (daemon *Daemon) ListenAndServe() (err error) {
 }
 
 func (daemon *Daemon) UpdateActivity() {
-	daemon.stat.LastActivity = time.Now()
+	daemon.stat.LastActivity = time.Now().Unix()
 }
 
 func (daemon *Daemon) ReturnStatus() Status {
-	daemon.stat.UpTime = time.Now().Sub(daemon.stat.StartTime)
+	daemon.stat.UpTime = int64(time.Now().Sub(time.Unix(daemon.stat.StartTime, 0)).Seconds())
 	daemon.stat.Errors = daemon.DaemonLog.ReturnError()
 	return daemon.stat
 }
@@ -128,7 +128,7 @@ func (daemon *Daemon) ReturnStatus() Status {
 func New(name string) (daemon *Daemon, err error) {
 	daemon = new(Daemon)
 	daemon.Name = name
-	daemon.stat.StartTime = time.Now()
+	daemon.stat.StartTime = time.Now().Unix()
 
 	daemon.DaemonLog = NewDaemonLogger("/var/log/", daemon.Name)
 	daemon.Cfg = NewConfigInfo(FileDir+name+".conf", daemon.DaemonLog)

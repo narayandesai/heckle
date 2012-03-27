@@ -6,6 +6,7 @@ import (
 
 type Ctlmsg struct {
 	Addresses []string
+	AllocNum  uint64
 	Time      int64
 	Image     string
 	Extra     map[string]string
@@ -73,14 +74,14 @@ func (resource *ResourceInfo) Allocate(owner string, image string, allocationNum
 	resource.Allocated = true
 	resource.Owner = owner
 	resource.Image = image
-	resource.TimeAllocated = time.Now()
-	resource.AllocationEndTime = time.Now() + 604800
+	resource.TimeAllocated = time.Now().Unix()
+	resource.AllocationEndTime = time.Now().Unix() + 604800
 	resource.AllocationNumber = allocationNum
 }
 
 func (resource *ResourceInfo) Broken() {
 	resource.Allocated = true
-	resource.TimeAllocated = time.Now()
+	resource.TimeAllocated = time.Now().Unix()
 	resource.AllocationEndTime = 9223372036854775807
 	resource.Owner = "System Admin"
 	resource.Image = "brokenNode-headAche-amd64"

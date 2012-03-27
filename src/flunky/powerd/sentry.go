@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 type Sentry struct {
@@ -25,8 +26,7 @@ func (controller Sentry) doCmd(cmd string) (data string, err error) {
 	//connect to telnet server. Default is accept everything.
 	address := fmt.Sprintf("%s:23", controller.Address)
 	conn, err := net.Dial("tcp", address)
-	conn.SetReadTimeout(100000000)
-	conn.SetWriteTimeout(100000000)
+	conn.SetDeadline(time.Now().Add(time.Duration(100000000)))
 	if err != nil {
 		err = errors.New(fmt.Sprintf("Cannot connect to %s", address))
 		return

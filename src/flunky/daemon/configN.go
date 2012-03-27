@@ -24,14 +24,14 @@ func (config *ConfigInfo) load() (err error) {
 	if err != nil {
 		os.Exit(1)
 	}
-	intError := syscall.Flock(configFile.Fd(), 2)
+	err = syscall.Flock(int(configFile.Fd()), 2)
 	config.daemonLog.LogError("Error: Cannot read file for configurations", err)
 
 	configContents, err := ioutil.ReadAll(configFile)
 	config.daemonLog.LogError(fmt.Sprintf("Cannot read data from %s", config.path), err)
 
-	intError = syscall.Flock(configFile.Fd(), 8)
-	if intError != 0 {
+	err = syscall.Flock(int(configFile.Fd()), 8)
+	if (err != nil) {
 		config.daemonLog.LogError("Cannot unlock the config file for reading.", errors.New("Flock sys call Failed"))
 	}
 
@@ -45,7 +45,7 @@ func (config *ConfigInfo) load() (err error) {
 
 	err = json.Unmarshal(configContents, &config.Data)
 	config.daemonLog.LogError("Cannot unmarshall config.Data", err)
-	config.tmstamp = fi.Mtime_ns
+	config.tmstamp = fi.ModTime().Unix()
 	return
 }
 
