@@ -134,7 +134,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	secondsTimeout := minutesTimeout * 60
+	secondsTimeout := minutesTimeout * 60 * 1000000000
 	cancelTime := time.Now().Add(time.Duration(secondsTimeout))
 	addresses := flag.Args()
 
