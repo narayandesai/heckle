@@ -43,42 +43,60 @@ type infoMsg struct {
 	MsgType string
 }
 
+func (msg *infoMsg) Format(client string) string {
+	strval := fmt.Sprintf("%s: %s: %s: %s", time.Now().Format(time.UnixDate), client, msg.MsgType, msg.Message)
+	return strval
+}
+
 type statusMessage struct {
 	Status       string
 	LastActivity int64
 	Info         []infoMsg
 }
 
-type readyBailNode struct {
-	Ready, Bail, Printed bool
+type nodeStatus struct {
+        Status string
+	Failed bool
+        NumPrinted int
 }
 
-func (msg *infoMsg) Format(client string) string {
-	strval := fmt.Sprintf("%s: %s: Node: %s: %s", msg.MsgType, time.Unix(msg.Time, 0).Format(time.UnixDate), client, msg.Message)
-	return strval
+func (nS *nodeStatus) UpdateFromStatus(node string, status statusMessage) {
+       if (nS.Status == "Cancel") {
+                return
+       }
+
+       for i, value := range status.Info {
+                if (i > nS.NumPrinted) {
+		   fmt.Fprintf(os.Stdout, "%s\n", value.Format(node))
+                   nS.NumPrinted = i
+                }
+       }
+
+       if (nS.Status != status.Status) {
+                fmt.Fprintf(os.Stdout, "%s: %s: Status: %s\n", time.Now().Format(time.UnixDate), node, status.Status)
+                nS.Status = status.Status
+       }
+
+       if (time.Now().Unix() - status.LastActivity) > 300 {
+                /* node activity watchdog, different than timeouts below */
+                nS.Failed = true
+		fmt.Fprintf(os.Stderr, "%s: %s: Watchdog timeout. Node build failed", time.Now().Format(time.UnixDate), node)
+       }
 }
 
-func (rbn *readyBailNode) InterpretPoll(status string, lastActivity int64) {
-	if status == "Ready" {
-		rbn.Ready = true
-	} else if status == "Cancel" || (time.Now().Unix() - lastActivity) > 300 {
-		rbn.Bail = true
-	}
-}
-
-func determineDone(readyBail map[string]readyBailNode) bool {
+func determineDone(statusMap map[string]nodeStatus) bool {
 	done := true
-	for k, _ := range readyBail {
-		done = done && (readyBail[k].Ready || readyBail[k].Bail)
+	for k, _ := range statusMap {
+		done = done && (statusMap[k].Status == "Ready" || statusMap[k].Status == "Cancel" )
 	}
 	return done
 }
 
 func pollForMessages(cancelTime time.Time, addresses []string, bs *fnet.BuildServer) {
 	done := false
-	readyBail := make(map[string]readyBailNode, len(addresses))
+	readyBail := make(map[string]nodeStatus, len(addresses))
 	for _, value := range addresses {
-		readyBail[value] = readyBailNode{false, false, false}
+		readyBail[value] = nodeStatus{"", false, -1}
 	}
 
 	statRequest := new(ctlmsg)
@@ -88,36 +106,18 @@ func pollForMessages(cancelTime time.Time, addresses []string, bs *fnet.BuildSer
 	statmap := make(map[string]statusMessage, 50)
 
 	for time.Since(cancelTime).Seconds() < 0 && !done {
-		time.Sleep(10000000000)
-		/*sRjs, _ := json.Marshal(statRequest)
-		statRequest.Time = time.Seconds()
-		reqbuf := bytes.NewBufferString(string(sRjs))*/
-
 		ret, _ := bs.PostServer("/status", statRequest)
 		json.Unmarshal(ret, &statmap)
 
 		for _, address := range addresses {
-			rbn := readyBail[address]
-			rbn.InterpretPoll(statmap[address].Status, statmap[address].LastActivity)
-			readyBail[address] = rbn
-			printStatusMessage(address, rbn, statmap[address])
+			ns := readyBail[address]
+                        ns.UpdateFromStatus(address, statmap[address])
+			readyBail[address] = ns
 		}
 		done = determineDone(readyBail)
-	}
-}
-
-func printStatusMessage(node string, readyBail readyBailNode, tmpStatusMessage statusMessage) {
-	for _, value := range tmpStatusMessage.Info {
-		fmt.Fprintf(os.Stdout, "%s\n", value.Format(node))
-	}
-	if readyBail.Ready && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Ready \n", node, time.Now().Format(time.UnixDate))
-		readyBail.Printed = true
-	} else if readyBail.Bail && !readyBail.Printed {
-		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Failed \n", node, time.Now().Format(time.UnixDate))
-		readyBail.Printed = true
-	} else {
-		fmt.Fprintf(os.Stdout, "NODE: %s TIME: %s STATUS: Building \n", node, time.Now().Format(time.UnixDate))
+		if (done == false) {
+             		time.Sleep(10000000000)
+                }
 	}
 }
 
@@ -152,8 +152,6 @@ func main() {
 	cm.Image = image
 	cm.Addresses = addresses
 	// FIXME: need to add in extradata
-	/*js, _ := json.Marshal(cm)
-	buf := bytes.NewBufferString(string(js))*/
 	_, err = bs.PostServer("/ctl", cm)
 	if err != nil {
 		fclient.PrintError("Failed to allocate node", err)
