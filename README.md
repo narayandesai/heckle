@@ -54,4 +54,4 @@ License:
 --------
 
 Heckle is licensed under the simplified 2-clause BSD license. See
-license.txt for details.
+LICENSE for details.
