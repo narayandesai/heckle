@@ -1,3 +1,5 @@
+#!/bin/sh
+
 URL="http://distro.ibiblio.org/pub/linux/distributions/tinycorelinux/3.x/"
 
 tmpdir="tmp.$$"
@@ -19,7 +21,7 @@ do
      fi
 done
 cd ../../../..
-cp src/cmd/flunky/flunky $tmpdir/bin/
+cp bin/flunky $tmpdir/bin/
 rm $tmpdir/opt/bootlocal.sh
 ln -sf ../bin/flunky $tmpdir/opt/bootlocal.sh
 echo "ttyS0::respawn:/sbin/rungetty ttyS0 --autologin root" >> $tmpdir/etc/inittab
