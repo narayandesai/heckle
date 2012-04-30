@@ -1,12 +1,3 @@
-*.6
-fctl
-flunky
-.ropeproject
-repository/data.json
-repository/flunky.log
-6.out
-src/cmd/diagd/diagd
-src/cmd/powerd/powerd
 bin
 pkg
 src/github.com
