@@ -1,5 +1,0 @@
-$if Counts.bootconfig > 1:
-    Ready
-$elif Counts.bootconfig <= 1:
-    Building
-$end
