@@ -3,5 +3,5 @@ all:
 	GOPATH=`pwd` go install flunky/...
 
 clean:
-	rm -fR bin/* pkg/* src/github.com
+	rm -fR bin/{comstat,diagd,fctl,flunky,halloc,heckled,hfree,hstat,pm,powerd,provisiond} pkg/* src/github.com
 
