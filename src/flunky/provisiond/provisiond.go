@@ -1,10 +1,3 @@
-//The flunky master package provides a back end for the Heckle system 
-// to interface with. The Flunky Master system provides tools to 
-// render build environments as well as stores a minimal amount 
-// of information of the build environment status. Flunky Master
-// will also propogate different information back to requesting
-// clients.
-
 // BUG(Mike Guantonio): ipaddress resolution may be out of range and raises a painc if sent
 // to the system. There needs to be painc error handling in order to fix this.  
 // BUG(Mike Guantonio): Render static and dynamic do not allow for dynamic file names
@@ -101,12 +94,6 @@ func (fm *Flunkym) init() {
 	fmDaemon, err = daemon.New("flunky")
 	if err != nil {
 		fmt.Println("Could not create daemon")
-		os.Exit(1)
-	}
-	user, pass, _ := fmDaemon.AuthN.GetUserAuth()
-	err = fmDaemon.AuthN.Authenticate(user, pass, true)
-	if err != nil {
-		fmt.Println(fmt.Sprintf("You do not have proper permissions to start %s daemon.", fmDaemon.Name))
 		os.Exit(1)
 	}
 	fm.data = make(map[string]*DataStore)
