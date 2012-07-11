@@ -432,7 +432,7 @@ func polling() {
 	go addToPollList(&pollAddressesLock, &pollAddresses)
 	go deleteFromPollList(&pollAddressesLock, &pollAddresses)
 
-	for ; ; time.Sleep(10000000000) {
+	for ; ; time.Sleep(10 * time.Second) {
 		heckleDaemon.DaemonLog.LogDebug("Polling for messages from flunky master and power daemons.")
 		statRequest := new(iface.Ctlmsg)
 		pollAddressesLock.Lock()

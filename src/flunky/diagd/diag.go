@@ -97,9 +97,8 @@ func ControlMsg(nodes []string, times int64) (*bytes.Buffer, *interfaces.Ctlmsg)
 func SendCtrl(addressList []string) bool {
 	exsist := false
 	fmServ := fnet.NewBuildServer("http://localhost:8080", true)
-	interval := time.Duration(5000000000)
 	buf, _ := ControlMsg(addressList, int64(0))
-	finish := time.Now().Add(time.Duration(300000000000))
+	finish := time.Now().Add(time.Duration(300 * time.Second))
 	diagDaemon.DaemonLog.Log(fmt.Sprintf("%s - INFO: Sending control messages for %s", time.Now(), addressList))
 	for finish.After(time.Now()) {
 		_, err := fmServ.Post("/ctl", buf)
@@ -109,7 +108,7 @@ func SendCtrl(addressList []string) bool {
 			break
 		}
 		diagDaemon.DaemonLog.LogError(fmt.Sprintf("%s - ERROR: %s", time.Now()), err)
-		time.Sleep(interval)
+		time.Sleep(5 * time.Second)
 	}
 	return exsist
 }
@@ -315,7 +314,7 @@ func CheckBuild(addressList []string, nodeStat map[string]NodeStatus) (bool, []s
 
 	status := make(map[string]interfaces.StatusMessage)
 	timeoutOffset := 45 * 60
-	interval := time.Duration(5)
+	interval := time.Duration(5 * time.Second)
 	finish := time.Now().Add(time.Duration(timeoutOffset))
 	msgTime := time.Now()
 
@@ -371,7 +370,7 @@ func CheckPower(addressList []string, cmd string) bool {
 	ready := false
 	exsist := false
 	fmServ := fnet.NewBuildServer("http://localhost:8085", true)
-	interval := time.Duration(5000000000)
+	interval := time.Duration(5 * time.Second)
 	timeoutOffset := 5 * 60
 	resp, err := json.Marshal(addressList)
 	diagDaemon.DaemonLog.LogError("Unable to marshal data", err)

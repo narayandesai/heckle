@@ -115,8 +115,6 @@ func pollForStatus() {
 	statMap := make(map[string]*iface.StatusMessage)
 	pollStatus := make(map[string]string)
 	for {
-		time.Sleep(10000000000)
-
 		someBytes, error := bs.PostServer("/status", allocationNumber)
 		hclient.PrintError("Failed to post for status of nodes to heckle.", error)
 
@@ -145,6 +143,7 @@ func pollForStatus() {
 			fmt.Println(fmt.Sprintf("Allocation #%d complete.  The build process for allocation %d took: %s", allocationNumber, allocationNumber, final))
 			os.Exit(0)
 		}
+		time.Sleep(10 * time.Second)
 	}
 }
 

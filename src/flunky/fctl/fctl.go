@@ -116,7 +116,7 @@ func pollForMessages(cancelTime time.Time, addresses []string, bs *fnet.BuildSer
 		}
 		done = determineDone(readyBail)
 		if (done == false) {
-             		time.Sleep(10000000000)
+             		time.Sleep(time.Second)
                 }
 	}
 }

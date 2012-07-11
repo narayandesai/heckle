@@ -82,7 +82,7 @@ func main() {
 				bail = true
 				fmt.Fprintf(os.Stderr, "ERROR: 5 minutes passed and microcore could not get install script.")
 			}
-			time.Sleep(500000000)
+			time.Sleep(5 * time.Second)
 		}
 		os.Exit(0)
 	} else {

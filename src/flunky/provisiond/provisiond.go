@@ -62,7 +62,7 @@ type PathType struct {
 
 //DataStore is the main user database for all compute nodes that have
 // connected to the Flunky Master system for build orders. 
-type DataStore struct {
+type AllocationInfo struct {
 	Allocate time.Time
 	Counts   map[string]int
 	Errors   int
@@ -80,7 +80,7 @@ type DataStore struct {
 // for all functions. 
 type Flunkym struct {
 	path   *PathType
-	data   map[string]*DataStore
+	data   map[string]*AllocationInfo
 	static map[string]string
 }
 
@@ -96,7 +96,7 @@ func (fm *Flunkym) init() {
 		fmt.Println("Could not create daemon")
 		os.Exit(1)
 	}
-	fm.data = make(map[string]*DataStore)
+	fm.data = make(map[string]*AllocationInfo)
 	fm.SetPath(fmDaemon)
 	src := rand.NewSource(time.Now().Unix())
 	random = rand.New(src)
@@ -148,7 +148,7 @@ func (fm *Flunkym) Assert_setup(image string, ip string, alloc uint64) {
 	fmDaemon.DaemonLog.LogError(fmt.Sprintf("Could not find %s", image), err)
 	usr := CreateCredin(8)
 	pass := CreateCredin(8)
-	fm.data[ip] = new(DataStore)
+	fm.data[ip] = new(AllocationInfo)
 	fm.data[ip].Counts = make(map[string]int)
 	fm.data[ip].Extra = make(map[string]string)
 	fm.data[ip].Info = info
@@ -164,7 +164,7 @@ func (fm *Flunkym) Assert_setup(image string, ip string, alloc uint64) {
 func (fm *Flunkym) Load() {
 	_, err := os.Stat(fm.path.dataFile)
 	if err != nil {
-		data := make(map[string]*DataStore)
+		data := make(map[string]*AllocationInfo)
 		fm.data = data
 		fmDaemon.DaemonLog.Log("No previous data exsists. Data created")
 	} else {
@@ -174,7 +174,7 @@ func (fm *Flunkym) Load() {
 
 		if len(file) <= 0 {
 			fmDaemon.DaemonLog.LogError(fmt.Sprintf("%s is an empty file. Creating new %s", fm.path.dataFile, fm.path.dataFile), errors.New("Empty Json"))
-			data := make(map[string]*DataStore)
+			data := make(map[string]*AllocationInfo)
 			fm.data = data
 		} else {
 			err = json.Unmarshal(file, &fm.data)
